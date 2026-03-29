@@ -1,0 +1,55 @@
+
+    public static MemoryStream GenerateExcelFromDataTable(
+        DataTable dt,
+        string sheetName = "Sheet1",
+        string tableName = "Table1",
+        TableStyles tableStyle = TableStyles.Light9)
+    {
+        if (dt == null || dt.Rows.Count == 0)
+        {
+            throw new ArgumentException("The DataTable is null or contains no data.");
+        }
+
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set EPPlus license context
+        var stream = new MemoryStream();
+
+        try
+        {
+            using (var package = new ExcelPackage(stream))
+            {
+                // Add a new worksheet
+                var worksheet = package.Workbook.Worksheets.Add(sheetName);
+
+                // Load DataTable into worksheet
+                worksheet.Cells["A1"].LoadFromDataTable(dt, true);
+
+                // Define table range
+                var tableRange = worksheet.Cells[1, 1, dt.Rows.Count + 1, dt.Columns.Count];
+
+                // Add table formatting
+                var table = worksheet.Tables.Add(tableRange, tableName);
+                table.ShowHeader = true;
+                table.TableStyle = tableStyle;
+
+                // Apply styling
+                worksheet.Cells.Style.Font.Name = "Arial";
+                worksheet.Cells.Style.Font.Size = 10;
+
+                // Auto-fit columns
+                worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+                // Save to stream
+                package.Save();
+            }
+
+            // Reset stream position
+            stream.Position = 0;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("An error occurred while generating the Excel file.", ex);
+        }
+
+        return stream;
+    }
+
