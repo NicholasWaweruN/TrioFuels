@@ -7,10 +7,10 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY . .
-RUN dotnet restore "ProtoOS.sln"
-RUN dotnet publish "ProtoOS/ProtoOS.csproj" -c Release -o /app/publish
+RUN dotnet restore "Fuelflow_Solution.sln"
+RUN dotnet publish "FuelFlow/FuelFlow.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "ProtoOS.dll"]
+ENTRYPOINT ["dotnet", "FuelFlow.dll"]
