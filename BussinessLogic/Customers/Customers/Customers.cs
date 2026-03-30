@@ -544,9 +544,6 @@ namespace BusinessLogic.CustomerService
 			[Required(ErrorMessage = "Identification number is required")]
 			[RegularExpression(@"^\d{7,8}$", ErrorMessage = "Identification number must be 7 or 8 digits")]
 			public string IdentificationNumber { get; set; } = string.Empty;
-
-			[Required(ErrorMessage = "KRA PIN is required")]
-			[RegularExpression(@"^[A-Z]{1}\d{9}[A-Z]{1}$", ErrorMessage = "KRA PIN must be in the format A123456789B")]
 			public string KRAPin { get; set; } = string.Empty;
 		}
 

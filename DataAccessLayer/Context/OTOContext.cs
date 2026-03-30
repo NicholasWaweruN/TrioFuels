@@ -827,8 +827,9 @@ new PdaDevices
 			modelBuilder.Entity<CustomerTransactionSummary>().HasNoKey();
 			modelBuilder.Entity<SalesTransaction>().HasNoKey();
 			modelBuilder.Entity<GarageTransactionDto>().HasNoKey();
+			modelBuilder.Entity<SalesReportRow>().HasNoKey();
 
-			
+
 		}
     }
 }

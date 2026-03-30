@@ -12,7 +12,6 @@ namespace DataAccessLayer.Common
     public class ServiceResponse<T> : ServiceResponse
     {
         public T? ResponseObject { get; set; }
-
         public static ServiceResponse<T> Success(string message, T? obj = default)
         {
             return new ServiceResponse<T>
@@ -164,16 +163,7 @@ namespace DataAccessLayer.Common
 		public const string OutRight = "01";
 		public const string Walk_In = "03";
 	}
-	public enum CustomerStage
-	{
-		Suspect = 1,
-		Lead = 2,
-		QualifiedLead = 3,
-		Prospect = 4,
-		Customer = 5,
-		LoyalCustomer = 6,
-		Churned = 7
-	}
+
 
 
 }
