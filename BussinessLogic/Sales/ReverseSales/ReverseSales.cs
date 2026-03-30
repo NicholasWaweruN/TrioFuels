@@ -1,17 +1,15 @@
 ﻿using BusinessLogic.Sales.CommonSalesTasks;
+using BusinessLogic.Sales.ReverseSales;
 using BussinessLogic.Authentication.CommonTasks;
-using BussinessLogic.Sales.NewSales;
 using BussinessLogic.Setup;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
-namespace BusinessLogic.Sales.ReverseSales
+namespace BussinessLogic.Sales.ReverseSales
 {
 	public class ReverseSales : IReverseSales
 	{
@@ -19,158 +17,201 @@ namespace BusinessLogic.Sales.ReverseSales
 		private readonly IAuthCommonTasks _authentication;
 		private readonly ICommonSetups _setups;
 		private readonly ICommonSalesTasks _salesTasks;
+		private readonly ILogger<ReverseSales> _logger;
 
 		public ReverseSales(
 			OTOContext context,
 			IAuthCommonTasks authentication,
 			ICommonSetups setups,
-			ICommonSalesTasks salesTasks)
+			ICommonSalesTasks salesTasks,
+			ILogger<ReverseSales> logger)
 		{
 			_context = context;
 			_authentication = authentication;
 			_setups = setups;
 			_salesTasks = salesTasks;
+			_logger = logger;
 		}
 
 		/// <summary>
 		/// Reverse a sale by creating compensating Quantity & Payment transactions.
 		/// Atomic: one DB transaction, one SaveChanges, then reconcile.
+		/// Uses a row-level FOR UPDATE lock to prevent double-reversal race conditions.
+		/// Wrapped in EF Core execution strategy to support retry-on-failure configuration.
 		/// </summary>
 		public async Task<ServiceResponse<object>> ReverseSaleAsync(string saleId)
 		{
-			await using var dbTx = await _context.Database.BeginTransactionAsync();
-			try
+			// Wrap in execution strategy to support Npgsql EnableRetryOnFailure config
+			var strategy = _context.Database.CreateExecutionStrategy();
+
+			return await strategy.ExecuteAsync(async () =>
 			{
-				// --- Load & validate state -------------------------------------------------------
-				var sale = await GetSaleByIdAsync(saleId);
-				if (sale == null)
-					return ServiceResponse<object>.Information("Sale not found", null);
-
-				// If any reversed quantity row already exists for this SaleId, treat as reversed
-				var isSaleReversed = await _context.QuantityTransactions
-					.AnyAsync(x => x.SaleId == saleId && x.IsReversed == true);
-				if (isSaleReversed || sale.IsReversed)
-					return ServiceResponse<object>.Information("Sale already reversed", null);
-
-				if (string.IsNullOrWhiteSpace(sale.ShiftNumber))
-					return ServiceResponse<object>.Information("Shift not found", null);
-
-				var shift = await _context.Shifts.FirstOrDefaultAsync(x => x.ShiftNumber == sale.ShiftNumber);
-				if (shift == null)
-					return ServiceResponse<object>.Information("Shift not found", null);
-
-				if (shift.ShiftStatus == ShiftStatus.Closed)
-					return ServiceResponse<object>.Information("Shift is closed, cannot reverse sale", null);
-
-				var transactionCode = sale.SaleId;
-
-				// --- Stage domain changes (no SaveChanges yet) -----------------------------------
-				// Wallet: add a customer ledger debit to cancel wallet credit (or mirror behavior)
-				if (sale.PaymentTypeCode == PaymetMethod.Wallet)
-					AddCustomerTransactionIfVehiclePresent(sale.VehicleCode, sale.AmountDebit, transactionCode);
-
-				// Add compensating quantity transaction and mark original as reversed
-				AddReversedQuantityTransactionAndMarkOriginal(sale, transactionCode);
-
-				// Add compensating payment transactions (and stage Mpesa updates)
-				AddReversedPaymentTransactions(sale);
-
-				// Trail entry
-				_context.UserTrails.Add(new UserTrail
+				await using var dbTx = await _context.Database.BeginTransactionAsync();
+				try
 				{
-					UserCode = _authentication.Usercode(),
-					UserName = _authentication.Name(),
-					ActionType = "ReverseSale",
-					Message = await BuildReverseSaleMessage(sale),
-					ShiftNumber = sale.ShiftNumber,
-					DateCreated = DateTime.UtcNow
-				});
+					// --- Row-level lock to prevent concurrent double-reversal -------------------
+					// Acquires a PostgreSQL FOR UPDATE lock on the row before reading state.
+					// Any concurrent request on the same saleId will block here until we commit/rollback.
+					await _context.Database.ExecuteSqlRawAsync(
+						"SELECT 1 FROM \"QuantityTransactions\" WHERE \"SaleId\" = {0} FOR UPDATE",
+						saleId);
 
+					// --- Load & validate state --------------------------------------------------
+					var sale = await GetSaleByIdAsync(saleId);
+					if (sale == null)
+						return ServiceResponse<object>.Information("Sale not found", null);
 
+					// If any reversed quantity row already exists for this SaleId, treat as reversed
+					var isSaleReversed = await _context.QuantityTransactions
+						.AnyAsync(x => x.SaleId == saleId && x.IsReversed == true);
+					if (isSaleReversed || sale.IsReversed)
+						return ServiceResponse<object>.Information("Sale already reversed", null);
 
-				// --- Persist once ---------------------------------------------------------------
-				await _context.SaveChangesAsync();
+					if (string.IsNullOrWhiteSpace(sale.ShiftNumber))
+						return ServiceResponse<object>.Information("Shift not found", null);
 
-				// Commit DB transaction first, then reconcile (reconcile can re-query summaries)
-				await dbTx.CommitAsync();
+					var shift = await _context.Shifts.FirstOrDefaultAsync(x => x.ShiftNumber == sale.ShiftNumber);
+					if (shift == null)
+						return ServiceResponse<object>.Information("Shift not found", null);
 
-				// Out-of-transaction follow-up (safe to fail independently)
-				await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
+					if (shift.ShiftStatus == ShiftStatus.Closed)
+						return ServiceResponse<object>.Information("Shift is closed, cannot reverse sale", null);
 
-				return ServiceResponse<object>.Success("Sale reversed successfully", null);
-			}
-			catch (Exception ex)
-			{
-				await dbTx.RollbackAsync();
-				return ServiceResponse<object>.Error($"An error occurred while reversing sale: {ex.Message}", null);
-			}
+					var transactionCode = sale.SaleId;
+
+					// --- Stage domain changes (no SaveChanges yet) ------------------------------
+					// Wallet: add a customer ledger debit to cancel wallet credit
+					if (sale.PaymentTypeCode == PaymetMethod.Wallet)
+						AddCustomerTransactionIfVehiclePresent(sale.VehicleCode, sale.AmountDebit, transactionCode);
+
+					// Add compensating quantity transaction and mark original as reversed
+					AddReversedQuantityTransactionAndMarkOriginal(sale, transactionCode);
+
+					// Add compensating payment transactions (async — avoids thread-pool starvation)
+					await AddReversedPaymentTransactionsAsync(sale);
+
+					// Trail entry
+					_context.UserTrails.Add(new UserTrail
+					{
+						UserCode = _authentication.Usercode(),
+						UserName = _authentication.Name(),
+						ActionType = "ReverseSale",
+						Message = await BuildReverseSaleMessage(sale),
+						ShiftNumber = sale.ShiftNumber,
+						DateCreated = DateTime.UtcNow
+					});
+
+					// --- Persist once -----------------------------------------------------------
+					await _context.SaveChangesAsync();
+					await dbTx.CommitAsync();
+
+					// --- Out-of-transaction reconcile (safe to fail independently) --------------
+					// Commit is already done; reconcile failure does NOT roll back the reversal.
+					// Logged explicitly so ops can detect and re-trigger if needed.
+					try
+					{
+						await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
+					}
+					catch (Exception reconcileEx)
+					{
+						_logger.LogError(reconcileEx,
+							"Reconcile failed after reversing sale {SaleId} on shift {ShiftNumber}. " +
+							"Reversal is committed — manual reconcile may be required.",
+							saleId, sale.ShiftNumber);
+						// Do NOT rethrow — the reversal itself succeeded.
+					}
+
+					return ServiceResponse<object>.Success("Sale reversed successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await dbTx.RollbackAsync();
+					return ServiceResponse<object>.Error($"An error occurred while reversing sale: {ex.Message}", null);
+				}
+			});
 		}
 
 		/// <summary>
 		/// Move a sale to another nozzle. Only allowed when the shift is in Variance.
+		/// Wrapped in EF Core execution strategy to support retry-on-failure configuration.
 		/// </summary>
 		public async Task<ServiceResponse<object>> TransferSaleToAnotherNozzle(string transactionCode, string nozzleCode)
 		{
-			await using var dbTx = await _context.Database.BeginTransactionAsync();
-			try
+			var strategy = _context.Database.CreateExecutionStrategy();
+
+			return await strategy.ExecuteAsync(async () =>
 			{
-				var sale = await GetSaleByIdAsync(transactionCode);
-				if (sale == null)
-					return ServiceResponse<object>.Information("Sale not found", null);
-
-				if (string.IsNullOrWhiteSpace(sale.ShiftNumber))
-					return ServiceResponse<object>.Information("Shift not found", null);
-
-				if (string.IsNullOrWhiteSpace(nozzleCode))
-					return ServiceResponse<object>.Information("Nozzle code is required", null);
-
-				var shift = await _context.Shifts.FirstOrDefaultAsync(x => x.ShiftNumber == sale.ShiftNumber);
-				if (shift == null)
-					return ServiceResponse<object>.Information("Shift not found", null);
-
-				// Only allow transfers when shift is in Variance
-				if (shift.ShiftStatus != ShiftStatus.Variance)
-					return ServiceResponse<object>.Information("Nozzle transfer allowed only when shift is in Variance", null);
-
-				// Check sale state
-				if (sale.IsReversed)
-					return ServiceResponse<object>.Information("Sale already reversed, cannot be moved to another nozzle", null);
-
-				if (sale.NozzleCode == nozzleCode)
-					return ServiceResponse<object>.Information("Sale is already on the specified nozzle", null);
-
-				var nozzleExists = await _context.Nozzles.AnyAsync(n => n.NozzleCode == nozzleCode);
-				if (!nozzleExists)
-					return ServiceResponse<object>.Information($"Nozzle {nozzleCode} does not exist in the system", null);
-
-				// Update + trail
-				var oldNozzle = sale.NozzleCode ?? "Unknown";
-				sale.NozzleCode = nozzleCode;
-				_context.QuantityTransactions.Update(sale);
-
-				_context.UserTrails.Add(new UserTrail
+				await using var dbTx = await _context.Database.BeginTransactionAsync();
+				try
 				{
-					ActionType = "TransferSaleToAnotherNozzle",
-					Message = $"Sale {transactionCode} transferred from nozzle {oldNozzle} to nozzle {nozzleCode}",
-					UserName = _authentication.Name(),
-					UserCode = _authentication.Usercode(),
-					DateCreated = DateTime.UtcNow,
-					ShiftNumber = sale.ShiftNumber
-				});
+					var sale = await GetSaleByIdAsync(transactionCode);
+					if (sale == null)
+						return ServiceResponse<object>.Information("Sale not found", null);
 
-				await _context.SaveChangesAsync();
-				await dbTx.CommitAsync();
+					if (string.IsNullOrWhiteSpace(sale.ShiftNumber))
+						return ServiceResponse<object>.Information("Shift not found", null);
 
-				// Reconcile after commit
-				await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
+					if (string.IsNullOrWhiteSpace(nozzleCode))
+						return ServiceResponse<object>.Information("Nozzle code is required", null);
 
-				return ServiceResponse<object>.Success("Sale transferred successfully", null);
-			}
-			catch (Exception ex)
-			{
-				await dbTx.RollbackAsync();
-				return ServiceResponse<object>.Error($"An error occurred while transferring sale: {ex.Message}", null);
-			}
+					var shift = await _context.Shifts.FirstOrDefaultAsync(x => x.ShiftNumber == sale.ShiftNumber);
+					if (shift == null)
+						return ServiceResponse<object>.Information("Shift not found", null);
+
+					// Only allow transfers when shift is in Variance
+					if (shift.ShiftStatus != ShiftStatus.Variance)
+						return ServiceResponse<object>.Information("Nozzle transfer allowed only when shift is in Variance", null);
+
+					// Check sale state
+					if (sale.IsReversed)
+						return ServiceResponse<object>.Information("Sale already reversed, cannot be moved to another nozzle", null);
+
+					if (sale.NozzleCode == nozzleCode)
+						return ServiceResponse<object>.Information("Sale is already on the specified nozzle", null);
+
+					var nozzleExists = await _context.Nozzles.AnyAsync(n => n.NozzleCode == nozzleCode);
+					if (!nozzleExists)
+						return ServiceResponse<object>.Information($"Nozzle {nozzleCode} does not exist in the system", null);
+
+					// Update + trail
+					var oldNozzle = sale.NozzleCode ?? "Unknown";
+					sale.NozzleCode = nozzleCode;
+					_context.QuantityTransactions.Update(sale);
+
+					_context.UserTrails.Add(new UserTrail
+					{
+						ActionType = "TransferSaleToAnotherNozzle",
+						Message = $"Sale {transactionCode} transferred from nozzle {oldNozzle} to nozzle {nozzleCode}",
+						UserName = _authentication.Name(),
+						UserCode = _authentication.Usercode(),
+						DateCreated = DateTime.UtcNow,
+						ShiftNumber = sale.ShiftNumber
+					});
+
+					await _context.SaveChangesAsync();
+					await dbTx.CommitAsync();
+
+					// Reconcile after commit — log failures without rethrowing
+					try
+					{
+						await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
+					}
+					catch (Exception reconcileEx)
+					{
+						_logger.LogError(reconcileEx,
+							"Reconcile failed after transferring sale {TransactionCode} to nozzle {NozzleCode}. " +
+							"Transfer is committed — manual reconcile may be required.",
+							transactionCode, nozzleCode);
+					}
+
+					return ServiceResponse<object>.Success("Sale transferred successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await dbTx.RollbackAsync();
+					return ServiceResponse<object>.Error($"An error occurred while transferring sale: {ex.Message}", null);
+				}
+			});
 		}
 
 		// ============================== Helpers (no SaveChanges here) ==============================
@@ -202,7 +243,6 @@ namespace BusinessLogic.Sales.ReverseSales
 		/// </summary>
 		private void AddReversedQuantityTransactionAndMarkOriginal(QuantityTransactions sale, string transactionCode)
 		{
-			// Compensating transaction mirrors credits/debits
 			var reversed = new QuantityTransactions
 			{
 				ShiftNumber = sale.ShiftNumber,
@@ -226,7 +266,6 @@ namespace BusinessLogic.Sales.ReverseSales
 
 			_context.QuantityTransactions.Add(reversed);
 
-			// Mark original as reversed to prevent further actions
 			if (!sale.IsReversed)
 			{
 				sale.IsReversed = true;
@@ -236,14 +275,16 @@ namespace BusinessLogic.Sales.ReverseSales
 
 		/// <summary>
 		/// Adds reversing payment rows for the sale's payment transactions.
-		/// If Mpesa, schedules status updates (side-effect via _salesTasks) per payment reference.
+		/// Uses ToListAsync to avoid sync-over-async thread-pool starvation under load.
+		/// If Mpesa, schedules status updates per payment reference.
 		/// </summary>
-		private void AddReversedPaymentTransactions(QuantityTransactions sale)
+		private async Task AddReversedPaymentTransactionsAsync(QuantityTransactions sale)
 		{
-			var paymentTransactions = _context.PaymentTransactions
+			// FIX: was .ToList() — sync DB call inside async flow causes thread-pool starvation under load
+			var paymentTransactions = await _context.PaymentTransactions
 				.Where(x => x.SaleId == sale.SaleId)
-				.AsNoTracking() // read-only
-				.ToList();
+				.AsNoTracking()
+				.ToListAsync();
 
 			foreach (var p in paymentTransactions)
 			{
@@ -257,18 +298,16 @@ namespace BusinessLogic.Sales.ReverseSales
 					SaleId = p.SaleId
 				});
 
-				// If Mpesa, flag/update original payment status (domain behavior retained)
 				if (sale.PaymentTypeCode == PaymetMethod.Mpesa && !string.IsNullOrWhiteSpace(p.PaymentRefrence))
 				{
-					// Assuming UpdateMpesaPaymentStatus is fire-and-forget (as per your original code)
 					_salesTasks.UpdateMpesaPaymentStatus(p.PaymentRefrence);
 				}
 			}
 		}
 
-		private async Task<(string stationName, string nozzleName, string numberPlate)> GetStationAndNozzleNames(string stationCode, string nozzleCode, string vehicleCode)
+		private async Task<(string stationName, string nozzleName, string numberPlate)> GetStationAndNozzleNames(
+			string stationCode, string nozzleCode, string vehicleCode)
 		{
-			// Defaults in case not found
 			string stationName = "Unknown Station";
 			string nozzleName = "Unknown Nozzle";
 			string numberPlate = "Unknown Vehicle";
@@ -281,17 +320,17 @@ namespace BusinessLogic.Sales.ReverseSales
 			if (nozzle != null)
 				nozzleName = nozzle.NozzleName;
 
+			var vehicle = await _context.Vehicles.FirstOrDefaultAsync(s => s.VehicleCode == vehicleCode);
+			if (vehicle != null)
+				numberPlate = vehicle.VehicleRegistrationNumber;
 
-			var numberplate  = await _context.Vehicles.FirstOrDefaultAsync(s => s.VehicleCode == vehicleCode);
-			if (numberplate != null)
-				numberPlate = numberplate.VehicleRegistrationNumber ;
-
-			return (stationName, nozzleName,numberPlate);
+			return (stationName, nozzleName, numberPlate);
 		}
 
 		private async Task<string> BuildReverseSaleMessage(QuantityTransactions sale)
 		{
-			var (stationName, nozzleName,numberPlate) = await GetStationAndNozzleNames(sale.StationCode, sale.NozzleCode,sale.VehicleCode);
+			var (stationName, nozzleName, numberPlate) = await GetStationAndNozzleNames(
+				sale.StationCode, sale.NozzleCode, sale.VehicleCode);
 
 			return $"User '{_authentication.Name()}' (Code: {_authentication.Usercode()}) reversed sale [SaleId={sale.SaleId}] " +
 				   $"on Shift [{sale.ShiftNumber}] for Station [{stationName}] (Code: {sale.StationCode}), " +
@@ -299,6 +338,5 @@ namespace BusinessLogic.Sales.ReverseSales
 				   $"Previous State: IsReversed={sale.IsReversed}, Qty={sale.QuantityCredit}, Amount={sale.AmountCredit}. " +
 				   $"New State: IsReversed=true. Action Time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}";
 		}
-
 	}
 }

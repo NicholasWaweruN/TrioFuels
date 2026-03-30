@@ -3,14 +3,12 @@ using BusinessLogic.Station.Nozzzles;
 using BusinessLogic.Station.Station;
 using BusinessLogic.Station.StationDispenser;
 using BusinessLogic.Station.StationTank;
-using DataAccessLayer.DTOs.Authentication;
 using DataAccessLayer.DTOs.Shifts.Station;
 using DataAccessLayer.EntityModels.Stations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
-namespace ProtoOS.Controllers
+namespace FuelFlow.Controllers 
 {
 	[Route("fuelflow/[controller]")]
 	[ApiController]

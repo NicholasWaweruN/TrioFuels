@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using AfricasTalkingCS;
 using BussinessLogic.Worker.OtherReports;
 
-namespace AfricasTalkingSmsCallback.Controllers
+namespace FuelFlow.Controllers 
 {
 	[ApiController]
 	[Route("api/[controller]")]
@@ -137,7 +137,7 @@ namespace AfricasTalkingSmsCallback.Controllers
 		public string? phoneNumber { get; set; } = string.Empty;
 		public string? networkCode { get; set; } = string.Empty;
 		public string? failureReason { get; set; } = string.Empty;
-		public int? retryCount { get; set; }
+		public int? RetryCount { get; set; }
 	}
 
 }

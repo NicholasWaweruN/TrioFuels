@@ -17,7 +17,7 @@ using static BusinessLogic.Sales.Archive_data.Archive_Data;
 using static BussinessLogic.CouponsService.LoyaltyProgramSubscription;
 using static DataAccessLayer.EntityModels.Wallet.WalletDto;
 
-namespace ProtoOS.Controllers
+namespace FuelFlow.Controllers 
 {
 	[Route("fuelflow/[controller]")]
 	[ApiController]

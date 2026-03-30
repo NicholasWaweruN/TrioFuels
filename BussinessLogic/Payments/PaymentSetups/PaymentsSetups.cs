@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 
-namespace BusinessLogic.Payments.PaymentSetups
+namespace BussinessLogic.Payments.PaymentSetups 
 {
 	public class PaymentsSetups : IPaymentsSetups
 	{

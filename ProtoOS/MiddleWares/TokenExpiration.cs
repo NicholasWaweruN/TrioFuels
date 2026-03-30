@@ -3,7 +3,7 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Reflection.Emit;
 
-namespace ProtoOS.MiddleWares
+namespace FuelFlow.MiddleWares 
 {
 	public class TokenExpiration
 	{

@@ -4,9 +4,9 @@ using DataAccessLayer.EntityModels.ProtoBase;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using static BusinessLogic.Payments.PaymentSetups.PaymentsSetups;
+using static BussinessLogic.Payments.PaymentSetups.PaymentsSetups;
 
-namespace ProtoOS.Controllers
+namespace FuelFlow.Controllers 
 {
 	[Route("payments/[controller]")]
 	[ApiController]

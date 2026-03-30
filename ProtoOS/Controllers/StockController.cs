@@ -1,19 +1,14 @@
-﻿using AfricasTalkingCS;
-using BusinessLogic.Stock.Stock;
+﻿using BusinessLogic.Stock.Stock;
 using BussinessLogic.Reports.Shifts_Clossing;
 using BussinessLogic.Stock.Shifts;
 using BussinessLogic.Stock.Stock;
 using BussinessLogic.Stock.Totalizers;
-using DataAccessLayer.DTOs.Sales;
 using DataAccessLayer.DTOs.Transactions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
-using System.Threading.Tasks;
-using static BussinessLogic.Stock.Shifts.Shifts;
 using static BussinessLogic.Stock.Totalizers.ReadingsTotalizers;
 
-namespace ProtoOS.Controllers
+namespace FuelFlow.Controllers 
 {
 	[Route("fuelflow/[controller]")]
 	[ApiController]

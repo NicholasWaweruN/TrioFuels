@@ -14,13 +14,9 @@ using System.Threading.Tasks;
 
 namespace BussinessLogic.Reports
 {
-	public class ShiftSales
+	public class ShiftSales(OTOContext context)
 	{
-		private readonly OTOContext _context;
-		public ShiftSales(OTOContext context) 
-		{
-			_context = context;
-		}
+		private readonly OTOContext _context = context;
 
 		public async Task GenerateDailySalesReportAsync(DateTime date, int shiftNumber, Mails mails)
 		{
