@@ -19,14 +19,12 @@ namespace FuelFlow.MiddleWares
 
 		public async Task Invoke(HttpContext context)
 		{
-			var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+			var token = context.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
 			var appCode = context.Request.Headers["AppCode"].FirstOrDefault()?.ToString();
 
 			if (!string.IsNullOrEmpty(token))
 			{
-				var AppCode = $"AppCode-{appCode}";
 				var key = $"Token-{token}";
-
 				
 					if (_cache.TryGetValue(key, out _))
 					{

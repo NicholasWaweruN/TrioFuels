@@ -406,27 +406,27 @@ namespace DataAccessLayer.Migrations
                             Id = "f9b3e4d7-5a8c-3f2d-9b6f-4a7e5d8b6f9a",
                             AccessApps = "",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "432c6cad-4839-4ce1-9f73-6a2a6df7a7ed",
+                            ConcurrencyStamp = "6590f25c-d2ee-4c1d-8ea7-0a92bb5adbd9",
                             CreatedBy = "",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3679),
-                            DateModified = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3678),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8692),
+                            DateModified = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8691),
                             DepartmentCode = "",
                             Email = "nicholas@fuelflo.com",
                             EmailConfirmed = true,
                             FirstName = "Admin",
                             IsActive = true,
-                            LastLoginDate = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3680),
+                            LastLoginDate = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8693),
                             LastName = "Fuel Flow",
                             LockoutEnabled = false,
                             MiddName = "",
                             ModifiedBy = "",
                             NormalizedEmail = "NICHOLAS@FUELFLOW.COM",
                             PasswordHash = "AQAAAAIAAYagAAAAEE6B8ismqB4S3ovK4di5qY7F2cwEDfBiowzxCzmmnRa1w0kuyR/ADNBR4B6D0h9sew==",
-                            PasswordLastUpdated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3672),
+                            PasswordLastUpdated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8685),
                             PayrollNumber = "",
                             PhoneNumber = "+254715821303",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "4eb73bc2-5622-40e8-afaa-4459f0fd0604",
+                            SecurityStamp = "ec3ae2b3-2627-432c-aa8e-bd37724a683e",
                             StationCode = "",
                             TwoFactorEnabled = false,
                             UserCode = "99999",
@@ -508,38 +508,38 @@ namespace DataAccessLayer.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("f0f0cf6d-a5c1-452d-a5bf-f774af7f21a3"),
+                            Id = new Guid("ee835650-32f3-4718-9606-38fc2b7987d2"),
                             AppsCode = "01",
                             AppsName = "Bulk DashBoard",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3436),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8480),
                             UserCode = ""
                         },
                         new
                         {
-                            Id = new Guid("556fe0d5-e13e-4df8-a6d2-0c101b89f89e"),
+                            Id = new Guid("4cc03bbd-51d1-4dbc-8bb3-7f18e503e053"),
                             AppsCode = "02",
                             AppsName = "Bulk App",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3443),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8485),
                             UserCode = ""
                         },
                         new
                         {
-                            Id = new Guid("9dd6cf42-3451-411c-89a8-071874742c34"),
+                            Id = new Guid("4be00159-2585-43b8-a680-75b745ff1775"),
                             AppsCode = "03",
                             AppsName = "Fuel Flow DashBoard",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3448),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8489),
                             UserCode = ""
                         },
                         new
                         {
-                            Id = new Guid("56c6889f-60b4-4afd-991f-79d756b10409"),
+                            Id = new Guid("85e92a4a-d946-4c6e-8859-e645e2f2fc06"),
                             AppsCode = "04",
                             AppsName = "Fuel Flow App",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3453),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8492),
                             UserCode = ""
                         });
                 });
@@ -585,7 +585,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4617),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9259),
                             RoleCode = "001",
                             RoleName = "Administrator",
                             UserCode = "99999"
@@ -693,30 +693,30 @@ namespace DataAccessLayer.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("2456b230-5357-4628-bf51-1468e00afe4f"),
+                            Id = new Guid("e53ff251-c568-4c6b-bf27-ef87b1312cf0"),
                             AppsCode = "03",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3788),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8791),
                             UserCode = "99999"
                         },
                         new
                         {
-                            Id = new Guid("9bc95ba9-ad07-4df6-a13f-d079d82fd57b"),
+                            Id = new Guid("149618c3-e575-429f-986a-622661c51868"),
                             AppsCode = "04",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3794),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8795),
                             UserCode = "99999"
                         },
                         new
                         {
-                            Id = new Guid("b62aa076-e86e-4782-8ede-7549b3df7c2d"),
+                            Id = new Guid("5b6b2175-21b6-4e82-8884-9c292d71503b"),
                             AppsCode = "01",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3805),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8799),
                             UserCode = "99999"
                         },
                         new
                         {
-                            Id = new Guid("303e01a8-82f2-49be-9d35-add60530d606"),
+                            Id = new Guid("83e53f12-59f6-44d4-9375-836001ac4bb7"),
                             AppsCode = "02",
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3809),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8807),
                             UserCode = "99999"
                         });
                 });
@@ -751,6 +751,68 @@ namespace DataAccessLayer.Migrations
                         .HasDatabaseName("RoleNameIndex");
 
                     b.ToTable("AspNetRoles", (string)null);
+                });
+
+            modelBuilder.Entity("DataAccessLayer.Context.SalesReportRow", b =>
+                {
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("AttendantName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CustomerName")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("Discount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("DispenserName")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("Litres")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("NozzleName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentType")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ProductName")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("RunningBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("SaleId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("SalesDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ShiftNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StationName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StorageLocation")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TillNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TransId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Vehicle")
+                        .HasColumnType("text");
+
+                    b.ToTable("SalesReportRow");
                 });
 
             modelBuilder.Entity("DataAccessLayer.DTOs.Payments.MpesaTransactionDto", b =>
@@ -1851,247 +1913,6 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("Walk_In_Customers");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.EntityModels.CylinerInfo.ManufactureResult", b =>
-                {
-                    b.Property<string>("CylinderCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("EmptyWeight")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("ManufactureDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ProductionOrder")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SerialNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.ToTable("ManufactureResult");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.CylinerInfo.MovementResult", b =>
-                {
-                    b.Property<DateTime>("DateAdded")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("MovementTypeDescription")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("QRCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("VisibleCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.ToTable("MovementResult");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.DMS.Department", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DepartmentCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("DepartmentName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("EmailsCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Department");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.DMS.DocumentDefinition", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DepartmentCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("DocumentCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("DocumentName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DocumentDefinitions");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.DMS.TrackedDocument", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DepartmentCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("DocumentCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<int>("DocumentStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("HasNotification")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsRenewed")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("IssueDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastReminderSent")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("ReminderEmails")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("RenewalDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("TrackingCode")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TrackedDocuments");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.DMS.TrackedDocumentHistory", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("ChangeDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ChangedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("TrackedDocumentCode")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TrackedDocumentHistories");
-                });
-
             modelBuilder.Entity("DataAccessLayer.EntityModels.Db_Views.OtopaySales", b =>
                 {
                     b.Property<decimal>("Amount")
@@ -2863,234 +2684,6 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("SmsCallbacks");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.EntityModels.OtoShop.GarageTillsAsigments", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("StationCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("StoreNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TillNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("GarageTillsAsigments");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.OtoShop.OtoShopItems", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ItemCode")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("ItemName")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("OtoShopItems");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.OtoShop.OtoShopPaymentMethods", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("OtoShopPaymentMethods");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.OtoShop.OtoShopTransactions", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("Discount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("ItemCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("MpesaReference")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<decimal>("NetAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("PaymentStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("PaymentType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("StationCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("TransactionId")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("VehicleCode")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("OTOShopTransactions");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.OtoShop.OtoshopSetups", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Duration")
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ItemCode")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<int>("LitresConsumed")
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("integer");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("OtoshopSetups");
-                });
-
             modelBuilder.Entity("DataAccessLayer.EntityModels.Personal_Wallet.Personal_Wallet_Customers", b =>
                 {
                     b.Property<long>("Id")
@@ -3234,120 +2827,6 @@ namespace DataAccessLayer.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Wallet_Transactions_Personal");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.ProGas.RegionSalesArea", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RegionCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("RegionName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("SalesAreaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("RegionSalesAreas");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.ProGas.SalesArea", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("AreaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("AreaName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SmallAreaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SalesAreas");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.ProGas.SmallSalesArea", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SmallAreaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("SmallAreaName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SmallSalesAreas");
                 });
 
             modelBuilder.Entity("DataAccessLayer.EntityModels.ProtoBase.MpesaC2bPayments", b =>
@@ -3584,7 +3063,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4139),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8931),
                             DeviceCode = "1234567890",
                             DeviceIMEI = "1234567890",
                             DeviceMacAddress = "1234567890",
@@ -3641,7 +3120,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = -1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3910),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8895),
                             IsActive = true,
                             ProductCode = "02",
                             ProductName = "Diesel",
@@ -3785,7 +3264,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3855),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8843),
                             DispenserCode = "D01",
                             DispenserName = "D1",
                             IsActive = true,
@@ -3851,7 +3330,7 @@ namespace DataAccessLayer.Migrations
                             Id = 1L,
                             AssignedBy = "99999",
                             AttedantUserCode = "99999",
-                            DateAssigned = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4252),
+                            DateAssigned = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9014),
                             DispenserCode = "D01",
                             IsActive = true,
                             StationCode = "S001"
@@ -3914,7 +3393,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3739),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8742),
                             IsActive = true,
                             LocationId = "Test Station",
                             StationAddress = "Test Station",
@@ -3974,7 +3453,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4200),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8969),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N01",
@@ -3984,98 +3463,13 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4205),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8972),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N02",
                             NozzleName = "N02",
                             UserCode = "00001"
                         });
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.Stations.OtogasDelivery", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("DeliveredInkgs")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("DeliveredQuantity")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("DeliveryVariance")
-                        .HasColumnType("double precision");
-
-                    b.Property<bool>("IsReceived")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("OrderId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ReadingAfterImage")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<double>("ReadingAfterInKgs")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("ReadingAfterInLitres")
-                        .HasColumnType("double precision");
-
-                    b.Property<int>("ReadingAfterInPerc")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ReadingBeforeImage")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<double>("ReadingBeforeInKgs")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("ReadingBeforeInLitres")
-                        .HasColumnType("double precision");
-
-                    b.Property<int>("ReadingBeforeInPerc")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StationCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("TankCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TankCode")
-                        .HasDatabaseName("IX_OtogasDelivery_TankId");
-
-                    b.ToTable("OtogasDeliveries");
                 });
 
             modelBuilder.Entity("DataAccessLayer.EntityModels.Stations.PetroleumProducts", b =>
@@ -4115,7 +3509,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4466),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9203),
                             PetroleumCode = "01",
                             PetroleumName = "Autogas",
                             UserCode = "99999"
@@ -4123,7 +3517,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4470),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9205),
                             PetroleumCode = "02",
                             PetroleumName = "Petrol",
                             UserCode = "99999"
@@ -4131,57 +3525,11 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4473),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9208),
                             PetroleumCode = "03",
                             PetroleumName = "Diesel",
                             UserCode = "99999"
                         });
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.Stations.RotoGauge", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("Kilograms")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("Litres")
-                        .HasColumnType("double precision");
-
-                    b.Property<int>("Perc")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StationCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("TankCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TankCode")
-                        .HasDatabaseName("IX_RotoGauge_TankId");
-
-                    b.ToTable("RotoGauge");
                 });
 
             modelBuilder.Entity("DataAccessLayer.EntityModels.Stations.Tank", b =>
@@ -4403,9 +3751,9 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4303),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9053),
                             IsActive = true,
-                            LastFetch = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4303),
+                            LastFetch = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9054),
                             OffsetValue = 0,
                             StoreNumber = "078678",
                             TillName = "Test Till",
@@ -4467,146 +3815,6 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("TotalizerReadings");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.EntityModels.TheLetter.AuthorizationLetter+DistributorLetters", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ApprovedByUserCode")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DateRejected")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DateRevoked")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DistributorCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("HasARetailerSignature")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("InitiatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InitiatedByUserCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Letter_Refno")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("OutLetId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("RejectedByUserCode")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RejectionReason")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RevokedByUserCode")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DistributorLetters");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.EntityModels.TheLetter.AuthorizationLetter+RetailerLetters", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ApprovedByUserCode")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DateRejected")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DateRevoked")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("HasARetailerSignature")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("InitiatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InitiatedByUserCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Letter_Refno")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("OutLetId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("RejectedByUserCode")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RejectionReason")
-                        .HasColumnType("text");
-
-                    b.Property<string>("RetailerCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RevokedByUserCode")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("RetailerLetters");
-                });
-
             modelBuilder.Entity("DataAccessLayer.EntityModels.Transactions.Codegenerator", b =>
                 {
                     b.Property<long>("Id")
@@ -4663,7 +3871,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2765),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7911),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -4675,7 +3883,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2771),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7917),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "D",
@@ -4687,7 +3895,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2775),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7920),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "N",
@@ -4699,7 +3907,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2779),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7923),
                             Length = 3,
                             NextNumber = 0,
                             Prefix = "S",
@@ -4711,7 +3919,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 5L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2782),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7926),
                             Length = 5,
                             NextNumber = 10000,
                             Prefix = "",
@@ -4723,7 +3931,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2785),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7928),
                             Length = 5,
                             NextNumber = 10000,
                             Prefix = "",
@@ -4735,7 +3943,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 7L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2788),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7931),
                             Length = 7,
                             NextNumber = 0,
                             Prefix = "",
@@ -4747,7 +3955,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 8L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2791),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7934),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "T",
@@ -4759,7 +3967,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 9L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2795),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7937),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -4771,7 +3979,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 10L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2798),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7939),
                             Length = 4,
                             NextNumber = 0,
                             Prefix = "P",
@@ -4783,7 +3991,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 11L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2801),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7942),
                             Length = 7,
                             NextNumber = 0,
                             Prefix = "",
@@ -4795,7 +4003,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2804),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7945),
                             Length = 4,
                             NextNumber = 0,
                             Prefix = "PD",
@@ -4807,7 +4015,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2807),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7948),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "",
@@ -4819,7 +4027,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 16L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2810),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7951),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -4831,7 +4039,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 17L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(2823),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7953),
                             Length = 5,
                             NextNumber = 1,
                             Prefix = "",
@@ -5247,7 +4455,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3267),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8341),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 0,
@@ -5258,7 +4466,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3270),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8345),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 1,
@@ -5269,7 +4477,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3273),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8347),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 3,
@@ -5280,7 +4488,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3276),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8349),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 5,
@@ -5291,7 +4499,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 7L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3279),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8351),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 6,
@@ -5302,7 +4510,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 8L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3281),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8353),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 7,
@@ -5313,7 +4521,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 9L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3284),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8355),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 8,
@@ -5324,7 +4532,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 10L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3286),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8357),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 9,
@@ -5335,7 +4543,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 11L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3289),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8360),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 10,
@@ -5346,7 +4554,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 13L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3291),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8363),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 12,
@@ -5357,7 +4565,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3294),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8366),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 13,
@@ -5368,7 +4576,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(3296),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8368),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 14,
@@ -5544,7 +4752,7 @@ namespace DataAccessLayer.Migrations
                             Id = 1L,
                             AmountCredit = 0m,
                             AmountDebit = 0m,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4352),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9096),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -5554,7 +4762,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4362),
+                            RoundedDate = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9105),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -5567,7 +4775,7 @@ namespace DataAccessLayer.Migrations
                             Id = 2L,
                             AmountCredit = 0m,
                             AmountDebit = 0m,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4368),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9110),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -5577,7 +4785,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4371),
+                            RoundedDate = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9113),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -5771,7 +4979,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = 1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4413),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9153),
                             NozzleCode = "N01",
                             OpeningReading = 50m,
                             ShiftNumber = "",
@@ -5782,7 +4990,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = -1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 3, 27, 21, 13, 39, 891, DateTimeKind.Utc).AddTicks(4418),
+                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9160),
                             NozzleCode = "N02",
                             OpeningReading = 50m,
                             ShiftNumber = "",
@@ -6261,338 +5469,6 @@ namespace DataAccessLayer.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PriceSchedules");
-                });
-
-            modelBuilder.Entity("ProGas.DataAccessLayer.DistributorOutlets", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("AreaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("ContactPerson")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DistributorCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("DistributorOutletCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<double>("Latitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("Longitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("OutletLocation")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("OutletName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DistributorOutlets");
-                });
-
-            modelBuilder.Entity("ProGas.DataAccessLayer.Distributors", b =>
-                {
-                    b.Property<string>("DistributorCode")
-                        .HasColumnType("text");
-
-                    b.Property<string>("AreaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("BusinessName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("BusinessOwnerName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ContactPerson")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("IdentificationNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("KraPin")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("DistributorCode");
-
-                    b.ToTable("Distributors");
-                });
-
-            modelBuilder.Entity("ProGas.DataAccessLayer.GeneratedAuthorizationLetter", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("DateGenerated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("GeneratedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReferenceNumber")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RetailerCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RetailerLocation")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RetailerName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("GeneratedAuthorizationLetter");
-                });
-
-            modelBuilder.Entity("ProGas.DataAccessLayer.RetailOutlet", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("Latitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("Longitude")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("OutletLocation")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("OutletName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("RetailerCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("SmallAreaCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("RetailOutlet");
-                });
-
-            modelBuilder.Entity("ProGas.DataAccessLayer.Retailer", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("BussinessName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("BussinessOwnerName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ContactPerson")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("IndetificationNumber")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Kra_Pin")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("RetailerCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("UserCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Retailer");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

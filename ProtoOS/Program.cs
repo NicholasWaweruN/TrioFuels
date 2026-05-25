@@ -80,6 +80,7 @@ Console.WriteLine("=== APP STARTING ===");
 
 try
 {
+	AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 	var builder = WebApplication.CreateBuilder(args);
 
 //var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";

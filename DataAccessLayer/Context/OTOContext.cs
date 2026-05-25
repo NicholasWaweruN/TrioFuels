@@ -113,7 +113,9 @@ namespace DataAccessLayer.Context
 			ConfigureIndexes(modelBuilder);
             ConfigureSeedData(modelBuilder);
 			ConfigureKeylessEntities(modelBuilder);
-        }
+	
+
+		}
 
 
         private static void ConfigureDecimalProperties(ModelBuilder modelBuilder)
@@ -815,7 +817,10 @@ new PdaDevices
 			);
 		}
 
-
+		protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+		{
+			AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+		}
 
 		private static void ConfigureKeylessEntities(ModelBuilder modelBuilder)
         {
