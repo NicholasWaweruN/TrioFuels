@@ -1,4 +1,5 @@
-﻿namespace FuelFlow.Extensions;
+﻿using Microsoft.AspNetCore.HttpOverrides;
+namespace FuelFlow.Extensions;
 
 public static class ApplicationBuilderExtensions
 {
@@ -15,7 +16,9 @@ public static class ApplicationBuilderExtensions
 		// CORS must be before authentication / authorisation.
 		app.UseCors("AllowAll");
 
-		app.UseHttpsRedirection();
+		
+
+		//app.UseHttpsRedirection();
 
 		app.UseStaticFiles();
 
