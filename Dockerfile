@@ -1,16 +1,23 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
+
 COPY . .
+
 RUN dotnet restore "Fuelflow_Solution.sln"
-RUN dotnet publish "ProtoOS/FuelFlow.csproj" -c Release -o /app/publish
+
+RUN dotnet publish "ProtoOS/FuelFlow.csproj" \
+    -c Release \
+    -o /app/publish
 
 FROM base AS final
 WORKDIR /app
+
 COPY --from=build /app/publish .
+
 ENTRYPOINT ["dotnet", "FuelFlow.dll"]
