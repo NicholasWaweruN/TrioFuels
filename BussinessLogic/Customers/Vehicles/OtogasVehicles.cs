@@ -1226,7 +1226,7 @@ namespace BussinessLogic.Customers.Vehicles
 												 Registration_Date = w.DateCreated,
 												 w.PhoneNumber, 
 												 w.KitType,
-												 RegisteredBy = string.Join(" ", u.FirstName,u.MiddName,u.LastName)
+												 RegisteredBy = string.Join(" ", new object[] { u.FirstName, u.MiddName, u.LastName })
 											 }).ToListAsync();
 				return ServiceResponse<object>.Success("Walk in customers retrieved successfully", walkInCustomers);
 			}

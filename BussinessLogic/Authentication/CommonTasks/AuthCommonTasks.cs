@@ -186,18 +186,18 @@ namespace BussinessLogic.Authentication.CommonTasks
 
 		public string HashPin(string pin)
 		{
-			using var rng = RandomNumberGenerator.Create();
-			byte[] salt = new byte[16];
-			rng.GetBytes(salt);
+			byte[] salt = RandomNumberGenerator.GetBytes(16);
 
-			using var pbkdf2 = new Rfc2898DeriveBytes(pin, salt, 10000, HashAlgorithmName.SHA256);
-			byte[] hash = pbkdf2.GetBytes(32);
+			byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
+				password: pin,
+				salt: salt,
+				iterations: 10000,
+				hashAlgorithm: HashAlgorithmName.SHA256,
+				outputLength: 32);
 
-			byte[] hashBytes = new byte[salt.Length + hash.Length];
-			Array.Copy(salt, 0, hashBytes, 0, salt.Length);
-			Array.Copy(hash, 0, hashBytes, salt.Length, hash.Length);
+			byte[] combined = [.. salt, .. hash];
 
-			return Convert.ToBase64String(hashBytes);
+			return Convert.ToBase64String(combined);
 		}
 	}
 }

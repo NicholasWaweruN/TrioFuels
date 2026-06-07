@@ -17,7 +17,6 @@ namespace BussinessLogic.Worker
 		private DateTime _lastRunDailySummary;
 		private DateTime _lastRunAbove100;
 		private DateTime _lastRunTotalizerRecordings;
-		private readonly DateTime _lastRunStockTakeSummaries;
 		public SalesSummaryWorker(ILogger<SalesSummaryWorker> logger, IServiceProvider serviceProvider)
 		{
 			_logger = logger;
@@ -62,13 +61,7 @@ namespace BussinessLogic.Worker
 						_lastRunTotalizerRecordings = now;
 					}
 
-					// 08:00 - Stock Take Summaries
-					if (now.Hour == 8 && _lastRunStockTakeSummaries.Date != now.Date)
-					{
-						//_logger.LogInformation("Running StockTakeSummariesReport at {Time}", now);
-						//await StockTakeSummariesReportAsync(scope, now);
-						//_lastRunStockTakeSummaries = now;
-					}
+				
 				}
 				catch (Exception ex)
 				{

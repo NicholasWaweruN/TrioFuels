@@ -141,7 +141,7 @@
 
 		[HttpPost]
 		[Route("opt-out")]
-		public async Task<IActionResult>OptOut ([FromQuery] string userCode)
+		public async Task<IActionResult> OptOut([FromQuery] string userCode)
 		{
 			var response = await _registerUsers.DeactivateUserAsync(userCode);
 			return Ok(response);
@@ -282,5 +282,6 @@
 			var response = await _appsService.GetApps();
 			return Ok(response);
 		}
+
 	}
 }

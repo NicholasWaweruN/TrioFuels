@@ -66,7 +66,7 @@ namespace BussinessLogic.Stock.VarianceReport
 										   StationName = s.StationName,
 										   StationCode = s.StationCode,
 										   PayrollNumber = u.PayrollNumber,
-										   Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName),
+										   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
 									   }).AsNoTracking().ToListAsync();
 
 				if (variances.Count == 0)

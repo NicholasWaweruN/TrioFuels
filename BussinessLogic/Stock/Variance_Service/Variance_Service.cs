@@ -54,7 +54,7 @@ namespace BussinessLogic.Stock.Variance_Service
 										   d.DispenserName,
 										   s.StationName,
 										   u.PayrollNumber,
-										   Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName)
+										   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName })
 									   }).AsNoTracking().ToListAsync();
 
 				if (!variances.Any())
@@ -96,7 +96,7 @@ namespace BussinessLogic.Stock.Variance_Service
 								d.DispenserName,
 								s.StationName,
 								u.PayrollNumber,
-								Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName)
+								Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName })
 							};
 
 				if (date.HasValue)
@@ -156,7 +156,7 @@ namespace BussinessLogic.Stock.Variance_Service
 										   s.StationName,
 										   s.StationCode,
 										   u.PayrollNumber,
-										   Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName)
+										   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName })
 									   }).AsNoTracking().ToListAsync();
 
 				if (!variances.Any())

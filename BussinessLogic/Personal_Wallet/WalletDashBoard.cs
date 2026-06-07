@@ -72,7 +72,7 @@ namespace BussinessLogic.Personal_Wallet
 						x.Price,
 						x.SaleId,
 						vehicle.VehicleRegistrationNumber,
-						FueledBy = users != null ? string.Join(' ',users.FirstName,users.MiddName,users.LastName) : string.Empty, // Handle null case
+						FueledBy = users != null ? string.Join(' ', new object[] { users.FirstName, users.MiddName, users.LastName }) : string.Empty, // Handle null case
 						PaymentDetails = new PaymentDetail
 						{
 							TransAmount = payment.TransactionAmount - payment.TransactionAmountDebit,

@@ -113,9 +113,7 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 
 				var subject = $"Shift {shiftNumber} Closed - Total Sales: {totalsales:N2}";
 				var body = emailBody;
-				var originalMessage = await _workflow.GeEmailWithConversationIdAsync(shift.EmailConversationId);
-				 if(originalMessage != null)
-				  await _workflow.ReplyToEmailAsync(originalMessage, body);
+			
 
 
 

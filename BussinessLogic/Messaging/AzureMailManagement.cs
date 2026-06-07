@@ -1,157 +1,89 @@
-﻿using Microsoft.Graph;
-using Microsoft.Graph.Models;
-using System;
-using System.Collections.Generic;
+﻿using DataAccessLayer.DTOs.Messaging;
+using Microsoft.Extensions.Options;
 using System.Data;
-using System.Linq;
+using System.Net;
+using System.Net.Mail;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace BussinessLogic.Messaging
+namespace BussinessLogic.Messaging;
+
+public class EmailWorkflow : IEmailWorkflow
 {
-	public class EmailWorkflow : IEmailWorkflow
+	private readonly SmtpSettings _smtp;
+
+	public EmailWorkflow(IOptions<SmtpSettings> smtpOptions)
 	{
-		private readonly GraphServiceClient _graphClient;
+		_smtp = smtpOptions.Value;
+	}
 
-		// Constructor injects a pre-configured GraphServiceClient
-		public EmailWorkflow(GraphServiceClient graphClient)
+	private static byte[] ConvertDataTableToCsvBytes(DataTable dataTable)
+	{
+		var sb = new StringBuilder();
+
+		sb.AppendLine(string.Join(",",
+			dataTable.Columns.Cast<DataColumn>()
+				.Select(c => c.ColumnName)));
+
+		foreach (DataRow row in dataTable.Rows)
 		{
-			_graphClient = graphClient;
+			sb.AppendLine(string.Join(",",
+				row.ItemArray.Select(i => i?.ToString() ?? "")));
 		}
 
-		private static byte[] ConvertDataTableToCsvBytes(DataTable dataTable)
+		return Encoding.UTF8.GetBytes(sb.ToString());
+	}
+
+	public async Task SendEmailAsync(
+		IEnumerable<string> toEmails,
+		IEnumerable<string>? ccEmails,
+		string subject,
+		string body,
+		DataTable? csvData = null)
+	{
+		using var mail = new MailMessage();
+
+		mail.From = new MailAddress(_smtp.Username);
+		mail.Subject = subject;
+		mail.Body = body;
+		mail.IsBodyHtml = true;
+
+		foreach (var email in toEmails)
 		{
-			var sb = new StringBuilder();
-			sb.AppendLine(string.Join(",", dataTable.Columns.Cast<DataColumn>().Select(c => c.ColumnName)));
-			foreach (DataRow row in dataTable.Rows)
-				sb.AppendLine(string.Join(",", row.ItemArray.Select(i => i?.ToString() ?? "")));
-			return Encoding.UTF8.GetBytes(sb.ToString());
+			if (!string.IsNullOrWhiteSpace(email))
+				mail.To.Add(email);
 		}
 
-		public async Task SendEmailAsync(IEnumerable<string> toEmails, IEnumerable<string>? ccEmails, string subject, string body, DataTable? csvData = null)
+		if (ccEmails != null)
 		{
-			var message = new Message
+			foreach (var email in ccEmails)
 			{
-				Subject = subject,
-				Body = new ItemBody { ContentType = BodyType.Html, Content = body },
-				ToRecipients = toEmails.Select(e => new Recipient { EmailAddress = new EmailAddress { Address = e } }).ToList()
-			};
-
-			if (ccEmails != null)
-				message.CcRecipients = ccEmails.Select(e => new Recipient { EmailAddress = new EmailAddress { Address = e } }).ToList();
-
-			if (csvData != null)
-			{
-				message.Attachments =
-				[
-					new FileAttachment
-					{
-						Name = $"Report_{DateTime.UtcNow:yyyyMMdd}.csv",
-						ContentType = "text/csv",
-						ContentBytes = ConvertDataTableToCsvBytes(csvData)
-					}
-				];
+				if (!string.IsNullOrWhiteSpace(email))
+					mail.CC.Add(email);
 			}
-
-			await _graphClient.Users["Reports@protoenergy.com"]
-				.SendMail
-				.PostAsync(new Microsoft.Graph.Users.Item.SendMail.SendMailPostRequestBody
-				{
-					Message = message,
-					SaveToSentItems = true,
-
-				});
-
-			Console.WriteLine($"Sent email '{subject}' to {string.Join(", ", toEmails)}");
 		}
 
-		public async Task<Message?> GetLatestEmailAsync(string subjectFilter)
+		if (csvData != null)
 		{
-			var messages = await _graphClient.Users["Reports@protoenergy.com"]
-				.MailFolders["Inbox"]
-				.Messages
-				.GetAsync(config =>
-				{
-					config.QueryParameters.Top = 1;
-					config.QueryParameters.Filter = $"subject eq '{subjectFilter}'";
-					config.QueryParameters.Orderby = ["receivedDateTime desc"];
-				});
+			var csvBytes = ConvertDataTableToCsvBytes(csvData);
 
-			return messages?.Value?.FirstOrDefault();
+			mail.Attachments.Add(
+				new Attachment(
+					new MemoryStream(csvBytes),
+					$"Report_{DateTime.UtcNow:yyyyMMdd}.csv",
+					"text/csv"));
 		}
 
-		public async Task<Message?> GeEmailWithConversationIdAsync(string subjectFilter)
+		using var smtpClient = new SmtpClient(_smtp.Server, _smtp.Port)
 		{
-			var messages = await _graphClient.Users["Reports@protoenergy.com"]
-				.MailFolders["Inbox"]
-				.Messages
-				.GetAsync(config =>
-				{
-					config.QueryParameters.Top = 1;
-					config.QueryParameters.Filter = $"subject eq '{subjectFilter}'";
-					config.QueryParameters.Orderby = ["receivedDateTime desc"];
-					config.QueryParameters.Select = ["id", "subject", "from", "conversationId", "receivedDateTime", "toRecipients", "ccRecipients"];
-				});
+			Credentials = new NetworkCredential(
+				_smtp.Username,
+				_smtp.Password),
+			EnableSsl = _smtp.EnableSsl
+		};
 
-			return messages?.Value?.FirstOrDefault();
-		}
+		await smtpClient.SendMailAsync(mail);
 
-
-		public async Task ReplyToEmailAsync(Message originalMessage, string replyBody, DataTable? csvData = null)
-		{
-			var replyMessage = new Message
-			{
-				Body = new ItemBody { ContentType = BodyType.Html, Content = replyBody }
-			};
-
-			if (csvData != null)
-			{
-				replyMessage.Attachments = new List<Attachment>
-				{
-					new FileAttachment
-					{
-						Name = $"Report_{DateTime.UtcNow:yyyyMMdd}.csv",
-						ContentType = "text/csv",
-						ContentBytes = ConvertDataTableToCsvBytes(csvData)
-					}
-				};
-			}
-
-			await _graphClient.Users["Reports@protoenergy.com"]
-				.Messages[originalMessage.Id]
-				.Reply
-				.PostAsync(new Microsoft.Graph.Users.Item.Messages.Item.Reply.ReplyPostRequestBody
-				{
-					Message = replyMessage
-				});
-
-			Console.WriteLine($"Replied to email '{originalMessage.Subject}'");
-		}
-
-		public async Task RunFullWorkflowAsync(IEnumerable<string> toEmails, IEnumerable<string>? ccEmails, DataTable csvData)
-		{
-			string subject = $"ProtoOS Daily Report {DateTime.UtcNow:yyyyMMddHHmmss}";
-			string body = "Hello, this is your daily report from ProtoOS.";
-
-			// 1️⃣ Send initial email
-			await SendEmailAsync(toEmails, ccEmails, subject, body, csvData);
-
-			// 2️⃣ Poll inbox for reply
-			Message? replyEmail = null;
-			int attempts = 0;
-			while (replyEmail == null && attempts < 20)
-			{
-				Console.WriteLine("Checking for reply...");
-				await Task.Delay(15000); // 15 seconds
-				replyEmail = await GetLatestEmailAsync(subject);
-				attempts++;
-			}
-
-			// 3️⃣ Reply in same thread if reply received
-			if (replyEmail != null)
-				await ReplyToEmailAsync(replyEmail, "Thanks for your reply! Here is the report again.", csvData);
-			else
-				Console.WriteLine("No reply detected within the polling period.");
-		}
+		Console.WriteLine(
+			$"Email '{subject}' sent to {string.Join(", ", toEmails)}");
 	}
 }

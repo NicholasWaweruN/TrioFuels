@@ -905,7 +905,7 @@ namespace BussinessLogic.Sales.MissingSales
 										wallet.TransactionReference,
 										TopUpMode = ttypes.TopUpDescription,
 										TopUpDescription = ttypes.TopUpType == 4 ? ttypes.TopUpDescription : "Top Up",
-										AddedBy = user == null ? "MPESA PAYBILL" : string.Join(" ", user.FirstName, user.MiddName ?? "", user.LastName)
+										AddedBy = user == null ? "MPESA PAYBILL" : string.Join(' ', new object[] { user.FirstName, user.MiddName ?? string.Empty, user.LastName })
 									}).ToListAsync();
 
 				using var workbook = new XLWorkbook();

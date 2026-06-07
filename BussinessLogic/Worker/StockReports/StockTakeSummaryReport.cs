@@ -302,7 +302,7 @@ namespace BussinessLogic.Worker.StockReports
 			// Data
 			for (int row = 0; row < dataTable.Rows.Count; row++)
 			{
-				int currentRow = worksheet.LastRowUsed().RowNumber() + 1;
+				int currentRow = worksheet!.LastRowUsed()!.RowNumber() + 1;
 
 				for (int col = 0; col < totalColumns; col++)
 				{
@@ -384,7 +384,7 @@ namespace BussinessLogic.Worker.StockReports
                     // int currentRow = wsVar.LastRowUsed().RowNumber() + 1;
 
                     // After:
-                    int currentRow = wsVar.LastRowUsed() != null ? wsVar.LastRowUsed().RowNumber() + 1 : 3;
+                    int currentRow = wsVar.LastRowUsed() != null ? wsVar!.LastRowUsed()!.RowNumber() + 1 : 3;
 
 					for (int col = 0; col < varCols; col++)
 					{

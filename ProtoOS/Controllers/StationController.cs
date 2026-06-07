@@ -14,27 +14,20 @@ namespace FuelFlow.Controllers
 	[ApiController]
 	[Authorize]
 
-	public class StationController : ControllerBase
-	{
-		private readonly IStationService _stationService;
-		private readonly IStationTanks _stationTanks;
-		private readonly IStationDispensers _stationDispensers;
-		private readonly IDispenserAssigments _dispenserAssigments;
-		private readonly IDispenserNozzle _dispenserNozzle;
 
-		public StationController(
-			IStationService stationService,
-			IStationTanks stationTanks,
-			IStationDispensers stationDispensers,
-			IDispenserNozzle dispenserNozzle,
-			IDispenserAssigments dispenserAssigments)
-		{
-			_stationService = stationService;
-			_stationTanks = stationTanks;
-			_stationDispensers = stationDispensers;
-			_dispenserNozzle = dispenserNozzle;
-			_dispenserAssigments = dispenserAssigments;
-		}
+	public class StationController(
+		IStationService stationService,
+		IStationTanks stationTanks,
+		IStationDispensers stationDispensers,
+		IDispenserNozzle dispenserNozzle,
+		IDispenserAssigments dispenserAssigments) : ControllerBase
+
+	{
+		private readonly IStationService _stationService = stationService;
+		private readonly IStationTanks _stationTanks = stationTanks;
+		private readonly IStationDispensers _stationDispensers = stationDispensers;
+		private readonly IDispenserAssigments _dispenserAssigments = dispenserAssigments;
+		private readonly IDispenserNozzle _dispenserNozzle = dispenserNozzle;
 
 		private IActionResult HandleResponse<T>(T response)
 		{

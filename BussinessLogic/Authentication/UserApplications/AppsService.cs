@@ -1,4 +1,5 @@
-﻿using BussinessLogic.Authentication.CommonTasks;
+﻿using BusinessLogic.Authentication.UserApplications;
+using BussinessLogic.Authentication.CommonTasks;
 using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
@@ -11,7 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BusinessLogic.Authentication.UserApplications
+namespace BussinessLogic.Authentication.UserApplications
 {
 	/// <summary>
 	/// Service class for handling user applications related operations.

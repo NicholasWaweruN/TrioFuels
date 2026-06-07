@@ -197,7 +197,7 @@ namespace BussinessLogic.Stock.Stock
 										   d.DispenserName,
 										   s.StationName,
 										   payrollNumber = u.PayrollNumber,
-										   Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName)
+										   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName })
 									   }).AsNoTracking().ToListAsync();
 
 				if (variances.Count == 0)
@@ -589,7 +589,7 @@ namespace BussinessLogic.Stock.Stock
 								s.StationName,
 								s.StationCode,
 								payrollNumber = u.PayrollNumber,
-								Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName),
+								Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
 							};
 
 				// Apply filters
@@ -785,7 +785,7 @@ namespace BussinessLogic.Stock.Stock
 										   s.StationName,
 										   s.StationCode,
 										   u.PayrollNumber,
-										   Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName)
+										   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName })
 									   }).AsNoTracking().ToListAsync();
 
 				if (variances.Count == 0)

@@ -70,7 +70,7 @@
 											   s.StationName,
 											   s.StationCode,
 											   u.PayrollNumber,
-											   Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName)
+											   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName })
 										   }).AsNoTracking().ToListAsync();
 					// Check if no variances were found
 					if (variances == null || variances.Count == 0)

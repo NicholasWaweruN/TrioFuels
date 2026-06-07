@@ -174,7 +174,7 @@ namespace BusinessLogic.Sales.MissingSales
 							  where d.AttedantUserCode == userCode
 							  select new
 							  {
-								  Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName),
+								  Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
 								  Usercode = u.UserCode,
 								  d.StationCode
 							  }

@@ -251,7 +251,7 @@ namespace BusinessLogic.Roles
 									   where rt.RoleCode.Equals(roleId)
 									   select new
 									   {
-										   Name = string.Join(' ', u.FirstName, u.MiddName, u.LastName),
+										   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
 										   u.UserCode,
 										   u.PayrollNumber,
 										   u.PhoneNumber

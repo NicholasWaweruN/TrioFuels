@@ -75,7 +75,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 								var AttendantName = await (from a in _context.Users.Where(x => x.UserCode.Equals(assignment.AttedantUserCode))
 														   select new
 														   {
-															   Name = string.Join(' ', a.FirstName, a.MiddName, a.LastName),
+															   Name = string.Join(' ', new object[] { a.FirstName, a.MiddName, a.LastName }),
 														   }).FirstOrDefaultAsync();
 
 								await _context.DispenserAssignments.AddAsync(ass);
@@ -94,7 +94,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 							var AttendantName = await (from a in _context.Users.Where(x => x.UserCode.Equals(assignment.AttedantUserCode))
 													   select new
 													   {
-														   Name = string.Join(' ', a.FirstName, a.MiddName, a.LastName),
+														   Name = string.Join(' ', new object[] { a.FirstName, a.MiddName, a.LastName }),
 													   }).FirstOrDefaultAsync();
 
 							assign.DispenserCode = assignment.DispenserCode;
@@ -307,7 +307,7 @@ namespace BussinessLogic.Station.DispenserAssignments
                                          join station in _context.Stations on assignment.StationCode equals station.StationCode
                                          select new
                                          {
-                                             AttendantName = string.Join(" ", user.FirstName, user.MiddName, user.LastName),
+                                             AttendantName = string.Join(' ', new object[] { user.FirstName, user.MiddName, user.LastName }),
                                              dispenser.DispenserName,
                                              station.StationName,
                                              assignment.DateAssigned,
@@ -347,7 +347,7 @@ namespace BussinessLogic.Station.DispenserAssignments
                                         where app.AppsCode == Apps.OtogasApp
                                         select new
                                         {
-                                            Name = string.Join(" ", user.FirstName, user.MiddName, user.LastName),
+                                            Name = string.Join(' ', new object[] { user.FirstName, user.MiddName, user.LastName }),
                                             user.UserCode,
                                             user.PhoneNumber,
                                             user.Email,
@@ -376,7 +376,7 @@ namespace BussinessLogic.Station.DispenserAssignments
                                          where assignment.StationCode == stationCode
                                          select new
                                          {
-                                             AttendantName = string.Join(" ", user.FirstName, user.MiddName, user.LastName),
+                                             AttendantName = string.Join(' ',  new object[] { user.FirstName, user.MiddName, user.LastName }),
 											 dispenser.DispenserName,
 											 station.StationName,
                                              assignment.DateAssigned,
