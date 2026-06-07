@@ -39,6 +39,7 @@ public static class ScalarExtensions
 			{
 				if (document.Paths is not null)
 				{
+					
 					var sorted = document.Paths
 						.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
 						.ToList();
@@ -73,6 +74,7 @@ public static class ScalarExtensions
 			options.Theme = ScalarTheme.BluePlanet;
 			options.Layout = ScalarLayout.Classic;
 			options.Favicon = "/favicon.svg";
+			options.DarkMode = true;
 			options.HideDarkModeToggle = false;
 			
 
