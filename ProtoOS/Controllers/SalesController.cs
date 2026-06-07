@@ -117,7 +117,7 @@ namespace FuelFlow.Controllers
 
 		[HttpGet]
 		[Authorize]
-		[Route("MobileAppPaymentTypes")]
+		[Route("MobileAppPaymentTypes")]///jjjjj
 		public async Task<IActionResult> MobileAppPaymentTypes()
 		{
 			var response = await _salesService.MobileAppPaymentTypes();
