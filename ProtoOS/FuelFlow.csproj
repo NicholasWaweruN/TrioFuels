@@ -70,6 +70,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\BussinessLogic\BussinessLogic.csproj" />
+	  <ProjectReference Include="..\Safaricom_Daraja\Safaricom_Daraja.csproj" />
 	</ItemGroup>
 
 </Project>
