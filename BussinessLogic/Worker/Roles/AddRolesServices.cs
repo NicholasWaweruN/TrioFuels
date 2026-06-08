@@ -29,7 +29,7 @@ namespace BussinessLogic.Worker.Roles
 		private readonly IServiceProvider _serviceProvider;
 		private readonly ILogger<ApiPermissionRoleSeeder> _logger;
 
-		private static readonly string[] TargetAssemblyNames = new[] { "ProtoOS", "ProtoOs" };
+		private static readonly string[] TargetAssemblyNames = new[] { "FuelFlow", "FuelFlow" };
 
 		public ApiPermissionRoleSeeder(IServiceProvider serviceProvider, ILogger<ApiPermissionRoleSeeder> logger)
 		{

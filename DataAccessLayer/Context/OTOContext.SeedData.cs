@@ -31,6 +31,7 @@ namespace DataAccessLayer.Context
 			SeedPetroleumProducts(modelBuilder);
 			SeedRoles(modelBuilder);
 			SeedReportsAndEmails(modelBuilder);
+			SeedSetting(modelBuilder);
 		}
 
 		private static void SeedCodegenerators(ModelBuilder modelBuilder)
@@ -290,6 +291,12 @@ namespace DataAccessLayer.Context
 			);
 		}
 
+		private static void SeedSetting(ModelBuilder modelBuilder)
+		{
+			modelBuilder.Entity<Setup>().HasData(
+				new Setup { Id = 1,App_VersionCode = "0.0.0.1",PasswordExpiryDays = 30 }
+			);
+		}
 		private static void SeedPetroleumProducts(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<PetroleumProducts>().HasData(
