@@ -211,7 +211,10 @@ namespace DataAccessLayer.Context
 				}
 			);
 		}
-
+		/// <summary>
+		/// he;llo
+		/// </summary>
+		/// <param name="modelBuilder"></param>
 		private static void SeedNozzles(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Nozzle>().HasData(
@@ -235,7 +238,10 @@ namespace DataAccessLayer.Context
 				}
 			);
 		}
-
+		/// <summary>
+		/// /
+		/// </summary>
+		/// <param name="modelBuilder"></param>
 		private static void SeedTills(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Tills>().HasData(

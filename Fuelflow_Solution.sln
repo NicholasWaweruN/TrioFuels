@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.4.11620.152 stable
+VisualStudioVersion = 18.4.11620.152
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BussinessLogic", "BussinessLogic\BussinessLogic.csproj", "{F787A71D-2B1C-473C-97A1-02288A899232}"
 EndProject
@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FuelFlow", "ProtoOS\FuelFlow.csproj", "{F87D84E1-D0D0-9348-9375-70728BA47DA9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Safaricom_Daraja", "Safaricom_Daraja\Safaricom_Daraja.csproj", "{BEE8178C-D400-4F48-A236-11376538E1F0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,6 +34,10 @@ Global
 		{F87D84E1-D0D0-9348-9375-70728BA47DA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F87D84E1-D0D0-9348-9375-70728BA47DA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F87D84E1-D0D0-9348-9375-70728BA47DA9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEE8178C-D400-4F48-A236-11376538E1F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEE8178C-D400-4F48-A236-11376538E1F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEE8178C-D400-4F48-A236-11376538E1F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEE8178C-D400-4F48-A236-11376538E1F0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

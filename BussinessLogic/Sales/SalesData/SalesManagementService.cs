@@ -1372,6 +1372,9 @@ namespace BussinessLogic.Sales.SalesData
 					.AsNoTracking()
 					.ToListAsync(ct);
 
+
+				Console.WriteLine(salesData.Count.ToString());
+
 				if (salesData.Count == 0)
 					return ServiceResponse<byte[]>.Information("No Sales Data Found", null);
 
@@ -1477,7 +1480,7 @@ namespace BussinessLogic.Sales.SalesData
 			{
 				_logger.LogError(ex, "MonthlySalesReport failed for {Month}/{Year}.", month, year);
 				return ServiceResponse<byte[]>.Error(
-					"An error occurred while generating the sales report. Please try again or contact support.", null);
+					$"An error occurred while generating the sales report. Please try again or contact support. {ex.Message}", null);
 			}
 			finally
 			{
