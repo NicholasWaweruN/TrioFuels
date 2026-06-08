@@ -16,7 +16,7 @@ public static class BackgroundWorkerExtensions
 		services.AddHostedService<EmailBackgroundService>();
 		services.AddHostedService<SalesSummaryWorker>();
 		services.AddHostedService<AuthenticationWorker>();
-		services.AddHostedService<ApiPermissionRoleSeeder>();
+		//services.AddHostedService<ApiPermissionRoleSeeder>();
 
 		return services;
 	}

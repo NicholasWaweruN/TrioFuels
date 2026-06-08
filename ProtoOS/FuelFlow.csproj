@@ -64,6 +64,7 @@
 	<ItemGroup>
 		<Folder Include="wwwroot\DeliveryNote\" />
 		<Folder Include="wwwroot\Authorised_Document\" />
+		<Folder Include="wwwroot\OtogasApk\" />
 		<Folder Include="wwwroot\Sales\" />
 	</ItemGroup>
 

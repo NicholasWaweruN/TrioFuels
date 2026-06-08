@@ -406,27 +406,27 @@ namespace DataAccessLayer.Migrations
                             Id = "f9b3e4d7-5a8c-3f2d-9b6f-4a7e5d8b6f9a",
                             AccessApps = "",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "0e141f5c-bda4-42d4-8bd2-e12e5f0a0dcb",
+                            ConcurrencyStamp = "b0060030-7c56-4cd3-9e87-00bcf636bc4c",
                             CreatedBy = "",
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8706),
-                            DateModified = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8705),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5428),
+                            DateModified = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5427),
                             DepartmentCode = "",
                             Email = "nicholas@fuelflo.com",
                             EmailConfirmed = true,
                             FirstName = "Admin",
                             IsActive = true,
-                            LastLoginDate = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8707),
+                            LastLoginDate = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5430),
                             LastName = "Fuel Flow",
                             LockoutEnabled = false,
                             MiddName = "",
                             ModifiedBy = "",
                             NormalizedEmail = "NICHOLAS@FUELFLOW.COM",
                             PasswordHash = "AQAAAAIAAYagAAAAEE6B8ismqB4S3ovK4di5qY7F2cwEDfBiowzxCzmmnRa1w0kuyR/ADNBR4B6D0h9sew==",
-                            PasswordLastUpdated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8702),
+                            PasswordLastUpdated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5424),
                             PayrollNumber = "",
                             PhoneNumber = "+254715821303",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "436ea0d3-1225-4683-9148-ce1b8077d5f4",
+                            SecurityStamp = "8e0b9378-b0f1-413f-8446-fd665bdad54c",
                             StationCode = "",
                             TwoFactorEnabled = false,
                             UserCode = "99999",
@@ -585,7 +585,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9484),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5872),
                             RoleCode = "001",
                             RoleName = "Administrator",
                             UserCode = "99999"
@@ -1394,6 +1394,26 @@ namespace DataAccessLayer.Migrations
                         .HasDatabaseName("IX_Customer_CustomerCode");
 
                     b.ToTable("Customers");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1L,
+                            BaseLoyaltyPoints = 1m,
+                            CreditLimit = 0m,
+                            CustomerCode = "C00001",
+                            CustomerEmail = "test@fuelflow.com",
+                            CustomerName = "System Test Vehicle",
+                            CustomerPhone = "0715821303",
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(6550),
+                            IdentificationNumber = "27838753",
+                            IsCreditCustomer = true,
+                            KRAPin = "",
+                            OrganisationCode = "ORG001",
+                            Receive_Receipts = false,
+                            Receive_Statements = false,
+                            UserCode = ""
+                        });
                 });
 
             modelBuilder.Entity("DataAccessLayer.EntityModels.Customer.Customer_Complains", b =>
@@ -1809,6 +1829,35 @@ namespace DataAccessLayer.Migrations
                         .HasDatabaseName("IX_Vehicle_VehicleCode");
 
                     b.ToTable("Vehicles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1L,
+                            ConversionDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ConversionStation = "",
+                            CreditLimit = 1000m,
+                            CustomerCode = "C00001",
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(6587),
+                            Discount = 0m,
+                            IsActive = true,
+                            IsTelematicInstalled = false,
+                            NFC_CardNumber = "0000000000",
+                            PhoneNumber = "0715821303",
+                            PhoneNumber2 = "",
+                            ProductCode = "01",
+                            RoyaltyPointPerLitre = 1m,
+                            Status = "Active",
+                            TankCapacity = 60,
+                            TelematicInstallationDate = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            TelematicSerialNumber = "",
+                            TransactionPIN = "0000",
+                            UserCode = "",
+                            VehicleCode = "V001",
+                            VehicleMake = "Toyota",
+                            VehicleModel = "Walk-In",
+                            VehicleRegistrationNumber = "KDL849R"
+                        });
                 });
 
             modelBuilder.Entity("DataAccessLayer.EntityModels.Customer.VehicleStatusTypes", b =>
@@ -3063,7 +3112,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9157),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5622),
                             DeviceCode = "1234567890",
                             DeviceIMEI = "1234567890",
                             DeviceMacAddress = "1234567890",
@@ -3119,11 +3168,29 @@ namespace DataAccessLayer.Migrations
                     b.HasData(
                         new
                         {
-                            Id = -1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9114),
+                            Id = 1L,
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5583),
                             IsActive = true,
                             ProductCode = "02",
                             ProductName = "Diesel",
+                            UserCode = "000001"
+                        },
+                        new
+                        {
+                            Id = 2L,
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5588),
+                            IsActive = true,
+                            ProductCode = "01",
+                            ProductName = "Petrol",
+                            UserCode = "000001"
+                        },
+                        new
+                        {
+                            Id = 3L,
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5590),
+                            IsActive = true,
+                            ProductCode = "03",
+                            ProductName = "Autogas",
                             UserCode = "000001"
                         });
                 });
@@ -3272,7 +3339,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8865),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5548),
                             DispenserCode = "D01",
                             DispenserName = "D1",
                             IsActive = true,
@@ -3338,7 +3405,7 @@ namespace DataAccessLayer.Migrations
                             Id = 1L,
                             AssignedBy = "99999",
                             AttedantUserCode = "99999",
-                            DateAssigned = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9238),
+                            DateAssigned = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5691),
                             DispenserCode = "D01",
                             IsActive = true,
                             StationCode = "S001"
@@ -3401,7 +3468,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8762),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5472),
                             IsActive = true,
                             LocationId = "Test Station",
                             StationAddress = "Test Station",
@@ -3461,7 +3528,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9197),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5656),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N01",
@@ -3471,7 +3538,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9200),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5659),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N02",
@@ -3517,7 +3584,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9429),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5834),
                             PetroleumCode = "01",
                             PetroleumName = "Autogas",
                             UserCode = "99999"
@@ -3525,7 +3592,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9432),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5837),
                             PetroleumCode = "02",
                             PetroleumName = "Petrol",
                             UserCode = "99999"
@@ -3533,7 +3600,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9434),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5839),
                             PetroleumCode = "03",
                             PetroleumName = "Diesel",
                             UserCode = "99999"
@@ -3759,9 +3826,9 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9279),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5723),
                             IsActive = true,
-                            LastFetch = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9280),
+                            LastFetch = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5724),
                             OffsetValue = 0,
                             StoreNumber = "078678",
                             TillName = "Test Till",
@@ -3879,7 +3946,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7879),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4857),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -3891,7 +3958,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7887),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4861),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "D",
@@ -3903,7 +3970,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7890),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4864),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "N",
@@ -3915,7 +3982,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7893),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4867),
                             Length = 3,
                             NextNumber = 0,
                             Prefix = "S",
@@ -3927,7 +3994,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 5L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7895),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4869),
                             Length = 5,
                             NextNumber = 10000,
                             Prefix = "",
@@ -3939,7 +4006,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7898),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4872),
                             Length = 5,
                             NextNumber = 10000,
                             Prefix = "",
@@ -3951,7 +4018,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 7L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7901),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4874),
                             Length = 7,
                             NextNumber = 0,
                             Prefix = "",
@@ -3963,7 +4030,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 8L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7903),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4876),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "T",
@@ -3975,7 +4042,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 9L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7906),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4879),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -3987,7 +4054,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 10L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7908),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4881),
                             Length = 4,
                             NextNumber = 0,
                             Prefix = "P",
@@ -3999,7 +4066,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 11L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7911),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4883),
                             Length = 7,
                             NextNumber = 0,
                             Prefix = "",
@@ -4011,7 +4078,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7914),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4885),
                             Length = 4,
                             NextNumber = 0,
                             Prefix = "PD",
@@ -4023,7 +4090,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7916),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4888),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "",
@@ -4035,7 +4102,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 16L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7919),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4890),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -4047,7 +4114,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 17L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(7931),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(4892),
                             Length = 5,
                             NextNumber = 1,
                             Prefix = "",
@@ -4463,7 +4530,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8347),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5154),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 0,
@@ -4474,7 +4541,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8362),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5157),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 1,
@@ -4485,7 +4552,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8365),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5159),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 3,
@@ -4496,7 +4563,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8367),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5160),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 5,
@@ -4507,7 +4574,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 7L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8369),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5162),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 6,
@@ -4518,7 +4585,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 8L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8372),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5164),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 7,
@@ -4529,7 +4596,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 9L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8374),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5166),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 8,
@@ -4540,7 +4607,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 10L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8376),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5168),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 9,
@@ -4551,7 +4618,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 11L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8378),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5169),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 10,
@@ -4562,7 +4629,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 13L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8381),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5171),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 12,
@@ -4573,7 +4640,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8383),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5173),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 13,
@@ -4584,7 +4651,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(8385),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5175),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 14,
@@ -4760,7 +4827,7 @@ namespace DataAccessLayer.Migrations
                             Id = 1L,
                             AmountCredit = 0m,
                             AmountDebit = 0m,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9318),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5753),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -4770,7 +4837,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9325),
+                            RoundedDate = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5757),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -4783,7 +4850,7 @@ namespace DataAccessLayer.Migrations
                             Id = 2L,
                             AmountCredit = 0m,
                             AmountDebit = 0m,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9330),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5761),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -4793,7 +4860,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9332),
+                            RoundedDate = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5763),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -4987,7 +5054,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = 1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9374),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5790),
                             NozzleCode = "N01",
                             OpeningReading = 50m,
                             ShiftNumber = "",
@@ -4998,7 +5065,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = -1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 6, 8, 6, 13, 17, 842, DateTimeKind.Utc).AddTicks(9378),
+                            DateCreated = new DateTime(2026, 6, 8, 8, 34, 31, 18, DateTimeKind.Utc).AddTicks(5794),
                             NozzleCode = "N02",
                             OpeningReading = 50m,
                             ShiftNumber = "",

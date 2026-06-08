@@ -1,4 +1,5 @@
 using DataAccessLayer.Authentication.Entity;
+using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Emails;
 using DataAccessLayer.EntityModels.Messaging;
 using DataAccessLayer.EntityModels.ProtoBase;
@@ -32,6 +33,23 @@ namespace DataAccessLayer.Context
 			SeedRoles(modelBuilder);
 			SeedReportsAndEmails(modelBuilder);
 			SeedSetting(modelBuilder);
+			SeedCustomers(modelBuilder);
+			SeedVehicles(modelBuilder);
+			SeedPrices(modelBuilder);
+		}
+
+		private static void SeedVehicles(ModelBuilder modelBuilder)
+		{
+			modelBuilder.Entity<Vehicle>().HasData(
+				new Vehicle { Id = 1, CustomerCode = "C00001", VehicleCode = "V001", VehicleRegistrationNumber = "KDL849R", VehicleMake = "Toyota", VehicleModel = "Walk-In", TankCapacity = 60, ProductCode = "01", ConversionStation = "", ConversionDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), IsActive = true, Status = "Active", NFC_CardNumber = "0000000000", TransactionPIN = "0000", PhoneNumber = "0715821303", PhoneNumber2 = string.Empty, CreditLimit = 1000m, Discount = 0m, TelematicSerialNumber = string.Empty, IsTelematicInstalled = false, TelematicInstallationDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), RoyaltyPointPerLitre = 1m }
+			);
+		}
+
+		private static void SeedCustomers(ModelBuilder modelBuilder)
+		{
+			modelBuilder.Entity<Customer>().HasData(
+				new Customer { Id = 1, CustomerName = "System Test Vehicle", CustomerPhone = "0715821303", CustomerEmail = "test@fuelflow.com", OrganisationCode = "ORG001", CustomerCode = "C00001", IdentificationNumber = "27838753", KRAPin = "", CreditLimit = 0m, Receive_Receipts = false, Receive_Statements = false, IsCreditCustomer = true, BaseLoyaltyPoints = 1 }
+			);
 		}
 
 		private static void SeedCodegenerators(ModelBuilder modelBuilder)
@@ -157,16 +175,21 @@ namespace DataAccessLayer.Context
 		private static void SeedProducts(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Products>().HasData(
-				new Products
-				{
-					ProductCode = "02",
-					ProductName = "Diesel",
-					DateCreated = DateTime.UtcNow,
-					IsActive = true,
-					UserCode = "000001",
-					Id = -1
-				}
+				new Products { ProductCode = "02", ProductName = "Diesel", DateCreated = DateTime.UtcNow, IsActive = true, UserCode = "000001", Id = 1 },
+				new Products { ProductCode = "01", ProductName = "Petrol", DateCreated = DateTime.UtcNow, IsActive = true, UserCode = "000001", Id = 2 },
+				new Products { ProductCode = "03", ProductName = "Autogas", DateCreated = DateTime.UtcNow, IsActive = true, UserCode = "000001", Id = 3 }
 			);
+
+		}
+
+		private static void SeedPrices(ModelBuilder modelBuilder)
+		{
+			modelBuilder.Entity<Price>().HasData(
+				new Price { ProductCode = "02", Amount = 234, DateCreated = DateTime.UtcNow, Discount = 0, UserCode = "000001", DispenserCode = "D01", StationCode = "S001", Id = 1 },
+				new Price { ProductCode = "01", Amount = 214, DateCreated = DateTime.UtcNow, Discount = 0, UserCode = "000001", DispenserCode = "D01", StationCode = "S001", Id = 2 },
+				new Price { ProductCode = "03", Amount = 105, DateCreated = DateTime.UtcNow, Discount = 0, UserCode = "000001", DispenserCode = "D01", StationCode = "S001", Id = 3 }
+			);
+
 		}
 
 		private static void SeedPdaDevices(ModelBuilder modelBuilder)
