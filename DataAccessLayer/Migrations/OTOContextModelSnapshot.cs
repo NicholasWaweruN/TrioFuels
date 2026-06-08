@@ -80,7 +80,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DispenserName")
                         .IsRequired()
@@ -95,7 +95,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("OriginalDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("OutLet")
                         .IsRequired()
@@ -180,7 +180,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Month")
                         .HasColumnType("integer");
@@ -228,7 +228,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(150)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("RoleId")
                         .IsRequired()
@@ -276,10 +276,10 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("DateModified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DepartmentCode")
                         .IsRequired()
@@ -306,7 +306,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastLoginDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -346,7 +346,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("PasswordLastUpdated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("PayrollNumber")
                         .IsRequired()
@@ -406,27 +406,27 @@ namespace DataAccessLayer.Migrations
                             Id = "f9b3e4d7-5a8c-3f2d-9b6f-4a7e5d8b6f9a",
                             AccessApps = "",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "6590f25c-d2ee-4c1d-8ea7-0a92bb5adbd9",
+                            ConcurrencyStamp = "b46fea7a-9b49-4296-aaa2-fe1282c11f50",
                             CreatedBy = "",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8692),
-                            DateModified = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8691),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5703),
+                            DateModified = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5703),
                             DepartmentCode = "",
                             Email = "nicholas@fuelflo.com",
                             EmailConfirmed = true,
                             FirstName = "Admin",
                             IsActive = true,
-                            LastLoginDate = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8693),
+                            LastLoginDate = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5704),
                             LastName = "Fuel Flow",
                             LockoutEnabled = false,
                             MiddName = "",
                             ModifiedBy = "",
                             NormalizedEmail = "NICHOLAS@FUELFLOW.COM",
                             PasswordHash = "AQAAAAIAAYagAAAAEE6B8ismqB4S3ovK4di5qY7F2cwEDfBiowzxCzmmnRa1w0kuyR/ADNBR4B6D0h9sew==",
-                            PasswordLastUpdated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8685),
+                            PasswordLastUpdated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5699),
                             PayrollNumber = "",
                             PhoneNumber = "+254715821303",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "ec3ae2b3-2627-432c-aa8e-bd37724a683e",
+                            SecurityStamp = "9972b826-93cb-4e3b-882d-f1a8fc5cada5",
                             StationCode = "",
                             TwoFactorEnabled = false,
                             UserCode = "99999",
@@ -444,7 +444,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -490,7 +490,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("UserCode")
                         .IsRequired()
@@ -501,45 +501,45 @@ namespace DataAccessLayer.Migrations
 
                     b.HasIndex("AppsCode")
                         .IsUnique()
-                        .HasDatabaseName("IX_ProtoApps_AppsCode");
+                        .HasDatabaseName("IX_ProtoApps_AppsCode2");
 
                     b.ToTable("ProtoApps");
 
                     b.HasData(
                         new
                         {
-                            Id = new Guid("ee835650-32f3-4718-9606-38fc2b7987d2"),
+                            Id = new Guid("11111111-0000-0000-0000-000000000001"),
                             AppsCode = "01",
                             AppsName = "Bulk DashBoard",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8480),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = ""
                         },
                         new
                         {
-                            Id = new Guid("4cc03bbd-51d1-4dbc-8bb3-7f18e503e053"),
+                            Id = new Guid("11111111-0000-0000-0000-000000000002"),
                             AppsCode = "02",
                             AppsName = "Bulk App",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8485),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = ""
                         },
                         new
                         {
-                            Id = new Guid("4be00159-2585-43b8-a680-75b745ff1775"),
+                            Id = new Guid("11111111-0000-0000-0000-000000000003"),
                             AppsCode = "03",
                             AppsName = "Fuel Flow DashBoard",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8489),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = ""
                         },
                         new
                         {
-                            Id = new Guid("85e92a4a-d946-4c6e-8859-e645e2f2fc06"),
+                            Id = new Guid("11111111-0000-0000-0000-000000000004"),
                             AppsCode = "04",
                             AppsName = "Fuel Flow App",
                             CurrentVersion = "",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8492),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = ""
                         });
                 });
@@ -553,7 +553,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("RoleCode")
                         .IsRequired()
@@ -585,7 +585,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9259),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6579),
                             RoleCode = "001",
                             RoleName = "Administrator",
                             UserCode = "99999"
@@ -601,7 +601,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("PermissionCode")
                         .IsRequired()
@@ -641,7 +641,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("RoleCode")
                         .IsRequired()
@@ -675,7 +675,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("UserCode")
                         .IsRequired()
@@ -693,30 +693,30 @@ namespace DataAccessLayer.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("e53ff251-c568-4c6b-bf27-ef87b1312cf0"),
+                            Id = new Guid("22222222-0000-0000-0000-000000000001"),
                             AppsCode = "03",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8791),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = "99999"
                         },
                         new
                         {
-                            Id = new Guid("149618c3-e575-429f-986a-622661c51868"),
+                            Id = new Guid("22222222-0000-0000-0000-000000000002"),
                             AppsCode = "04",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8795),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = "99999"
                         },
                         new
                         {
-                            Id = new Guid("5b6b2175-21b6-4e82-8884-9c292d71503b"),
+                            Id = new Guid("22222222-0000-0000-0000-000000000003"),
                             AppsCode = "01",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8799),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = "99999"
                         },
                         new
                         {
-                            Id = new Guid("83e53f12-59f6-44d4-9375-836001ac4bb7"),
+                            Id = new Guid("22222222-0000-0000-0000-000000000004"),
                             AppsCode = "02",
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8807),
+                            DateCreated = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             UserCode = "99999"
                         });
                 });
@@ -792,7 +792,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("SalesDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ShiftNumber")
                         .HasColumnType("text");
@@ -822,7 +822,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("DateTimeStamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -854,7 +854,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("DateTimeStamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -891,7 +891,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ProductName")
                         .IsRequired()
@@ -976,7 +976,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("SalesDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("StationName")
                         .IsRequired()
@@ -1045,7 +1045,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("SalesDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ShiftNumber")
                         .IsRequired()
@@ -1113,7 +1113,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Initiator")
                         .IsRequired()
@@ -1187,7 +1187,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -1221,10 +1221,10 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateApproved")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsApproved")
                         .HasColumnType("boolean");
@@ -1273,7 +1273,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Debit")
                         .HasPrecision(18, 2)
@@ -1355,7 +1355,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("IdentificationNumber")
                         .IsRequired()
@@ -1423,7 +1423,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -1462,7 +1462,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("RegNo")
                         .IsRequired()
@@ -1510,7 +1510,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("OrganisationCode")
                         .IsRequired()
@@ -1585,7 +1585,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("ConversionDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ConversionStation")
                         .IsRequired()
@@ -1600,7 +1600,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -1633,7 +1633,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("TransFerDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("TransactionPIN")
                         .IsRequired()
@@ -1688,7 +1688,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("ConversionDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ConversionStation")
                         .IsRequired()
@@ -1707,7 +1707,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Discount")
                         .HasPrecision(18, 2)
@@ -1757,7 +1757,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("TelematicInstallationDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("TelematicSerialNumber")
                         .IsRequired()
@@ -1820,7 +1820,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -1861,7 +1861,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -1978,7 +1978,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("SalesDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ShiftNumber")
                         .IsRequired()
@@ -2084,7 +2084,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("PointsToRedeem")
                         .HasColumnType("integer");
@@ -2113,7 +2113,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsRewardClaimed")
                         .HasColumnType("boolean");
@@ -2124,10 +2124,10 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.Property<DateTime?>("OtpSentDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("RewardClaimedDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("RewardPoints")
                         .HasColumnType("integer");
@@ -2171,7 +2171,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("FailureReason")
                         .IsRequired()
@@ -2266,7 +2266,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -2282,7 +2282,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("From")
                         .IsRequired()
@@ -2401,7 +2401,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("MessageId")
                         .IsRequired()
@@ -2444,7 +2444,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -2478,7 +2478,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("OTPDescription")
                         .IsRequired()
@@ -2515,10 +2515,10 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("OTPCode")
                         .IsRequired()
@@ -2559,10 +2559,10 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DateSent")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsSent")
                         .HasColumnType("boolean");
@@ -2580,7 +2580,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("ScheduledSendingdate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("SenderId")
                         .IsRequired()
@@ -2600,7 +2600,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -2647,7 +2647,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateAdded")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("FailureReason")
                         .IsRequired()
@@ -2697,7 +2697,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Discount")
                         .HasPrecision(18, 2)
@@ -2784,7 +2784,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Debit")
                         .HasPrecision(18, 2)
@@ -2844,7 +2844,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("DateTimeStamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -2891,7 +2891,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(30)");
 
                     b.Property<DateTime?>("TransTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("TransactionType")
                         .IsRequired()
@@ -2920,7 +2920,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ErrorCode")
                         .IsRequired()
@@ -2980,7 +2980,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("LastRun")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -2996,7 +2996,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DeviceCode")
                         .IsRequired()
@@ -3063,7 +3063,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8931),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6244),
                             DeviceCode = "1234567890",
                             DeviceIMEI = "1234567890",
                             DeviceMacAddress = "1234567890",
@@ -3085,7 +3085,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -3120,7 +3120,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = -1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8895),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6210),
                             IsActive = true,
                             ProductCode = "02",
                             ProductName = "Diesel",
@@ -3163,7 +3163,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -3206,7 +3206,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DispenserCode")
                         .IsRequired()
@@ -3264,7 +3264,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8843),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6158),
                             DispenserCode = "D01",
                             DispenserName = "D1",
                             IsActive = true,
@@ -3297,7 +3297,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.Property<DateTime>("DateAssigned")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DispenserCode")
                         .IsRequired()
@@ -3330,7 +3330,7 @@ namespace DataAccessLayer.Migrations
                             Id = 1L,
                             AssignedBy = "99999",
                             AttedantUserCode = "99999",
-                            DateAssigned = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9014),
+                            DateAssigned = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6320),
                             DispenserCode = "D01",
                             IsActive = true,
                             StationCode = "S001"
@@ -3346,7 +3346,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -3393,7 +3393,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8742),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5873),
                             IsActive = true,
                             LocationId = "Test Station",
                             StationAddress = "Test Station",
@@ -3412,7 +3412,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DispenserCode")
                         .IsRequired()
@@ -3453,7 +3453,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8969),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6281),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N01",
@@ -3463,7 +3463,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8972),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6284),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N02",
@@ -3481,7 +3481,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("PetroleumCode")
                         .IsRequired()
@@ -3509,7 +3509,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9203),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6530),
                             PetroleumCode = "01",
                             PetroleumName = "Autogas",
                             UserCode = "99999"
@@ -3517,7 +3517,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9205),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6533),
                             PetroleumCode = "02",
                             PetroleumName = "Petrol",
                             UserCode = "99999"
@@ -3525,7 +3525,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9208),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6535),
                             PetroleumCode = "03",
                             PetroleumName = "Diesel",
                             UserCode = "99999"
@@ -3541,7 +3541,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -3588,7 +3588,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<double>("DeliveredQuantity")
                         .HasColumnType("double precision");
@@ -3646,7 +3646,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("double precision");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<double>("DeliveredQuantity")
                         .HasColumnType("double precision");
@@ -3701,13 +3701,13 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("LastFetch")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("OffsetValue")
                         .HasColumnType("integer");
@@ -3751,9 +3751,9 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9053),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6360),
                             IsActive = true,
-                            LastFetch = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9054),
+                            LastFetch = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6361),
                             OffsetValue = 0,
                             StoreNumber = "078678",
                             TillName = "Test Till",
@@ -3778,7 +3778,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("TakeDateTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -3794,7 +3794,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("NozzlesCode")
                         .IsRequired()
@@ -3824,7 +3824,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Length")
                         .HasColumnType("integer");
@@ -3871,7 +3871,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7911),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(4995),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -3883,7 +3883,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7917),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(4998),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "D",
@@ -3895,7 +3895,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7920),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5001),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "N",
@@ -3907,7 +3907,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7923),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5003),
                             Length = 3,
                             NextNumber = 0,
                             Prefix = "S",
@@ -3919,7 +3919,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 5L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7926),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5005),
                             Length = 5,
                             NextNumber = 10000,
                             Prefix = "",
@@ -3931,7 +3931,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7928),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5007),
                             Length = 5,
                             NextNumber = 10000,
                             Prefix = "",
@@ -3943,7 +3943,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 7L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7931),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5010),
                             Length = 7,
                             NextNumber = 0,
                             Prefix = "",
@@ -3955,7 +3955,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 8L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7934),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5012),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "T",
@@ -3967,7 +3967,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 9L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7937),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5014),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -3979,7 +3979,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 10L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7939),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5016),
                             Length = 4,
                             NextNumber = 0,
                             Prefix = "P",
@@ -3991,7 +3991,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 11L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7942),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5018),
                             Length = 7,
                             NextNumber = 0,
                             Prefix = "",
@@ -4003,7 +4003,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7945),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5021),
                             Length = 4,
                             NextNumber = 0,
                             Prefix = "PD",
@@ -4015,7 +4015,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7948),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5023),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "",
@@ -4027,7 +4027,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 16L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7951),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5025),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -4039,7 +4039,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 17L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7953),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5037),
                             Length = 5,
                             NextNumber = 1,
                             Prefix = "",
@@ -4069,7 +4069,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(10)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Debit")
                         .HasPrecision(18, 2)
@@ -4123,7 +4123,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Debit")
                         .HasPrecision(18, 2)
@@ -4193,7 +4193,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DispenserCode")
                         .IsRequired()
@@ -4270,13 +4270,13 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("DateModified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("DateTimeStamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -4329,7 +4329,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("TransTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("TransactionType")
                         .IsRequired()
@@ -4363,7 +4363,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("PaymentRefrence")
                         .IsRequired()
@@ -4412,7 +4412,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("HasValue")
                         .HasColumnType("boolean");
@@ -4455,7 +4455,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8341),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5354),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 0,
@@ -4466,7 +4466,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8345),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5357),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 1,
@@ -4477,7 +4477,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8347),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5359),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 3,
@@ -4488,7 +4488,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8349),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5361),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 5,
@@ -4499,7 +4499,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 7L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8351),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5362),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 6,
@@ -4510,7 +4510,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 8L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8353),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5364),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 7,
@@ -4521,7 +4521,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 9L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8355),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5366),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 8,
@@ -4532,7 +4532,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 10L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8357),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5368),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 9,
@@ -4543,7 +4543,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 11L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8360),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5370),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 10,
@@ -4554,7 +4554,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 13L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8363),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5372),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 12,
@@ -4565,7 +4565,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8366),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5373),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 13,
@@ -4576,7 +4576,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8368),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5375),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 14,
@@ -4599,7 +4599,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Discount")
                         .HasPrecision(18, 2)
@@ -4654,7 +4654,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Discount")
                         .HasPrecision(18, 2)
@@ -4696,7 +4696,7 @@ namespace DataAccessLayer.Migrations
 
                     b.Property<DateTime?>("RoundedDate")
                         .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("SaleId")
                         .IsRequired()
@@ -4752,7 +4752,7 @@ namespace DataAccessLayer.Migrations
                             Id = 1L,
                             AmountCredit = 0m,
                             AmountDebit = 0m,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9096),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6415),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -4762,7 +4762,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9105),
+                            RoundedDate = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6421),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -4775,7 +4775,7 @@ namespace DataAccessLayer.Migrations
                             Id = 2L,
                             AmountCredit = 0m,
                             AmountDebit = 0m,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9110),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6429),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -4785,7 +4785,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9113),
+                            RoundedDate = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6431),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -4808,7 +4808,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Litres")
                         .HasPrecision(18, 2)
@@ -4846,7 +4846,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -4874,7 +4874,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("DispenserCode")
                         .IsRequired()
@@ -4895,7 +4895,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("ShiftEndTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ShiftNumber")
                         .IsRequired()
@@ -4904,7 +4904,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("ShiftStartTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("ShiftStatus")
                         .HasColumnType("integer");
@@ -4940,7 +4940,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("NozzleCode")
                         .IsRequired()
@@ -4979,7 +4979,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = 1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9153),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6469),
                             NozzleCode = "N01",
                             OpeningReading = 50m,
                             ShiftNumber = "",
@@ -4990,7 +4990,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = -1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9160),
+                            DateCreated = new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6474),
                             NozzleCode = "N02",
                             OpeningReading = 50m,
                             ShiftNumber = "",
@@ -5016,7 +5016,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("ExpectedClosingReading")
                         .HasPrecision(18, 2)
@@ -5104,7 +5104,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Duplicate")
                         .HasColumnType("integer");
@@ -5181,10 +5181,10 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTime>("DateCreated")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsUsed")
                         .HasColumnType("boolean");
@@ -5219,7 +5219,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("ConversionDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CustomerName")
                         .IsRequired()
@@ -5277,7 +5277,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("SalesDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ShiftNumber")
                         .IsRequired()
@@ -5435,7 +5435,7 @@ namespace DataAccessLayer.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("EndTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -5458,7 +5458,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("decimal(6,2)");
 
                     b.Property<DateTime>("StartTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("StationCode")
                         .IsRequired()

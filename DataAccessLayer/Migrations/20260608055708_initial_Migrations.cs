@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial_Migration : Migration
+    public partial class initial_Migrations : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -26,7 +26,7 @@ namespace DataAccessLayer.Migrations
                     NetworkCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     FailureReason = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     Cost = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -42,7 +42,7 @@ namespace DataAccessLayer.Migrations
                     VehicleRegistrationNumber = table.Column<string>(type: "text", nullable: false),
                     Credit = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     ProductName = table.Column<string>(type: "text", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     TransactionReference = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
@@ -57,7 +57,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     RoleId = table.Column<string>(type: "character varying(140)", unicode: false, maxLength: 140, nullable: false),
                     ApiPermission = table.Column<string>(type: "character varying(150)", unicode: false, maxLength: 150, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -91,11 +91,11 @@ namespace DataAccessLayer.Migrations
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     PayrollNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     UserCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DateModified = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    DateModified = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     ModifiedBy = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
-                    PasswordLastUpdated = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    PasswordLastUpdated = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     AccessApps = table.Column<string>(type: "character varying(4)", unicode: false, maxLength: 4, nullable: false),
                     PhoneNumber = table.Column<string>(type: "character varying(15)", unicode: false, maxLength: 15, nullable: true),
                     UserName = table.Column<string>(type: "character varying(256)", unicode: false, maxLength: 256, nullable: false),
@@ -104,7 +104,7 @@ namespace DataAccessLayer.Migrations
                     StationCode = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     UserType = table.Column<int>(type: "integer", nullable: false),
                     DepartmentCode = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
-                    LastLoginDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastLoginDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     EmailConfirmed = table.Column<bool>(type: "boolean", nullable: false),
                     PasswordHash = table.Column<string>(type: "text", nullable: true),
@@ -137,7 +137,7 @@ namespace DataAccessLayer.Migrations
                     BatchNumber = table.Column<string>(type: "text", nullable: false),
                     DeliveryStatus = table.Column<string>(type: "text", nullable: false),
                     FailureReason = table.Column<string>(type: "text", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    Timestamp = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -156,7 +156,7 @@ namespace DataAccessLayer.Migrations
                     Suffix = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     TypeName = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
                     Length = table.Column<int>(type: "integer", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -173,7 +173,7 @@ namespace DataAccessLayer.Migrations
                     CouponCode = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(10,2)", precision: 18, scale: 2, nullable: false),
                     PointsToRedeem = table.Column<int>(type: "integer", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
@@ -194,7 +194,7 @@ namespace DataAccessLayer.Migrations
                     TransactionReference = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     VehicleCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     StationCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -213,7 +213,7 @@ namespace DataAccessLayer.Migrations
                     ComplainCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     ComplainDescription = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -233,7 +233,7 @@ namespace DataAccessLayer.Migrations
                     Debit = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     UserReference = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
                     Narration = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -259,7 +259,7 @@ namespace DataAccessLayer.Migrations
                     Receive_Statements = table.Column<bool>(type: "boolean", nullable: false),
                     IsCreditCustomer = table.Column<bool>(type: "boolean", nullable: false),
                     BaseLoyaltyPoints = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -282,7 +282,7 @@ namespace DataAccessLayer.Migrations
                     TopUpType = table.Column<int>(type: "integer", nullable: false),
                     Source = table.Column<int>(type: "integer", nullable: false),
                     BatchNumber = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -315,7 +315,7 @@ namespace DataAccessLayer.Migrations
                     StationCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     AttedantUserCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     AssignedBy = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
-                    DateAssigned = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateAssigned = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
@@ -336,7 +336,7 @@ namespace DataAccessLayer.Migrations
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     PetroleumCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     StorageLocation = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -355,7 +355,7 @@ namespace DataAccessLayer.Migrations
                     From = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     ReportCode = table.Column<string>(type: "character varying(200)", unicode: false, maxLength: 200, nullable: false),
                     NotificationName = table.Column<string>(type: "character varying(40)", unicode: false, maxLength: 40, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -374,7 +374,7 @@ namespace DataAccessLayer.Migrations
                     Method = table.Column<string>(type: "character varying(1000)", unicode: false, maxLength: 1000, nullable: false),
                     StackTrace = table.Column<string>(type: "character varying(1000)", unicode: false, maxLength: 1000, nullable: false),
                     InnerErrorMessage = table.Column<string>(type: "character varying(1000)", unicode: false, maxLength: 1000, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -389,7 +389,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     RegNo = table.Column<string>(type: "text", nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -412,7 +412,7 @@ namespace DataAccessLayer.Migrations
                     NetAmount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     PaymentMethod = table.Column<string>(type: "text", nullable: false),
                     TillNumber = table.Column<string>(type: "text", nullable: false),
-                    SalesDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SalesDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     MpesaReference = table.Column<string>(type: "text", nullable: false),
                     StationName = table.Column<string>(type: "text", nullable: false),
                     SalesAgent = table.Column<string>(type: "text", nullable: false)
@@ -432,9 +432,9 @@ namespace DataAccessLayer.Migrations
                     AuthorizedPricePerLitre = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     OriginalPrice = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Approver = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    DateApproved = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateApproved = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     IsApproved = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -465,10 +465,10 @@ namespace DataAccessLayer.Migrations
                     CurrentPoints = table.Column<int>(type: "integer", nullable: false),
                     IsRewardClaimed = table.Column<bool>(type: "boolean", nullable: false),
                     OtpCode = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
-                    OtpSentDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    RewardClaimedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    OtpSentDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    RewardClaimedDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     SaleIds = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -486,7 +486,7 @@ namespace DataAccessLayer.Migrations
                     Status = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     MessageId = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     Cost = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -502,7 +502,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Message = table.Column<string>(type: "character varying(300)", unicode: false, maxLength: 300, nullable: false),
                     PhoneNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -529,7 +529,7 @@ namespace DataAccessLayer.Migrations
                     Price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     PaymentTypeCode = table.Column<int>(type: "integer", nullable: false),
                     IsReversed = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -545,7 +545,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     TransactionType = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     TransID = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
-                    TransTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    TransTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     TransAmount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     BusinessShortCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     MSISDN = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
@@ -553,7 +553,7 @@ namespace DataAccessLayer.Migrations
                     MiddName = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     LastName = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     OrgAccountBalance = table.Column<decimal>(type: "numeric(18,2)", unicode: false, maxLength: 20, precision: 18, scale: 2, nullable: false),
-                    DateTimeStamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateTimeStamp = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     UsageBalance = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true)
                 },
@@ -570,7 +570,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     TransactionType = table.Column<string>(type: "text", nullable: false),
                     TransID = table.Column<string>(type: "text", nullable: false),
-                    TransTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    TransTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     TransAmount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     BusinessShortCode = table.Column<string>(type: "text", nullable: false),
                     TillNumber = table.Column<string>(type: "text", nullable: false),
@@ -586,9 +586,9 @@ namespace DataAccessLayer.Migrations
                     OrgAccountBalance = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     UsageBalance = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
-                    DateTimeStamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DateModified = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateTimeStamp = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    DateModified = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -606,7 +606,7 @@ namespace DataAccessLayer.Migrations
                     NozzleName = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
                     NozzleCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -625,7 +625,7 @@ namespace DataAccessLayer.Migrations
                     OrganisationPhone = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     OrganisationEmail = table.Column<string>(type: "character varying(150)", unicode: false, maxLength: 150, nullable: false),
                     OrganisationType = table.Column<int>(type: "integer", unicode: false, maxLength: 10, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -655,7 +655,7 @@ namespace DataAccessLayer.Migrations
                     JobName = table.Column<string>(type: "text", nullable: false),
                     JobCode = table.Column<string>(type: "text", nullable: false),
                     JobStatus = table.Column<int>(type: "integer", nullable: false),
-                    LastRun = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    LastRun = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     HasRun = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
@@ -674,7 +674,7 @@ namespace DataAccessLayer.Migrations
                     AttendantName = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     Litres = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    SalesDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SalesDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     PaymentType = table.Column<string>(type: "character varying(40)", unicode: false, maxLength: 40, nullable: false),
                     Price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     TillNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
@@ -702,8 +702,8 @@ namespace DataAccessLayer.Migrations
                     OTPCode = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
                     OTPStatus = table.Column<bool>(type: "boolean", nullable: false),
                     PhoneNumber = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    ExpiryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ExpiryDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -719,7 +719,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     OTPType = table.Column<int>(type: "integer", unicode: false, maxLength: 30, nullable: false),
                     OTPDescription = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -734,7 +734,7 @@ namespace DataAccessLayer.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     PasswordHash = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -752,7 +752,7 @@ namespace DataAccessLayer.Migrations
                     SaleId = table.Column<string>(type: "text", unicode: false, nullable: false),
                     PaymentRefrence = table.Column<string>(type: "text", unicode: false, nullable: false),
                     TransactionAmount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -771,7 +771,7 @@ namespace DataAccessLayer.Migrations
                     IsAppUsed = table.Column<bool>(type: "boolean", nullable: false),
                     ProcessType = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     HasValue = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -793,7 +793,7 @@ namespace DataAccessLayer.Migrations
                     DeviceMacAddress = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     DispenserCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -820,7 +820,7 @@ namespace DataAccessLayer.Migrations
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     Discount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     HashedPin = table.Column<string>(type: "character varying(2000)", unicode: false, maxLength: 2000, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -836,7 +836,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     PetroleumCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     PetroleumName = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -861,7 +861,7 @@ namespace DataAccessLayer.Migrations
                     IsApprovalExecuted = table.Column<bool>(type: "boolean", nullable: false),
                     Quantity = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     ShiftNumber = table.Column<string>(type: "text", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -878,7 +878,7 @@ namespace DataAccessLayer.Migrations
                     ApprovalUserCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     AppoverName = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -897,7 +897,7 @@ namespace DataAccessLayer.Migrations
                     StationCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     DispenserCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     Discount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -914,8 +914,8 @@ namespace DataAccessLayer.Migrations
                     ProductCode = table.Column<string>(type: "character varying(5)", unicode: false, maxLength: 5, nullable: false),
                     StationCode = table.Column<string>(type: "character varying(5)", unicode: false, maxLength: 5, nullable: false),
                     ScheduledPrice = table.Column<decimal>(type: "numeric(6,2)", precision: 18, scale: 2, nullable: false),
-                    StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    StartTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    EndTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     OriginalPrice = table.Column<decimal>(type: "numeric(6,2)", precision: 18, scale: 2, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     Processed = table.Column<bool>(type: "boolean", nullable: false)
@@ -934,7 +934,7 @@ namespace DataAccessLayer.Migrations
                     ProductCode = table.Column<string>(type: "character varying(4)", unicode: false, maxLength: 4, nullable: false),
                     ProductName = table.Column<string>(type: "character varying(40)", unicode: false, maxLength: 40, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -950,7 +950,7 @@ namespace DataAccessLayer.Migrations
                     AppsName = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     AppsCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     UserCode = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CurrentVersion = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -979,9 +979,9 @@ namespace DataAccessLayer.Migrations
                     Price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     PaymentTypeCode = table.Column<int>(type: "integer", nullable: false),
                     IsReversed = table.Column<bool>(type: "boolean", nullable: false),
-                    RoundedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RoundedDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     OtpUsed = table.Column<string>(type: "text", unicode: false, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1009,9 +1009,9 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     PhoneNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     Message = table.Column<string>(type: "character varying(600)", unicode: false, maxLength: 600, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DateSent = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ScheduledSendingdate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    DateSent = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    ScheduledSendingdate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     IsSent = table.Column<bool>(type: "boolean", nullable: false),
                     SenderId = table.Column<string>(type: "text", nullable: false)
                 },
@@ -1028,7 +1028,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     RoleName = table.Column<string>(type: "character varying(200)", unicode: false, maxLength: 200, nullable: false),
                     RoleCode = table.Column<string>(type: "character varying(200)", unicode: false, maxLength: 200, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1044,7 +1044,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     RoleCode = table.Column<string>(type: "character varying(200)", unicode: false, maxLength: 200, nullable: false),
                     PermissionCode = table.Column<string>(type: "character varying(200)", unicode: false, maxLength: 200, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1060,7 +1060,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     RoleCode = table.Column<string>(type: "character varying(200)", unicode: false, maxLength: 200, nullable: false),
                     UserCode = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1078,7 +1078,7 @@ namespace DataAccessLayer.Migrations
                     PointsCredit = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     PointsDebit = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     SaleId = table.Column<string>(type: "text", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1091,7 +1091,7 @@ namespace DataAccessLayer.Migrations
                 columns: table => new
                 {
                     SaleId = table.Column<string>(type: "text", nullable: true),
-                    SalesDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SalesDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     TransId = table.Column<string>(type: "text", nullable: true),
                     StationName = table.Column<string>(type: "text", nullable: true),
                     AttendantName = table.Column<string>(type: "text", nullable: true),
@@ -1124,7 +1124,7 @@ namespace DataAccessLayer.Migrations
                     Attendant_Name = table.Column<string>(type: "text", nullable: false),
                     Litres = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    SalesDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SalesDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     PaymentType = table.Column<string>(type: "text", nullable: false),
                     Price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     TillNumber = table.Column<int>(type: "integer", nullable: false),
@@ -1142,7 +1142,7 @@ namespace DataAccessLayer.Migrations
                 columns: table => new
                 {
                     OrderId = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
-                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Date = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     TransactionId = table.Column<string>(type: "character varying(8000)", unicode: false, maxLength: 8000, nullable: false),
                     OutLet = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     Attendant = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
@@ -1160,7 +1160,7 @@ namespace DataAccessLayer.Migrations
                     DispenserName = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     NozzleName = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     StorageLocation = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
-                    OriginalDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    OriginalDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1176,7 +1176,7 @@ namespace DataAccessLayer.Migrations
                     SetupCode = table.Column<string>(type: "text", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Value = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1207,12 +1207,12 @@ namespace DataAccessLayer.Migrations
                     UserCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     DispenserCode = table.Column<string>(type: "character varying(4)", unicode: false, maxLength: 4, nullable: false),
                     ShiftStatus = table.Column<int>(type: "integer", nullable: false),
-                    ShiftStartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ShiftEndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ShiftStartTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    ShiftEndTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
                     IsEmailSent = table.Column<bool>(type: "boolean", nullable: false),
                     EmailConversationId = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     IsReplySent = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1228,7 +1228,7 @@ namespace DataAccessLayer.Migrations
                     PhoneNumber = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
                     Message = table.Column<string>(type: "character varying(500)", unicode: false, maxLength: 500, nullable: false),
                     Status = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1248,7 +1248,7 @@ namespace DataAccessLayer.Migrations
                     NetworkCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     FailureReason = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     Cost = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateAdded = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    DateAdded = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1266,7 +1266,7 @@ namespace DataAccessLayer.Migrations
                     StationAddress = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     LocationId = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1285,7 +1285,7 @@ namespace DataAccessLayer.Migrations
                     ClosingReading = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     OpeningReading = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     TakeType = table.Column<int>(type: "integer", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1301,7 +1301,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     DispenserCode = table.Column<string>(type: "text", nullable: false),
                     IsTaken = table.Column<bool>(type: "boolean", nullable: false),
-                    TakeDateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    TakeDateTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1324,7 +1324,7 @@ namespace DataAccessLayer.Migrations
                     ExpectedClosingReading = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     ClosingVariance = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     VarianceStatus = table.Column<int>(type: "integer", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1342,7 +1342,7 @@ namespace DataAccessLayer.Migrations
                     TankName = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     TankCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1375,7 +1375,7 @@ namespace DataAccessLayer.Migrations
                     SaleId = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     DeliveredQuantity = table.Column<double>(type: "double precision", nullable: false),
                     QuantitySold = table.Column<double>(type: "double precision", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1397,7 +1397,7 @@ namespace DataAccessLayer.Migrations
                     ExpectedQuantity = table.Column<double>(type: "double precision", nullable: false),
                     ActualQuantity = table.Column<double>(type: "double precision", nullable: false),
                     Variance = table.Column<double>(type: "double precision", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1416,7 +1416,7 @@ namespace DataAccessLayer.Migrations
                     TotalSales = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     Month = table.Column<int>(type: "integer", nullable: false),
                     Year = table.Column<int>(type: "integer", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1434,9 +1434,9 @@ namespace DataAccessLayer.Migrations
                     TillNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     StoreNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
-                    LastFetch = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    LastFetch = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     OffsetValue = table.Column<int>(type: "integer", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1465,7 +1465,7 @@ namespace DataAccessLayer.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     NozzlesCode = table.Column<string>(type: "text", nullable: false),
                     Reading = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1491,7 +1491,7 @@ namespace DataAccessLayer.Migrations
                     PhoneNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     ServedBy = table.Column<string>(type: "character varying(40)", unicode: false, maxLength: 40, nullable: false),
                     StationName = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1506,7 +1506,7 @@ namespace DataAccessLayer.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     NewCustomerCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
-                    TransFerDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    TransFerDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     CustomerCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     VehicleCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     VehicleRegistrationNumber = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
@@ -1515,12 +1515,12 @@ namespace DataAccessLayer.Migrations
                     TankCapacity = table.Column<int>(type: "integer", nullable: false),
                     ProductCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     ConversionStation = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
-                    ConversionDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ConversionDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     Status = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     NFC_CardNumber = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     TransactionPIN = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1546,7 +1546,7 @@ namespace DataAccessLayer.Migrations
                     Id = table.Column<Guid>(type: "uuid", unicode: false, maxLength: 50, nullable: false),
                     AppsCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     UserCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1564,7 +1564,7 @@ namespace DataAccessLayer.Migrations
                     Message = table.Column<string>(type: "character varying(1000)", unicode: false, maxLength: 1000, nullable: false),
                     ActionType = table.Column<string>(type: "character varying(100)", unicode: false, maxLength: 100, nullable: false),
                     ShiftNumber = table.Column<string>(type: "character varying(30)", unicode: false, maxLength: 30, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1595,7 +1595,7 @@ namespace DataAccessLayer.Migrations
                     TankCapacity = table.Column<int>(type: "integer", nullable: false),
                     ProductCode = table.Column<string>(type: "character varying(5)", unicode: false, maxLength: 5, nullable: false),
                     ConversionStation = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
-                    ConversionDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ConversionDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     Status = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     NFC_CardNumber = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
@@ -1606,9 +1606,9 @@ namespace DataAccessLayer.Migrations
                     Discount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     TelematicSerialNumber = table.Column<string>(type: "text", nullable: false),
                     IsTelematicInstalled = table.Column<bool>(type: "boolean", nullable: false),
-                    TelematicInstallationDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    TelematicInstallationDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     RoyaltyPointPerLitre = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1625,7 +1625,7 @@ namespace DataAccessLayer.Migrations
                     StatusCode = table.Column<string>(type: "character varying(10)", unicode: false, maxLength: 10, nullable: false),
                     Description = table.Column<string>(type: "character varying(50)", unicode: false, maxLength: 50, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1643,8 +1643,8 @@ namespace DataAccessLayer.Migrations
                     VoucherNo = table.Column<string>(type: "text", nullable: false),
                     IsUsed = table.Column<bool>(type: "boolean", nullable: false),
                     VehicleCode = table.Column<string>(type: "text", nullable: false),
-                    ExpiryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ExpiryDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1665,7 +1665,7 @@ namespace DataAccessLayer.Migrations
                     Name = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     KitType = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1688,7 +1688,7 @@ namespace DataAccessLayer.Migrations
                     SaleId = table.Column<string>(type: "text", nullable: false),
                     VehicleCode = table.Column<string>(type: "text", nullable: false),
                     PhoneNumber = table.Column<string>(type: "text", nullable: false),
-                    DateCreated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DateCreated = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     UserCode = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: false)
                 },
                 constraints: table =>
@@ -1805,39 +1805,39 @@ namespace DataAccessLayer.Migrations
             migrationBuilder.InsertData(
                 table: "AspNetUsers",
                 columns: new[] { "Id", "AccessApps", "AccessFailedCount", "ConcurrencyStamp", "CreatedBy", "DateCreated", "DateModified", "DepartmentCode", "Email", "EmailConfirmed", "FirstName", "IsActive", "LastLoginDate", "LastName", "LockoutEnabled", "LockoutEnd", "MiddName", "ModifiedBy", "NormalizedEmail", "NormalizedUserName", "PasswordHash", "PasswordLastUpdated", "PayrollNumber", "PhoneNumber", "PhoneNumberConfirmed", "SecurityStamp", "StationCode", "TwoFactorEnabled", "UserCode", "UserName", "UserType" },
-                values: new object[] { "f9b3e4d7-5a8c-3f2d-9b6f-4a7e5d8b6f9a", "", 0, "6590f25c-d2ee-4c1d-8ea7-0a92bb5adbd9", "", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8692), new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8691), "", "nicholas@fuelflo.com", true, "Admin", true, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8693), "Fuel Flow", false, null, "", "", "NICHOLAS@FUELFLOW.COM", null, "AQAAAAIAAYagAAAAEE6B8ismqB4S3ovK4di5qY7F2cwEDfBiowzxCzmmnRa1w0kuyR/ADNBR4B6D0h9sew==", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8685), "", "+254715821303", true, "ec3ae2b3-2627-432c-aa8e-bd37724a683e", "", false, "99999", "", 1 });
+                values: new object[] { "f9b3e4d7-5a8c-3f2d-9b6f-4a7e5d8b6f9a", "", 0, "b46fea7a-9b49-4296-aaa2-fe1282c11f50", "", new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5703), new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5703), "", "nicholas@fuelflo.com", true, "Admin", true, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5704), "Fuel Flow", false, null, "", "", "NICHOLAS@FUELFLOW.COM", null, "AQAAAAIAAYagAAAAEE6B8ismqB4S3ovK4di5qY7F2cwEDfBiowzxCzmmnRa1w0kuyR/ADNBR4B6D0h9sew==", new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5699), "", "+254715821303", true, "9972b826-93cb-4e3b-882d-f1a8fc5cada5", "", false, "99999", "", 1 });
 
             migrationBuilder.InsertData(
                 table: "Codegenerators",
                 columns: new[] { "Id", "DateCreated", "Length", "NextNumber", "Prefix", "Seed", "Suffix", "TypeName", "UserCode" },
                 values: new object[,]
                 {
-                    { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7911), 5, 0, "", 1, "", "UserCode", "00001" },
-                    { 2L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7917), 2, 0, "D", 1, "", "DispenserCode", "00001" },
-                    { 3L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7920), 2, 0, "N", 1, "", "Nozzlecode", "00001" },
-                    { 4L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7923), 3, 0, "S", 1, "", "StationCode", "00001" },
-                    { 5L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7926), 5, 10000, "", 1, "", "CustomerCode", "00001" },
-                    { 6L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7928), 5, 10000, "", 1, "", "BULCUST", "00001" },
-                    { 7L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7931), 7, 0, "", 1, "", "PLANID", "00001" },
-                    { 8L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7934), 2, 0, "T", 1, "", "TANKID", "00001" },
-                    { 9L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7937), 5, 0, "", 1, "", "TILLID", "00001" },
-                    { 10L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7939), 4, 0, "P", 1, "", "PDAID", "00001" },
-                    { 11L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7942), 7, 0, "", 1, "", "VEHICLEID", "00001" },
-                    { 14L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7945), 4, 0, "PD", 1, "", "pdadevice", "00001" },
-                    { 15L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7948), 2, 0, "", 1, "", "productCode", "00001" },
-                    { 16L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7951), 5, 0, "", 1, "", "WalkInCustomer", "00001" },
-                    { 17L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(7953), 5, 1, "", 1, "", "VehicleCode", "00001" }
+                    { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(4995), 5, 0, "", 1, "", "UserCode", "00001" },
+                    { 2L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(4998), 2, 0, "D", 1, "", "DispenserCode", "00001" },
+                    { 3L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5001), 2, 0, "N", 1, "", "Nozzlecode", "00001" },
+                    { 4L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5003), 3, 0, "S", 1, "", "StationCode", "00001" },
+                    { 5L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5005), 5, 10000, "", 1, "", "CustomerCode", "00001" },
+                    { 6L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5007), 5, 10000, "", 1, "", "BULCUST", "00001" },
+                    { 7L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5010), 7, 0, "", 1, "", "PLANID", "00001" },
+                    { 8L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5012), 2, 0, "T", 1, "", "TANKID", "00001" },
+                    { 9L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5014), 5, 0, "", 1, "", "TILLID", "00001" },
+                    { 10L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5016), 4, 0, "P", 1, "", "PDAID", "00001" },
+                    { 11L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5018), 7, 0, "", 1, "", "VEHICLEID", "00001" },
+                    { 14L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5021), 4, 0, "PD", 1, "", "pdadevice", "00001" },
+                    { 15L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5023), 2, 0, "", 1, "", "productCode", "00001" },
+                    { 16L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5025), 5, 0, "", 1, "", "WalkInCustomer", "00001" },
+                    { 17L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5037), 5, 1, "", 1, "", "VehicleCode", "00001" }
                 });
 
             migrationBuilder.InsertData(
                 table: "DispenserAssignments",
                 columns: new[] { "Id", "AssignedBy", "AttedantUserCode", "DateAssigned", "DispenserCode", "IsActive", "StationCode" },
-                values: new object[] { 1L, "99999", "99999", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9014), "D01", true, "S001" });
+                values: new object[] { 1L, "99999", "99999", new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6320), "D01", true, "S001" });
 
             migrationBuilder.InsertData(
                 table: "Dispensers",
                 columns: new[] { "Id", "DateCreated", "DispenserCode", "DispenserName", "IsActive", "PetroleumCode", "StationCode", "StorageLocation", "TillNumber", "UserCode" },
-                values: new object[] { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8843), "D01", "D1", true, "01", "S001", "kenya", "078678", "00001" });
+                values: new object[] { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6158), "D01", "D1", true, "01", "S001", "kenya", "078678", "00001" });
 
             migrationBuilder.InsertData(
                 table: "Emails",
@@ -1856,8 +1856,8 @@ namespace DataAccessLayer.Migrations
                 columns: new[] { "Id", "DateCreated", "DispenserCode", "IsActive", "NozzleCode", "NozzleName", "UserCode" },
                 values: new object[,]
                 {
-                    { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8969), "D01", true, "N01", "N01", "00001" },
-                    { 2L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8972), "D01", true, "N02", "N02", "00001" }
+                    { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6281), "D01", true, "N01", "N01", "00001" },
+                    { 2L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6284), "D01", true, "N02", "N02", "00001" }
                 });
 
             migrationBuilder.InsertData(
@@ -1865,49 +1865,49 @@ namespace DataAccessLayer.Migrations
                 columns: new[] { "Id", "DateCreated", "HasValue", "IsAppUsed", "PaymentTypeId", "PaymentTypeName", "ProcessType", "UserCode" },
                 values: new object[,]
                 {
-                    { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8341), true, true, 0, "Mpesa", "", "00001" },
-                    { 2L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8345), true, true, 1, "Wallet", "", "00001" },
-                    { 4L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8347), true, false, 3, "Operational_Loss", "", "00001" },
-                    { 6L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8349), true, false, 5, "Employee_Mpesa_Payments", "", "00001" },
-                    { 7L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8351), true, false, 6, "Insurance", "", "00001" },
-                    { 8L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8353), true, false, 7, "Voucher", "", "00001" },
-                    { 9L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8355), true, false, 8, "Calibration", "", "00001" },
-                    { 10L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8357), true, false, 9, "Compesation_Fuel", "", "00001" },
-                    { 11L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8360), true, false, 10, "BatchVoucher", "", "00001" },
-                    { 13L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8363), true, true, 12, "Cash", "", "00001" },
-                    { 14L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8366), true, true, 13, "Credit", "", "00001" },
-                    { 15L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8368), true, true, 14, "Loyalty", "", "00001" }
+                    { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5354), true, true, 0, "Mpesa", "", "00001" },
+                    { 2L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5357), true, true, 1, "Wallet", "", "00001" },
+                    { 4L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5359), true, false, 3, "Operational_Loss", "", "00001" },
+                    { 6L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5361), true, false, 5, "Employee_Mpesa_Payments", "", "00001" },
+                    { 7L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5362), true, false, 6, "Insurance", "", "00001" },
+                    { 8L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5364), true, false, 7, "Voucher", "", "00001" },
+                    { 9L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5366), true, false, 8, "Calibration", "", "00001" },
+                    { 10L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5368), true, false, 9, "Compesation_Fuel", "", "00001" },
+                    { 11L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5370), true, false, 10, "BatchVoucher", "", "00001" },
+                    { 13L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5372), true, true, 12, "Cash", "", "00001" },
+                    { 14L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5373), true, true, 13, "Credit", "", "00001" },
+                    { 15L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5375), true, true, 14, "Loyalty", "", "00001" }
                 });
 
             migrationBuilder.InsertData(
                 table: "PdaDevices",
                 columns: new[] { "Id", "DateCreated", "DeviceCode", "DeviceIMEI", "DeviceMacAddress", "DeviceModel", "DeviceName", "DeviceSerialNumber", "DispenserCode", "IsActive", "UserCode" },
-                values: new object[] { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8931), "1234567890", "1234567890", "1234567890", "1234567890", "Test PDA", "1234567890", "D01", true, "99999" });
+                values: new object[] { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6244), "1234567890", "1234567890", "1234567890", "1234567890", "Test PDA", "1234567890", "D01", true, "99999" });
 
             migrationBuilder.InsertData(
                 table: "PetroleumProducts",
                 columns: new[] { "Id", "DateCreated", "PetroleumCode", "PetroleumName", "UserCode" },
                 values: new object[,]
                 {
-                    { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9203), "01", "Autogas", "99999" },
-                    { 2L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9205), "02", "Petrol", "99999" },
-                    { 3L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9208), "03", "Diesel", "99999" }
+                    { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6530), "01", "Autogas", "99999" },
+                    { 2L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6533), "02", "Petrol", "99999" },
+                    { 3L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6535), "03", "Diesel", "99999" }
                 });
 
             migrationBuilder.InsertData(
                 table: "Products",
                 columns: new[] { "Id", "DateCreated", "IsActive", "ProductCode", "ProductName", "UserCode" },
-                values: new object[] { -1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8895), true, "02", "Diesel", "000001" });
+                values: new object[] { -1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6210), true, "02", "Diesel", "000001" });
 
             migrationBuilder.InsertData(
                 table: "ProtoApps",
                 columns: new[] { "Id", "AppsCode", "AppsName", "CurrentVersion", "DateCreated", "UserCode" },
                 values: new object[,]
                 {
-                    { new Guid("4be00159-2585-43b8-a680-75b745ff1775"), "03", "Fuel Flow DashBoard", "", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8489), "" },
-                    { new Guid("4cc03bbd-51d1-4dbc-8bb3-7f18e503e053"), "02", "Bulk App", "", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8485), "" },
-                    { new Guid("85e92a4a-d946-4c6e-8859-e645e2f2fc06"), "04", "Fuel Flow App", "", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8492), "" },
-                    { new Guid("ee835650-32f3-4718-9606-38fc2b7987d2"), "01", "Bulk DashBoard", "", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8480), "" }
+                    { new Guid("11111111-0000-0000-0000-000000000001"), "01", "Bulk DashBoard", "", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "" },
+                    { new Guid("11111111-0000-0000-0000-000000000002"), "02", "Bulk App", "", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "" },
+                    { new Guid("11111111-0000-0000-0000-000000000003"), "03", "Fuel Flow DashBoard", "", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "" },
+                    { new Guid("11111111-0000-0000-0000-000000000004"), "04", "Fuel Flow App", "", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "" }
                 });
 
             migrationBuilder.InsertData(
@@ -1915,8 +1915,8 @@ namespace DataAccessLayer.Migrations
                 columns: new[] { "Id", "AmountCredit", "AmountDebit", "DateCreated", "Discount", "DispenserCode", "IsReversed", "NozzleCode", "OtpUsed", "PaymentTypeCode", "Price", "QuantityCredit", "QuantityDebit", "SaleId", "ShiftNumber", "StationCode", "UserCode", "Vat_Amount", "VehicleCode" },
                 values: new object[,]
                 {
-                    { 1L, 0m, 0m, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9096), 0m, "D01", false, "N01", "", 99, 0m, 50m, 0m, "", "", "S001", "99999", 0m, "" },
-                    { 2L, 0m, 0m, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9110), 0m, "D01", false, "N02", "", 99, 0m, 50m, 0m, "", "", "S001", "99999", 0m, "" }
+                    { 1L, 0m, 0m, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6415), 0m, "D01", false, "N01", "", 99, 0m, 50m, 0m, "", "", "S001", "99999", 0m, "" },
+                    { 2L, 0m, 0m, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6429), 0m, "D01", false, "N02", "", 99, 0m, 50m, 0m, "", "", "S001", "99999", 0m, "" }
                 });
 
             migrationBuilder.InsertData(
@@ -1934,36 +1934,36 @@ namespace DataAccessLayer.Migrations
             migrationBuilder.InsertData(
                 table: "Role",
                 columns: new[] { "Id", "DateCreated", "RoleCode", "RoleName", "UserCode" },
-                values: new object[] { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9259), "001", "Administrator", "99999" });
+                values: new object[] { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6579), "001", "Administrator", "99999" });
 
             migrationBuilder.InsertData(
                 table: "Stations",
                 columns: new[] { "Id", "DateCreated", "IsActive", "LocationId", "StationAddress", "StationCode", "StationName", "UserCode" },
-                values: new object[] { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8742), true, "Test Station", "Test Station", "S001", "TEST STATION", "00001" });
+                values: new object[] { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(5873), true, "Test Station", "Test Station", "S001", "TEST STATION", "00001" });
 
             migrationBuilder.InsertData(
                 table: "StockTakes",
                 columns: new[] { "Id", "ClosingReading", "DateCreated", "NozzleCode", "OpeningReading", "ShiftNumber", "TakeType", "UserCode" },
                 values: new object[,]
                 {
-                    { -1L, 0m, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9160), "N02", 50m, "", 99, "99999" },
-                    { 1L, 0m, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9153), "N01", 50m, "", 99, "99999" }
+                    { -1L, 0m, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6474), "N02", 50m, "", 99, "99999" },
+                    { 1L, 0m, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6469), "N01", 50m, "", 99, "99999" }
                 });
 
             migrationBuilder.InsertData(
                 table: "Tills",
                 columns: new[] { "Id", "DateCreated", "IsActive", "LastFetch", "OffsetValue", "StoreNumber", "TillName", "TillNumber", "UserCode" },
-                values: new object[] { 1L, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9053), true, new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(9054), 0, "078678", "Test Till", "078678", "99999" });
+                values: new object[] { 1L, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6360), true, new DateTime(2026, 6, 8, 5, 57, 7, 645, DateTimeKind.Utc).AddTicks(6361), 0, "078678", "Test Till", "078678", "99999" });
 
             migrationBuilder.InsertData(
                 table: "UserApps",
                 columns: new[] { "Id", "AppsCode", "DateCreated", "UserCode" },
                 values: new object[,]
                 {
-                    { new Guid("149618c3-e575-429f-986a-622661c51868"), "04", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8795), "99999" },
-                    { new Guid("5b6b2175-21b6-4e82-8884-9c292d71503b"), "01", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8799), "99999" },
-                    { new Guid("83e53f12-59f6-44d4-9375-836001ac4bb7"), "02", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8807), "99999" },
-                    { new Guid("e53ff251-c568-4c6b-bf27-ef87b1312cf0"), "03", new DateTime(2026, 5, 25, 10, 49, 49, 946, DateTimeKind.Utc).AddTicks(8791), "99999" }
+                    { new Guid("22222222-0000-0000-0000-000000000001"), "03", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "99999" },
+                    { new Guid("22222222-0000-0000-0000-000000000002"), "04", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "99999" },
+                    { new Guid("22222222-0000-0000-0000-000000000003"), "01", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "99999" },
+                    { new Guid("22222222-0000-0000-0000-000000000004"), "02", new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "99999" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -2150,7 +2150,7 @@ namespace DataAccessLayer.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProtoApps_AppsCode",
+                name: "IX_ProtoApps_AppsCode2",
                 table: "ProtoApps",
                 column: "AppsCode",
                 unique: true);
