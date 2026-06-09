@@ -32,13 +32,13 @@ public class DarajaController(
 			t.TillNumber == req.TillNumber || t.AccountReference == req.TillReference)
 			?? throw new ArgumentException("Unknown till");
 
-		// FIXED: Passing all 5 positional arguments explicitly in order
+		// Pass both 7-digit parameters down sequentially
 		var result = await stkPushService.InitiateAsync(
 			phone: req.Phone,
 			amount: req.Amount,
-			storeNumber: till.StoreNumber,       // Argument 3: The 6-digit Store Number
-			tillNumber: till.TillNumber,         // Argument 4: The 7-digit Till Number
-			accountReference: till.AccountReference, // Argument 5: Account tracking reference string
+			storeNumber: till.StoreNumber,       // The 7-digit Store Number config string
+			tillNumber: till.TillNumber,         // The 7-digit Till Number config string
+			accountReference: till.AccountReference,
 			description: req.Description ?? "Payment",
 			ct: ct);
 
@@ -46,17 +46,15 @@ public class DarajaController(
 	}
 
 
+
 	// tillNumber is required so the password can be rebuilt correctly for the query
 	[HttpGet("stk/query/{checkoutRequestId}")]
 	public async Task<IActionResult> StkQuery(
 		string checkoutRequestId,
-		[FromQuery] string tillNumber,   // e.g. GET /stk/query/ws_CO_123?tillNumber=5617668
+		[FromQuery] string storeNumber,
 		CancellationToken ct)
 	{
-		if (string.IsNullOrWhiteSpace(tillNumber))
-			return BadRequest("tillNumber query parameter is required.");
-
-		var result = await stkPushService.QueryStatusAsync(checkoutRequestId, tillNumber, ct);
+		var result = await stkPushService.QueryStatusAsync(checkoutRequestId, storeNumber, ct);
 		return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
 	}
 

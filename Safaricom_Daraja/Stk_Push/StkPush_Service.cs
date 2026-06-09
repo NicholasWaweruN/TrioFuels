@@ -10,18 +10,34 @@ namespace Safaricom_Daraja.Stk_Push;
 
 public interface IStkPushService
 {
+	/// <summary>
+	/// Initiates Lipa na M-Pesa STK Push to a customer's phone.
+	/// </summary>
+	/// <param name="phone">Customer phone in 2547XXXXXXXX format.</param>
+	/// <param name="amount">Amount in KES (whole number).</param>
+	/// <param name="storeNumber">7-digit Store Number for this till (e.g. 5545198).</param>
+	/// <param name="tillNumber">7-digit Till Number (e.g. 5617668) — stored in AccountReference for tracking.</param>
+	/// <param name="accountReference">Reference shown on customer's phone (max 12 chars).</param>
+	/// <param name="description">Transaction description (max 13 chars).</param>
+	/// <param name="ct">Cancellation token.</param>
 	Task<DarajaResult<StkPushResponse>> InitiateAsync(
 		string phone,
 		long amount,
-		string storeNumber,      // Your 7-digit Store Number starting with 55 (e.g. 5545198)
-		string tillNumber,       // Your 7-digit Till Number starting with 56 (e.g. 5617668)
+		string storeNumber,
+		string tillNumber,
 		string accountReference,
 		string description = "Payment",
 		CancellationToken ct = default);
 
+	/// <summary>
+	/// Queries the status of a previous STK Push request.
+	/// </summary>
+	/// <param name="checkoutRequestId">The CheckoutRequestID from the original STK Push response.</param>
+	/// <param name="storeNumber">The same Store Number used during initiation.</param>
+	/// <param name="ct">Cancellation token.</param>
 	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
 		string checkoutRequestId,
-		string storeNumber,      // Tracking queries also evaluate at the branch Store level
+		string storeNumber,
 		CancellationToken ct = default);
 }
 
@@ -52,51 +68,42 @@ public sealed class StkPushService(
 			var cleanStore = storeNumber.Trim();
 			var cleanTill = tillNumber.Trim();
 
-			// Pass the Store Number down to build the security password hash signature
+			// For LNM Buy Goods (each till has its own Store Number):
+			// - BusinessShortCode = Store Number (e.g. 5545198)
+			// - PartyB            = Store Number (same value)
+			// - Password          = Base64(StoreNumber + PassKey + Timestamp)
+			// - TransactionType   = CustomerPayBillOnline
 			var (timestamp, password) = BuildCredentials(cleanStore);
+
+			var safeRef = string.IsNullOrWhiteSpace(accountReference) ? cleanTill : accountReference;
+			var safeDesc = string.IsNullOrWhiteSpace(description) ? "Payment" : description;
 
 			var payload = new StkPushRequest
 			{
-				// Configured as CustomerBuyGoodsOnline as explicitly displayed on your dashboard image
-				TransactionType = "CustomerBuyGoodsOnline",
-
-				// For corporate Buy Goods setups, BusinessShortCode is ALWAYS the Store Number
+				TransactionType = "CustomerPayBillOnline",
 				BusinessShortCode = cleanStore,
 				Password = password,
 				Timestamp = timestamp,
 				Amount = amount,
 				PartyA = sanitizedPhone,
-
-				// PartyB is the specific retail terminal Till Number receiving the deposit
-				PartyB = cleanTill,
-
+				PartyB = cleanStore,
 				PhoneNumber = sanitizedPhone,
 				CallBackURL = _cfg.StkCallbackUrl,
-
-				AccountReference = accountReference.Length > 12
-					? accountReference[..12]
-					: accountReference,
-
-				TransactionDesc = description.Length > 13
-					? description[..13]
-					: description
+				AccountReference = safeRef[..Math.Min(safeRef.Length, 12)],
+				TransactionDesc = safeDesc[..Math.Min(safeDesc.Length, 13)]
 			};
 
 			var client = await GetAuthenticatedClientAsync(ct);
-
 			var response = await client.PostAsJsonAsync("/mpesa/stkpush/v1/processrequest", payload, ct);
-
 			var responseContent = await response.Content.ReadAsStringAsync(ct);
 
 			if (!response.IsSuccessStatusCode)
 			{
 				logger.LogError(
 					"STK Push failed. Status={Status} Response={Response}",
-					response.StatusCode,
-					responseContent);
+					response.StatusCode, responseContent);
 
-				return DarajaResult<StkPushResponse>.Fail(
-					$"HTTP {(int)response.StatusCode}: {responseContent}");
+				return DarajaResult<StkPushResponse>.Fail($"HTTP {(int)response.StatusCode}: {responseContent}");
 			}
 
 			var result = await response.Content.ReadFromJsonAsync<StkPushResponse>(cancellationToken: ct);
@@ -108,16 +115,14 @@ public sealed class StkPushService(
 			{
 				logger.LogWarning(
 					"STK Push rejected. Code={Code} Description={Description}",
-					result.ResponseCode,
-					result.ResponseDescription);
+					result.ResponseCode, result.ResponseDescription);
 
-				return DarajaResult<StkPushResponse>.Fail(
-					result.ResponseDescription ?? "STK Push request rejected.");
+				return DarajaResult<StkPushResponse>.Fail(result.ResponseDescription ?? "STK Push request rejected.");
 			}
 
 			logger.LogInformation(
-				"STK Push sent. CheckoutRequestID={CheckoutRequestID}",
-				result.CheckoutRequestId);
+				"STK Push sent to {Phone} for KES {Amount} on store {Store} (till {Till}). CheckoutRequestID={Id}",
+				sanitizedPhone, amount, cleanStore, cleanTill, result.CheckoutRequestId);
 
 			return DarajaResult<StkPushResponse>.Ok(result);
 		}
@@ -147,20 +152,16 @@ public sealed class StkPushService(
 			};
 
 			var client = await GetAuthenticatedClientAsync(ct);
-
 			var response = await client.PostAsJsonAsync("/mpesa/stkpushquery/v1/query", payload, ct);
-
 			var responseContent = await response.Content.ReadAsStringAsync(ct);
 
 			if (!response.IsSuccessStatusCode)
 			{
 				logger.LogError(
 					"STK Query failed. Status={Status} Response={Response}",
-					response.StatusCode,
-					responseContent);
+					response.StatusCode, responseContent);
 
-				return DarajaResult<StkQueryResponse>.Fail(
-					$"HTTP {(int)response.StatusCode}: {responseContent}");
+				return DarajaResult<StkQueryResponse>.Fail($"HTTP {(int)response.StatusCode}: {responseContent}");
 			}
 
 			var result = await response.Content.ReadFromJsonAsync<StkQueryResponse>(cancellationToken: ct);
@@ -177,32 +178,32 @@ public sealed class StkPushService(
 		}
 	}
 
-	private (string Timestamp, string Password) BuildCredentials(string shortCodeForPassword)
+	// ─── Helpers ──────────────────────────────────────────────────────────────
+
+	/// <summary>
+	/// Builds the STK password as Base64(shortCode + PassKey + Timestamp).
+	/// Always pass the Store Number here.
+	/// </summary>
+	private (string Timestamp, string Password) BuildCredentials(string shortCode)
 	{
 		DateTime kenyanTime;
 		try
 		{
-			// Cross-platform time zone resolution (Works perfectly on Linux/Railway containers & Windows)
 			var eatTimeZone = OperatingSystem.IsWindows()
 				? TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time")
 				: TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
 
 			kenyanTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, eatTimeZone);
 		}
-		catch (Exception)
+		catch
 		{
-			// Safe fallback: Hardcode UTC+3 offset calculation if the host OS is missing the timezone database
+			// Fallback: UTC+3
 			kenyanTime = DateTime.UtcNow.AddHours(3);
 		}
 
 		var timestamp = kenyanTime.ToString("yyyyMMddHHmmss");
-
-		var passwordString =
-			$"{shortCodeForPassword}" +
-			$"{_cfg.PassKey}" +
-			$"{timestamp}";
-
-		var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(passwordString));
+		var raw = $"{shortCode}{_cfg.PassKey}{timestamp}";
+		var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
 
 		return (timestamp, password);
 	}
@@ -211,14 +212,11 @@ public sealed class StkPushService(
 	{
 		phone = phone.Trim().Replace(" ", "").Replace("+", "");
 
-		if (phone.StartsWith("07"))
-			phone = "254" + phone[1..];
-
-		if (phone.StartsWith("01"))
+		if (phone.StartsWith("07") || phone.StartsWith("01"))
 			phone = "254" + phone[1..];
 
 		if (!Regex.IsMatch(phone, @"^254\d{9}$"))
-			throw new ArgumentException("Invalid phone number.");
+			throw new ArgumentException($"Invalid phone number format: {phone}");
 
 		return phone;
 	}

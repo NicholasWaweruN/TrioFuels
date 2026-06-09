@@ -34,6 +34,5 @@ public sealed class TillConfig
 	public string Name { get; set; } = string.Empty;
 	public string TillNumber { get; set; } = string.Empty;
 	public string AccountReference { get; set; } = string.Empty;
-
 	public string StoreNumber { get; set; } = string.Empty;
 }
