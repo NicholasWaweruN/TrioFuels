@@ -17,7 +17,7 @@ public interface IStkPushService
 	/// <param name="amount">Amount in KES (whole number).</param>
 	/// <param name="tillNumber">Till number to receive the payment (PartyB).</param>
 	/// <param name="accountReference">Reference shown on customer's phone (max 12 chars).</param>
-	/// <param name="description">Transaction description (max 20 chars).</param>
+	/// <param name="description">Transaction description (max 13 chars).</param>
 	/// <param name="ct">Cancellation token.</param>
 	Task<DarajaResult<StkPushResponse>> InitiateAsync(
 		string phone,
@@ -33,10 +33,7 @@ public interface IStkPushService
 	/// <param name="checkoutRequestId">The CheckoutRequestID from the original STK Push response.</param>
 	/// <param name="tillNumber">The same till number used during initiation.</param>
 	/// <param name="ct">Cancellation token.</param>
-	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
-		string checkoutRequestId,
-		string tillNumber,
-		CancellationToken ct = default);
+	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId,string tillNumber,CancellationToken ct = default);
 }
 
 public sealed class StkPushService(
@@ -59,27 +56,29 @@ public sealed class StkPushService(
 		{
 			var sanitizedPhone = SanitizePhone(phone);
 
-			// Password = Base64(BusinessShortCode + PassKey + Timestamp)
-			// BusinessShortCode is always the head-office shortcode (4161705)
-			// PartyB is the individual till number (5617668, 5617666, etc.)
-			var (timestamp, password) = BuildStkCredentials(_cfg.BusinessShortCode);
+			// For CustomerBuyGoodsOnline (Till):
+			// - BusinessShortCode = till number (e.g. 5617668)
+			// - PartyB            = till number (same value)
+			// - Password          = Base64(tillNumber + PassKey + Timestamp)
+			// The head-office shortcode (4161705) is NOT used in STK Push for tills.
+			var (timestamp, password) = BuildStkCredentials(tillNumber);
 
 			var safeRef = string.IsNullOrWhiteSpace(accountReference) ? "Payment" : accountReference;
 			var safeDesc = string.IsNullOrWhiteSpace(description) ? "Payment" : description;
 
 			var payload = new StkPushRequest
 			{
-				BusinessShortCode = _cfg.BusinessShortCode,                    // 4161705
-				Password = password,                                   // Base64(4161705 + passkey + ts)
+				BusinessShortCode = tillNumber,                                 // e.g. 5617668
+				Password = password,                                   // Base64(tillNumber + passkey + ts)
 				Timestamp = timestamp,
 				TransactionType = "CustomerBuyGoodsOnline",
 				Amount = amount,
 				PartyA = sanitizedPhone,                            // customer phone
-				PartyB = tillNumber,                                // specific till e.g. 5617668
+				PartyB = tillNumber,                                // same as BusinessShortCode for Buy Goods
 				PhoneNumber = sanitizedPhone,
 				CallBackURL = _cfg.StkCallbackUrl,
 				AccountReference = safeRef[..Math.Min(safeRef.Length, 12)],
-				TransactionDesc = safeDesc[..Math.Min(safeDesc.Length, 20)]
+				TransactionDesc = safeDesc[..Math.Min(safeDesc.Length, 13)]  // max 13 chars per Safaricom docs
 			};
 
 			var client = await GetAuthenticatedClientAsync(ct);
@@ -120,13 +119,12 @@ public sealed class StkPushService(
 	{
 		try
 		{
-			// Password must match what was used during initiation
-			// Both use BusinessShortCode for password generation
-			var (timestamp, password) = BuildStkCredentials(_cfg.BusinessShortCode);
+			// Must use the same till number used during initiation
+			var (timestamp, password) = BuildStkCredentials(tillNumber);
 
 			var payload = new StkQueryRequest
 			{
-				BusinessShortCode = _cfg.BusinessShortCode,  // 4161705
+				BusinessShortCode = tillNumber,   // same till number used during initiation
 				Password = password,
 				Timestamp = timestamp,
 				CheckoutRequestID = checkoutRequestId
@@ -156,7 +154,8 @@ public sealed class StkPushService(
 
 	/// <summary>
 	/// Builds the STK password as Base64(shortCode + PassKey + Timestamp).
-	/// Always pass BusinessShortCode (4161705) — not the till number.
+	/// For Buy Goods (Till): pass the till number.
+	/// For Paybill: pass the BusinessShortCode.
 	/// </summary>
 	private (string Timestamp, string Password) BuildStkCredentials(string shortCode)
 	{
