@@ -28,17 +28,23 @@ public class DarajaController(
 	[HttpPost("stk/push")]
 	public async Task<IActionResult> StkPush([FromBody] StkPushApiRequest req, CancellationToken ct)
 	{
-		// Resolve till by name or number
+		// Resolve the correct till configuration details from appsettings.json
 		var till = _cfg.Tills.FirstOrDefault(t =>
 			t.TillNumber == req.TillNumber || t.AccountReference == req.TillReference)
 			?? throw new ArgumentException("Unknown till");
 
+		// PASSING FIX: Forward both the resolved StoreNumber and TillNumber to your STK service wrapper
 		var result = await stkPushService.InitiateAsync(
-			req.Phone, req.Amount, till.TillNumber, till.AccountReference,
-			req.Description ?? "Payment", ct);
+			req.Phone,
+			req.Amount,      // The 6-digit Store Number for signature validation
+			till.TillNumber,        // The 7-digit Till Number target destination endpoint
+			till.AccountReference,
+			req.Description ?? "Payment",
+			ct);
 
 		return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
 	}
+
 
 	// tillNumber is required so the password can be rebuilt correctly for the query
 	[HttpGet("stk/query/{checkoutRequestId}")]
