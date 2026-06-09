@@ -14,10 +14,6 @@ public interface IPullTransactionService
 	/// Pulls transactions for a specific till within a time window.
 	/// Daraja allows a max window of 48 hours and returns up to 100 records per page.
 	/// </summary>
-	/// <param name="tillNumber">The till shortcode to pull for.</param>
-	/// <param name="from">Start of window (EAT). Max 48 hours ago.</param>
-	/// <param name="to">End of window (EAT).</param>
-	/// <param name="offset">Pagination offset (0-based, increments by 100).</param>
 	Task<DarajaResult<PullTransactionResponse>> PullAsync(
 		string tillNumber,
 		DateTime from,
@@ -45,7 +41,6 @@ public interface IPullTransactionService
 
 public sealed class PullTransactionService(
 	IHttpClientFactory httpFactory,
-	IDarajaTokenService tokenService,
 	IOptions<DarajaConfig> options,
 	ILogger<PullTransactionService> logger) : IPullTransactionService
 {
@@ -72,10 +67,8 @@ public sealed class PullTransactionService(
 				Offset = offset
 			};
 
-			// Pull API uses Basic auth (consumer key:secret), not Bearer token
 			var client = GetBasicAuthClient();
-			var response = await client.PostAsJsonAsync(
-				"/pullpayments/v1/query", payload, ct);
+			var response = await client.PostAsJsonAsync("/pullpayments/v1/query", payload, ct);
 
 			if (!response.IsSuccessStatusCode)
 			{
@@ -113,16 +106,16 @@ public sealed class PullTransactionService(
 		while (true)
 		{
 			var result = await PullAsync(tillNumber, from, to, offset, ct);
-			if (!result.Success) return DarajaResult<List<PullTransaction>>.Fail(result.ErrorMessage!);
+			if (!result.Success)
+				return DarajaResult<List<PullTransaction>>.Fail(result.ErrorMessage!);
 
 			var page = result.Data!.Transactions;
 			all.AddRange(page);
 
-			if (page.Count < PageSize)
-				break; // Last page
+			if (page.Count < PageSize) break;
 
 			offset += PageSize;
-			await Task.Delay(300, ct); // Be polite to the API
+			await Task.Delay(300, ct);
 		}
 
 		logger.LogInformation("Total pulled for {Till}: {Count} transactions", tillNumber, all.Count);
@@ -149,7 +142,7 @@ public sealed class PullTransactionService(
 		return results;
 	}
 
-	// ─── Helpers ─────────────────────────────────────────────────────────────
+	// ─── Helpers ──────────────────────────────────────────────────────────────
 
 	private static void ValidateWindow(DateTime from, DateTime to)
 	{
@@ -168,7 +161,7 @@ public sealed class PullTransactionService(
 		var credentials = Convert.ToBase64String(
 			Encoding.UTF8.GetBytes($"{_cfg.ConsumerKey}:{_cfg.ConsumerSecret}"));
 
-		var client = httpFactory.CreateClient("FuelFlow");
+		var client = httpFactory.CreateClient("Daraja");
 		client.DefaultRequestHeaders.Authorization =
 			new AuthenticationHeaderValue("Basic", credentials);
 		return client;

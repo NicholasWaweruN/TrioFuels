@@ -92,7 +92,7 @@ public static class BusinessServicesExtensions
 		// ── Common / shared ─────────────────────────────────────────────────
 		services.AddScoped<ICommonSetups, CommonSetups>();
 		services.AddScoped<ICommonSalesTasks, CommonSalesTasks>();
-		services.AddTransient<Services>();
+		//services.AddTransient<Services>();
 		services.AddScoped<DataSets>();
 
 		// ── Customer ────────────────────────────────────────────────────────

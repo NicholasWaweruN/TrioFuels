@@ -5,6 +5,7 @@
 
 
 using Daraja.Services;
+using FuelFlow.Services.Daraja;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja;
@@ -12,14 +13,19 @@ using Safaricom_Daraja.Stk_Push;
 
 namespace FuelFlow.Controllers;
 
+
+
+
 [Route("fuelflow/[controller]")]
 [ApiController]
 public class DarajaController(
 	IStkPushService stkPushService,
 	IC2BService c2bService,
-	IPullTransactionService pullService,
+	IPullTransactionImportService pullImportService, // ← swap this
 	IStkCallbackHandler stkCallbackHandler,
 	IOptions<DarajaConfig> options) : ControllerBase
+
+
 {
 	private readonly DarajaConfig _cfg = options.Value;
 
@@ -100,18 +106,17 @@ public class DarajaController(
 	public async Task<IActionResult> PullTransactions(
 		[FromBody] PullApiRequest req, CancellationToken ct)
 	{
-		// Default: last 24 hours for all tills
 		var from = req.From ?? DateTime.UtcNow.AddHours(-24);
 		var to = req.To ?? DateTime.UtcNow;
 
 		if (req.TillNumber is not null)
 		{
-			var result = await pullService.PullAllPagesAsync(req.TillNumber, from, to, ct);
-			return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
+			var result = await pullImportService.ImportForTillAsync(req.TillNumber, from, to, ct);
+			return result.Success ? Ok(result) : BadRequest(result.Error);
 		}
 		else
 		{
-			var results = await pullService.PullAllTillsAsync(from, to, ct);
+			var results = await pullImportService.ImportAllTillsAsync(from, to, ct);
 			return Ok(results);
 		}
 	}

@@ -84,9 +84,14 @@ namespace DataAccessLayer.EntityModels.Transactions
         [Required, StringLength(30), Unicode(false)]
         public string PaymentRefrence { get; set; } = string.Empty;
          [Precision(18,2)] public decimal TransactionAmount { get; set; }
-    }
+	}
+
+
+	[Microsoft.EntityFrameworkCore.Index(nameof(TransID), IsUnique = true)]
 	public class MpesaTransaction : BaseEntity
 	{
+		// Id is int — inherited from BaseEntity
+
 		[Required, StringLength(50)]
 		public string TransactionType { get; set; } = string.Empty;
 
@@ -102,6 +107,7 @@ namespace DataAccessLayer.EntityModels.Transactions
 		public string BusinessShortCode { get; set; } = string.Empty;
 
 		// ─── Till info ────────────────────────────────────────────────────────────
+
 		[StringLength(20)]
 		public string TillNumber { get; set; } = string.Empty;
 
@@ -109,10 +115,12 @@ namespace DataAccessLayer.EntityModels.Transactions
 		public string TillName { get; set; } = string.Empty;
 
 		// ─── Payment method: "STK" or "C2B" ──────────────────────────────────────
+
 		[StringLength(10)]
 		public string PaymentMethod { get; set; } = string.Empty;
 
 		// ─── STK Push specific ────────────────────────────────────────────────────
+
 		[StringLength(100)]
 		public string? CheckoutRequestID { get; set; }
 
@@ -120,10 +128,12 @@ namespace DataAccessLayer.EntityModels.Transactions
 		public string? MerchantRequestID { get; set; }
 
 		// ─── Receipt ──────────────────────────────────────────────────────────────
+
 		[StringLength(50)]
 		public string MpesaReceiptNumber { get; set; } = string.Empty;
 
 		// ─── Customer info ────────────────────────────────────────────────────────
+
 		[Required, StringLength(20)]
 		public string MSISDN { get; set; } = string.Empty;
 
@@ -137,16 +147,19 @@ namespace DataAccessLayer.EntityModels.Transactions
 		public string LastName { get; set; } = string.Empty;
 
 		// ─── Balances ─────────────────────────────────────────────────────────────
+
 		[Precision(18, 2)]
 		public decimal OrgAccountBalance { get; set; }
 
 		[Precision(18, 2)]
 		public decimal UsageBalance { get; set; }
 
-		// ─── Status: 0=Pending, 1=Success, 2=Failed ───────────────────────────────
+		// ─── Status: 0=Pending, 1=Success, 2=Failed ──────────────────────────────
+
 		public int Status { get; set; }
 
 		public DateTime DateTimeStamp { get; set; }
+
 		public DateTime DateModified { get; set; } = DateTime.UtcNow;
 	}
 	public class Settings

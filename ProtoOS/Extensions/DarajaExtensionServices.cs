@@ -1,5 +1,6 @@
 ﻿
 using Daraja.Services;
+using FuelFlow.Services.Daraja;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Safaricom_Daraja;
@@ -38,6 +39,8 @@ public static class DarajaServiceExtensions
 		services.AddScoped<IStkPushService, StkPushService>();
 		services.AddScoped<IC2BService, C2BService>();
 		services.AddScoped<IPullTransactionService, PullTransactionService>();
+		services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
+
 
 		// Callback handlers
 		services.AddScoped<IStkCallbackHandler, StkCallbackHandler>();
