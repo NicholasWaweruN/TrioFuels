@@ -24,7 +24,6 @@ public class DarajaController(
 	private readonly DarajaConfig _cfg = options.Value;
 
 	// ─── STK Push ─────────────────────────────────────────────────────────────
-
 	[HttpPost("stk/push")]
 	public async Task<IActionResult> StkPush([FromBody] StkPushApiRequest req, CancellationToken ct)
 	{
@@ -33,14 +32,15 @@ public class DarajaController(
 			t.TillNumber == req.TillNumber || t.AccountReference == req.TillReference)
 			?? throw new ArgumentException("Unknown till");
 
-		// PASSING FIX: Forward both the resolved StoreNumber and TillNumber to your STK service wrapper
+		// FIXED: Passing all 5 positional arguments explicitly in order
 		var result = await stkPushService.InitiateAsync(
-			req.Phone,
-			req.Amount,      // The 6-digit Store Number for signature validation
-			till.TillNumber,        // The 7-digit Till Number target destination endpoint
-			till.AccountReference,
-			req.Description ?? "Payment",
-			ct);
+			phone: req.Phone,
+			amount: req.Amount,
+			storeNumber: till.StoreNumber,       // Argument 3: The 6-digit Store Number
+			tillNumber: till.TillNumber,         // Argument 4: The 7-digit Till Number
+			accountReference: till.AccountReference, // Argument 5: Account tracking reference string
+			description: req.Description ?? "Payment",
+			ct: ct);
 
 		return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
 	}
