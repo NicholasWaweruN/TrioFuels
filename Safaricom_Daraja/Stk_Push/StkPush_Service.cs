@@ -13,14 +13,15 @@ public interface IStkPushService
 	Task<DarajaResult<StkPushResponse>> InitiateAsync(
 		string phone,
 		long amount,
-		string tillNumber,
+		string storeNumber,       // Pass the 6-digit Store Number (e.g., "5545198")
+		string tillNumber,        // Pass the 7-digit Till Number (e.g., "5617668")
 		string accountReference,
 		string description = "Payment",
 		CancellationToken ct = default);
 
 	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
 		string checkoutRequestId,
-		string tillNumber,
+		string storeNumber,       // Pass the 6-digit Store Number for polling queries
 		CancellationToken ct = default);
 }
 
@@ -36,6 +37,7 @@ public sealed class StkPushService(
 	public async Task<DarajaResult<StkPushResponse>> InitiateAsync(
 		string phone,
 		long amount,
+		string storeNumber,
 		string tillNumber,
 		string accountReference,
 		string description = "Payment",
@@ -47,24 +49,25 @@ public sealed class StkPushService(
 				return DarajaResult<StkPushResponse>.Fail("Amount must be greater than zero.");
 
 			var sanitizedPhone = SanitizePhone(phone);
+			var cleanStore = storeNumber.Trim();
 			var cleanTill = tillNumber.Trim();
 
-			// Pass the target sub-till down to the security string assembler
-			var (timestamp, password) = BuildCredentials(cleanTill);
+			// SIGNATURE FIX: Passkey hashing must use the 6-digit Store Number
+			var (timestamp, password) = BuildCredentials(cleanStore);
 
 			var payload = new StkPushRequest
 			{
-				// 1. Set scheme explicitly to Buy Goods matching the target till
+				// SCHEEMA MATCH: Pure Buy Goods routing
 				TransactionType = "CustomerBuyGoodsOnline",
 
-				// 2. Safaricom requires the sub-till here for processing schema validation
-				BusinessShortCode = cleanTill,
+				// GATEWAY RULE: BusinessShortCode expects the Store Number
+				BusinessShortCode = cleanStore,
 				Password = password,
 				Timestamp = timestamp,
 				Amount = amount,
 				PartyA = sanitizedPhone,
 
-				// 3. Set the dynamic sub-till receiving the money
+				// DESTINATION TARGET: PartyB expects the specific target Till Number
 				PartyB = cleanTill,
 
 				PhoneNumber = sanitizedPhone,
@@ -99,54 +102,44 @@ public sealed class StkPushService(
 					$"HTTP {(int)response.StatusCode}: {responseContent}");
 			}
 
-			var result =
-				await response.Content.ReadFromJsonAsync<StkPushResponse>(
-					cancellationToken: ct);
+			var result = await response.Content.ReadFromJsonAsync<StkPushResponse>(cancellationToken: ct);
 
 			if (result is null)
-				return DarajaResult<StkPushResponse>.Fail(
-					"Unable to parse Safaricom response.");
+				return DarajaResult<StkPushResponse>.Fail("Unable to parse Safaricom response.");
 
 			if (result.ResponseCode != "0")
 			{
-				logger.LogWarning(
-					"STK Push rejected. Code={Code} Description={Description}",
-					result.ResponseCode,
-					result.ResponseDescription);
+				logger.LogWarning("STK Push rejected. Code={Code} Description={Description}",result.ResponseCode,result.ResponseDescription);
 
 				return DarajaResult<StkPushResponse>.Fail(
-					result.ResponseDescription ??
-					"STK Push request rejected.");
+					result.ResponseDescription ?? "STK Push request rejected.");
 			}
 
-			logger.LogInformation(
-				"STK Push sent. CheckoutRequestID={CheckoutRequestID}",
-				result.CheckoutRequestId);
+			logger.LogInformation("STK Push sent. CheckoutRequestID={CheckoutRequestID}",result.CheckoutRequestId);
 
 			return DarajaResult<StkPushResponse>.Ok(result);
 		}
 		catch (Exception ex)
 		{
 			logger.LogError(ex, "STK Push failed");
-
 			return DarajaResult<StkPushResponse>.Fail(ex.Message);
 		}
 	}
 
 	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
 		string checkoutRequestId,
-		string tillNumber,
+		string storeNumber,
 		CancellationToken ct = default)
 	{
 		try
 		{
-			var cleanTill = tillNumber.Trim();
-			var (timestamp, password) = BuildCredentials(cleanTill);
+			var cleanStore = storeNumber.Trim();
+			var (timestamp, password) = BuildCredentials(cleanStore);
 
 			var payload = new StkQueryRequest
 			{
-				// Query endpoints also require the target sub-till to execute tracking
-				BusinessShortCode = cleanTill,
+				// Polling requests require the Store Number for verification lookup
+				BusinessShortCode = cleanStore,
 				Password = password,
 				Timestamp = timestamp,
 				CheckoutRequestID = checkoutRequestId
@@ -172,23 +165,16 @@ public sealed class StkPushService(
 					$"HTTP {(int)response.StatusCode}: {responseContent}");
 			}
 
-			var result =
-				await response.Content.ReadFromJsonAsync<StkQueryResponse>(
-					cancellationToken: ct);
+			var result = await response.Content.ReadFromJsonAsync<StkQueryResponse>(cancellationToken: ct);
 
 			if (result is null)
-				return DarajaResult<StkQueryResponse>.Fail(
-					"Unable to parse query response.");
+				return DarajaResult<StkQueryResponse>.Fail("Unable to parse query response.");
 
 			return DarajaResult<StkQueryResponse>.Ok(result);
 		}
 		catch (Exception ex)
 		{
-			logger.LogError(
-				ex,
-				"STK Query failed for {CheckoutRequestId}",
-				checkoutRequestId);
-
+			logger.LogError(ex, "STK Query failed for {CheckoutRequestId}", checkoutRequestId);
 			return DarajaResult<StkQueryResponse>.Fail(ex.Message);
 		}
 	}
@@ -197,23 +183,19 @@ public sealed class StkPushService(
 	{
 		var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
 
-		// Note: Use the target shortcode (the till) to create the payload's password signature 
 		var passwordString =
 			$"{shortCodeForPassword}" +
 			$"{_cfg.PassKey}" +
 			$"{timestamp}";
 
-		var password = Convert.ToBase64String(
-			Encoding.UTF8.GetBytes(passwordString));
+		var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(passwordString));
 
 		return (timestamp, password);
 	}
 
 	private static string SanitizePhone(string phone)
 	{
-		phone = phone.Trim()
-					 .Replace(" ", "")
-					 .Replace("+", "");
+		phone = phone.Trim().Replace(" ", "").Replace("+", "");
 
 		if (phone.StartsWith("07"))
 			phone = "254" + phone[1..];
@@ -227,16 +209,11 @@ public sealed class StkPushService(
 		return phone;
 	}
 
-	private async Task<HttpClient> GetAuthenticatedClientAsync(
-		CancellationToken ct)
+	private async Task<HttpClient> GetAuthenticatedClientAsync(CancellationToken ct)
 	{
 		var token = await tokenService.GetAccessTokenAsync(ct);
-
 		var client = httpFactory.CreateClient("Daraja");
-
-		client.DefaultRequestHeaders.Authorization =
-			new AuthenticationHeaderValue("Bearer", token);
-
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 		return client;
 	}
 }
