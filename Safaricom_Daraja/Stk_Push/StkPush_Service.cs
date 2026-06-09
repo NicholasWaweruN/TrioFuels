@@ -8,8 +8,6 @@ using System.Text.RegularExpressions;
 
 namespace Safaricom_Daraja.Stk_Push;
 
-
-
 public interface IStkPushService
 {
 	Task<DarajaResult<StkPushResponse>> InitiateAsync(
@@ -54,21 +52,20 @@ public sealed class StkPushService(
 
 			var payload = new StkPushRequest
 			{
+				// Keep CustomerPayBillOnline even though it routes to a dynamic sub-till
+				TransactionType = "CustomerPayBillOnline",
+
+				// Head office business short code (4161705)
 				BusinessShortCode = _cfg.BusinessShortCode,
 				Password = password,
 				Timestamp = timestamp,
-
-				TransactionType = "CustomerBuyGoodsOnline",
-
 				Amount = amount,
-
 				PartyA = sanitizedPhone,
 
-				// Till receiving payment
-				PartyB = tillNumber,
+				// Dynamic sub-till mapped to your main shortcode receiving payment
+				PartyB = tillNumber.Trim(),
 
 				PhoneNumber = sanitizedPhone,
-
 				CallBackURL = _cfg.StkCallbackUrl,
 
 				AccountReference = accountReference.Length > 12
@@ -145,6 +142,7 @@ public sealed class StkPushService(
 
 			var payload = new StkQueryRequest
 			{
+				// Always use the primary business short code (4161705) for authentication
 				BusinessShortCode = _cfg.BusinessShortCode,
 				Password = password,
 				Timestamp = timestamp,
