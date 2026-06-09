@@ -156,8 +156,7 @@ public class EmailBackgroundService : BackgroundService
 			await Task.WhenAll(applyTasks.Concat(revertTasks));
 			await dbContext.SaveChangesAsync();
 
-			_logger.LogInformation("Applied {ApplyCount} and reverted {RevertCount} price schedules.",
-				applyList.Count, revertList.Count);
+			_logger.LogInformation("Applied {ApplyCount} and reverted {RevertCount} price schedules.",applyList.Count, revertList.Count);
 		}
 		catch (Exception ex)
 		{
@@ -191,6 +190,7 @@ public class EmailBackgroundService : BackgroundService
 
 	private async Task SendRescheduledMessages(IServiceScope scope)
 	{
+		
 		var dbContext = scope.ServiceProvider.GetRequiredService<OTOContext>();
 		var messageService = scope.ServiceProvider.GetRequiredService<BulkSms>();
 		var ValidatePhoneNumber = scope.ServiceProvider.GetRequiredService<IMessagingService>();
@@ -228,14 +228,14 @@ public class EmailBackgroundService : BackgroundService
 			_logger.LogError(ex, "Error sending rescheduled messages.");
 		}
 	}
-	private static async Task VarianceReports(IServiceScope scope,DateTime CurrentTime)
+	private static async Task VarianceReports(IServiceScope scope, DateTime CurrentTime)
 	{
 		var dbContext = scope.ServiceProvider.GetRequiredService<OTOContext>();
 		var varianceReport = scope.ServiceProvider.GetRequiredService<VarianceReport>();
 		var auditReport = scope.ServiceProvider.GetRequiredService<FraudAuditReport>();
 		var getEmailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
 		var shiftsales = scope.ServiceProvider.GetRequiredService<ShiftsSales>();
-		
+
 		var varianceShifts = await dbContext.Shifts
 			.Where(s => s.ShiftStatus == 2 && !s.IsEmailSent)
 			.ToListAsync();
@@ -243,19 +243,18 @@ public class EmailBackgroundService : BackgroundService
 		var twelveHoursAgo = DateTime.UtcNow.AddHours(-14);
 
 		var varianceShift = await dbContext.Shifts
-			.Where(s =>  s.ShiftStartTime >= twelveHoursAgo
-			&& s.ShiftStatus != 1)
+			.Where(s => s.ShiftStartTime >= twelveHoursAgo && s.ShiftStatus != 1)
 			.ToListAsync();
 
-	
+
 		foreach (var variance in varianceShifts)
 		{
 			await varianceReport.GetVarianceReport(variance.ShiftNumber);
-		
+
 			variance.IsEmailSent = true;
 			dbContext.Update(variance);
 			await dbContext.SaveChangesAsync();
-			  
+
 			var emails = await getEmailRecipients.GetRecipients("011");
 			if (emails is not null)
 			{
@@ -267,7 +266,7 @@ public class EmailBackgroundService : BackgroundService
 				await auditReport.UngaPromoReport(email, variance.ShiftNumber);
 			}
 		}
-		
+
 	}
 	private static void PromotionalData(IServiceScope scope, DateTime currentTime)
 	{

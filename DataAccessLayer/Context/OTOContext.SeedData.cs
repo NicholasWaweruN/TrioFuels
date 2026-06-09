@@ -156,19 +156,7 @@ namespace DataAccessLayer.Context
 		private static void SeedDispenser(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Dispenser>().HasData(
-				new Dispenser
-				{
-					Id = 1,
-					DateCreated = DateTime.UtcNow,
-					IsActive = true,
-					StationCode = "S001",
-					UserCode = "00001",
-					DispenserCode = "D01",
-					DispenserName = "D1",
-					StorageLocation = "kenya",
-					TillNumber = "078678",
-					PetroleumCode = "01"
-				}
+				new Dispenser { Id = 1, DateCreated = DateTime.UtcNow, IsActive = true, StationCode = "S001", UserCode = "00001", DispenserCode = "D01", DispenserName = "D1", StorageLocation = "kenya", TillNumber = "078678", PetroleumCode = "01" }
 			);
 		}
 
@@ -195,20 +183,7 @@ namespace DataAccessLayer.Context
 		private static void SeedPdaDevices(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<PdaDevices>().HasData(
-				new PdaDevices
-				{
-					Id = 1,
-					DateCreated = DateTime.UtcNow,
-					IsActive = true,
-					UserCode = "99999",
-					DispenserCode = "D01",
-					DeviceIMEI = "1234567890",
-					DeviceCode = "1234567890",
-					DeviceMacAddress = "1234567890",
-					DeviceModel = "1234567890",
-					DeviceName = "Test PDA",
-					DeviceSerialNumber = "1234567890"
-				}
+				new PdaDevices { Id = 1, DateCreated = DateTime.UtcNow, IsActive = true, UserCode = "99999", DispenserCode = "D01", DeviceIMEI = "1234567890", DeviceCode = "1234567890", DeviceMacAddress = "1234567890", DeviceModel = "1234567890", DeviceName = "Test PDA", DeviceSerialNumber = "1234567890" }
 			);
 		}
 		/// <summary>
@@ -226,16 +201,7 @@ namespace DataAccessLayer.Context
 		private static void SeedDispenserAssignment(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<DispenserAssignment>().HasData(
-				new DispenserAssignment
-				{
-					Id = 1,
-					StationCode = "S001",
-					AssignedBy = "99999",
-					AttedantUserCode = "99999",
-					DateAssigned = DateTime.UtcNow,
-					DispenserCode = "D01",
-					IsActive = true,
-				}
+				new DispenserAssignment { Id = 1, StationCode = "S001", AssignedBy = "99999", AttedantUserCode = "99999", DateAssigned = DateTime.UtcNow, DispenserCode = "D01", IsActive = true }
 			);
 		}
 		/// <summary>
@@ -245,70 +211,17 @@ namespace DataAccessLayer.Context
 		private static void SeedTills(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Tills>().HasData(
-				new Tills
-				{
-					Id = 1,
-					StoreNumber = "078678",
-					DateCreated = DateTime.UtcNow,
-					LastFetch = DateTime.UtcNow,
-					TillName = "Test Till",
-					IsActive = true,
-					OffsetValue = 0,
-					TillNumber = "078678",
-					UserCode = "99999",
-				}
-			);
+				new Tills { Id = 1, StoreNumber = "5617668", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "Till 1", IsActive = true, OffsetValue = 0, TillNumber = "5617668", UserCode = "99999", },
+				new Tills { Id = 2, StoreNumber = "5617666", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "Till 2", IsActive = true, OffsetValue = 0, TillNumber = "5617666", UserCode = "99999", },
+				new Tills { Id = 3, StoreNumber = "5617664", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),  TillName = "Till 3",IsActive = true,  OffsetValue = 0, TillNumber = "5617664", UserCode = "99999", },
+				new Tills { Id = 4, StoreNumber = "5617662", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "Till 4", IsActive = true, OffsetValue = 0, TillNumber = "5617662", UserCode = "99999", });
 		}
 
 		private static void SeedQuantityTransactions(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<QuantityTransactions>().HasData(
-				new QuantityTransactions
-				{
-					Id = 1,
-					NozzleCode = "N01",
-					AmountCredit = 0,
-					AmountDebit = 0,
-					ShiftNumber = "",
-					DateCreated = DateTime.UtcNow,
-					Discount = 0,
-					DispenserCode = "D01",
-					IsReversed = false,
-					OtpUsed = "",
-					PaymentTypeCode = 99,
-					Price = 0,
-					QuantityCredit = 50,
-					RoundedDate = DateTime.UtcNow,
-					QuantityDebit = 0,
-					SaleId = "",
-					StationCode = "S001",
-					UserCode = "99999",
-					Vat_Amount = 0,
-					VehicleCode = ""
-				},
-				new QuantityTransactions
-				{
-					Id = 2,
-					NozzleCode = "N02",
-					AmountCredit = 0,
-					AmountDebit = 0,
-					ShiftNumber = "",
-					DateCreated = DateTime.UtcNow,
-					Discount = 0,
-					DispenserCode = "D01",
-					IsReversed = false,
-					OtpUsed = "",
-					PaymentTypeCode = 99,
-					Price = 0,
-					QuantityCredit = 50,
-					RoundedDate = DateTime.UtcNow,
-					QuantityDebit = 0,
-					SaleId = "",
-					StationCode = "S001",
-					UserCode = "99999",
-					Vat_Amount = 0,
-					VehicleCode = ""
-				}
+				new QuantityTransactions { Id = 1, NozzleCode = "N01", AmountCredit = 0, AmountDebit = 0, ShiftNumber = "", DateCreated = DateTime.UtcNow, Discount = 0, DispenserCode = "D01", IsReversed = false, OtpUsed = "", PaymentTypeCode = 99, Price = 0, QuantityCredit = 50, RoundedDate = DateTime.UtcNow, QuantityDebit = 0, SaleId = "", StationCode = "S001", UserCode = "99999", Vat_Amount = 0, VehicleCode = "" },
+				new QuantityTransactions { Id = 2, NozzleCode = "N02", AmountCredit = 0, AmountDebit = 0, ShiftNumber = "", DateCreated = DateTime.UtcNow, Discount = 0, DispenserCode = "D01", IsReversed = false, OtpUsed = "", PaymentTypeCode = 99, Price = 0, QuantityCredit = 50, RoundedDate = DateTime.UtcNow, QuantityDebit = 0, SaleId = "", StationCode = "S001", UserCode = "99999", Vat_Amount = 0, VehicleCode = "" }
 			);
 		}
 
@@ -338,7 +251,10 @@ namespace DataAccessLayer.Context
 		private static void SeedRoles(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Role>().HasData(
-				new Role { Id = 1, DateCreated = DateTime.UtcNow, RoleCode = "001", RoleName = "Administrator", UserCode = "99999" }
+				new Role { Id = 1, DateCreated = DateTime.UtcNow, RoleCode = "001", RoleName = "Administrator", UserCode = "99999" },
+				new Role { Id = 2, DateCreated = DateTime.UtcNow, RoleCode = "002", RoleName = "SuperVisor", UserCode = "99999" },
+				new Role { Id = 3, DateCreated = DateTime.UtcNow, RoleCode = "003", RoleName = "Attendant", UserCode = "99999" },
+				new Role { Id = 4, DateCreated = DateTime.UtcNow, RoleCode = "004", RoleName = "Accountant", UserCode = "99999" }
 			);
 		}
 

@@ -9,14 +9,9 @@ public sealed class DarajaConfig
 	public string BaseUrl { get; set; } = string.Empty;
 
 	/// <summary>
-	/// Head-office / store shortcode (e.g. 4161705).
-	/// Used as BusinessShortCode in STK Push requests and for password generation.
-	/// </summary>
-	public string StoreNumber { get; set; } = string.Empty;
-
-	/// <summary>
-	/// Default till number (e.g. 5617668).
-	/// Used as PartyB in STK Push and for STK Query.
+	/// Head-office shortcode (e.g. 4161705).
+	/// Used as BusinessShortCode in all STK Push requests.
+	/// Password is built using the individual TillNumber, not this.
 	/// </summary>
 	public string BusinessShortCode { get; set; } = string.Empty;
 

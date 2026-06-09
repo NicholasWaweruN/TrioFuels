@@ -30,8 +30,12 @@ public interface IStkPushService
 	/// <summary>
 	/// Queries the status of a previous STK Push request.
 	/// </summary>
+	/// <param name="checkoutRequestId">The CheckoutRequestID from the original STK Push response.</param>
+	/// <param name="tillNumber">The same till number used during initiation.</param>
+	/// <param name="ct">Cancellation token.</param>
 	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
 		string checkoutRequestId,
+		string tillNumber,
 		CancellationToken ct = default);
 }
 
@@ -55,27 +59,25 @@ public sealed class StkPushService(
 		{
 			var sanitizedPhone = SanitizePhone(phone);
 
-			// 1. DYNAMIC: Pass the configured BusinessShortCode (StoreNumber) from appsettings.json
+			// Password = Base64(BusinessShortCode + PassKey + Timestamp)
+			// BusinessShortCode is always the head-office shortcode (4161705)
+			// PartyB is the individual till number (5617668, 5617666, etc.)
 			var (timestamp, password) = BuildStkCredentials(_cfg.BusinessShortCode);
 
-			// 2. RESILIENT: Handle potential null references cleanly before slicing
 			var safeRef = string.IsNullOrWhiteSpace(accountReference) ? "Payment" : accountReference;
 			var safeDesc = string.IsNullOrWhiteSpace(description) ? "Payment" : description;
 
 			var payload = new StkPushRequest
 			{
-				// DYNAMIC: Reads "4161705" automatically from config
-				BusinessShortCode = _cfg.BusinessShortCode,
-				Password = password,
+				BusinessShortCode = _cfg.BusinessShortCode,                    // 4161705
+				Password = password,                                   // Base64(4161705 + passkey + ts)
 				Timestamp = timestamp,
 				TransactionType = "CustomerBuyGoodsOnline",
 				Amount = amount,
-				PartyA = sanitizedPhone,
-				// DYNAMIC: Uses the specific tillNumber passed into the method call
-				PartyB = tillNumber,
+				PartyA = sanitizedPhone,                            // customer phone
+				PartyB = tillNumber,                                // specific till e.g. 5617668
 				PhoneNumber = sanitizedPhone,
 				CallBackURL = _cfg.StkCallbackUrl,
-				// SAFE SLICING: Truncates values to respect Safaricom validation limits
 				AccountReference = safeRef[..Math.Min(safeRef.Length, 12)],
 				TransactionDesc = safeDesc[..Math.Min(safeDesc.Length, 20)]
 			};
@@ -91,9 +93,10 @@ public sealed class StkPushService(
 			}
 
 			var result = await response.Content.ReadFromJsonAsync<StkPushResponse>(cancellationToken: ct);
+
 			if (result?.ResponseCode != "0")
 			{
-				logger.LogWarning("STK Push rejected: {Desc}", result?.ResponseDescription);
+				logger.LogWarning("STK Push rejected by Safaricom: {Desc}", result?.ResponseDescription);
 				return DarajaResult<StkPushResponse>.Fail(result?.ResponseDescription ?? "Unknown error");
 			}
 
@@ -110,19 +113,20 @@ public sealed class StkPushService(
 		}
 	}
 
-
 	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
 		string checkoutRequestId,
+		string tillNumber,
 		CancellationToken ct = default)
 	{
 		try
 		{
-			// Query also uses StoreNumber as BusinessShortCode
-			var (timestamp, password) = BuildStkCredentials(_cfg.StoreNumber);
+			// Password must match what was used during initiation
+			// Both use BusinessShortCode for password generation
+			var (timestamp, password) = BuildStkCredentials(_cfg.BusinessShortCode);
 
 			var payload = new StkQueryRequest
 			{
-				BusinessShortCode = _cfg.StoreNumber,
+				BusinessShortCode = _cfg.BusinessShortCode,  // 4161705
 				Password = password,
 				Timestamp = timestamp,
 				CheckoutRequestID = checkoutRequestId
@@ -130,7 +134,13 @@ public sealed class StkPushService(
 
 			var client = await GetAuthenticatedClientAsync(ct);
 			var response = await client.PostAsJsonAsync("/mpesa/stkpushquery/v1/query", payload, ct);
-			response.EnsureSuccessStatusCode();
+
+			if (!response.IsSuccessStatusCode)
+			{
+				var error = await response.Content.ReadAsStringAsync(ct);
+				logger.LogError("STK Query failed [{StatusCode}]: {Error}", response.StatusCode, error);
+				return DarajaResult<StkQueryResponse>.Fail($"HTTP {response.StatusCode}: {error}");
+			}
 
 			var result = await response.Content.ReadFromJsonAsync<StkQueryResponse>(cancellationToken: ct);
 			return DarajaResult<StkQueryResponse>.Ok(result!);
@@ -142,11 +152,11 @@ public sealed class StkPushService(
 		}
 	}
 
-	// ─── Helpers ─────────────────────────────────────────────────────────────
+	// ─── Helpers ──────────────────────────────────────────────────────────────
 
 	/// <summary>
-	/// Builds Base64(ShortCode + PassKey + Timestamp) as required by Daraja.
-	/// Always pass StoreNumber (head-office shortcode) here.
+	/// Builds the STK password as Base64(shortCode + PassKey + Timestamp).
+	/// Always pass BusinessShortCode (4161705) — not the till number.
 	/// </summary>
 	private (string Timestamp, string Password) BuildStkCredentials(string shortCode)
 	{
