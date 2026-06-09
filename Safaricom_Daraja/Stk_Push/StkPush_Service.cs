@@ -47,23 +47,25 @@ public sealed class StkPushService(
 				return DarajaResult<StkPushResponse>.Fail("Amount must be greater than zero.");
 
 			var sanitizedPhone = SanitizePhone(phone);
+			var cleanTill = tillNumber.Trim();
 
-			var (timestamp, password) = BuildCredentials();
+			// Pass the target sub-till down to the security string assembler
+			var (timestamp, password) = BuildCredentials(cleanTill);
 
 			var payload = new StkPushRequest
 			{
-				// Keep CustomerPayBillOnline even though it routes to a dynamic sub-till
-				TransactionType = "CustomerPayBillOnline",
+				// 1. Set scheme explicitly to Buy Goods matching the target till
+				TransactionType = "CustomerBuyGoodsOnline",
 
-				// Head office business short code (4161705)
-				BusinessShortCode = _cfg.BusinessShortCode,
+				// 2. Safaricom requires the sub-till here for processing schema validation
+				BusinessShortCode = cleanTill,
 				Password = password,
 				Timestamp = timestamp,
 				Amount = amount,
 				PartyA = sanitizedPhone,
 
-				// Dynamic sub-till mapped to your main shortcode receiving payment
-				PartyB = tillNumber.Trim(),
+				// 3. Set the dynamic sub-till receiving the money
+				PartyB = cleanTill,
 
 				PhoneNumber = sanitizedPhone,
 				CallBackURL = _cfg.StkCallbackUrl,
@@ -138,12 +140,13 @@ public sealed class StkPushService(
 	{
 		try
 		{
-			var (timestamp, password) = BuildCredentials();
+			var cleanTill = tillNumber.Trim();
+			var (timestamp, password) = BuildCredentials(cleanTill);
 
 			var payload = new StkQueryRequest
 			{
-				// Always use the primary business short code (4161705) for authentication
-				BusinessShortCode = _cfg.BusinessShortCode,
+				// Query endpoints also require the target sub-till to execute tracking
+				BusinessShortCode = cleanTill,
 				Password = password,
 				Timestamp = timestamp,
 				CheckoutRequestID = checkoutRequestId
@@ -190,12 +193,13 @@ public sealed class StkPushService(
 		}
 	}
 
-	private (string Timestamp, string Password) BuildCredentials()
+	private (string Timestamp, string Password) BuildCredentials(string shortCodeForPassword)
 	{
 		var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
 
+		// Note: Use the target shortcode (the till) to create the payload's password signature 
 		var passwordString =
-			$"{_cfg.BusinessShortCode}" +
+			$"{shortCodeForPassword}" +
 			$"{_cfg.PassKey}" +
 			$"{timestamp}";
 
