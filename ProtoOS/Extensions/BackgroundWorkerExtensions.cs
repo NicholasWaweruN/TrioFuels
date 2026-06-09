@@ -1,5 +1,6 @@
 ﻿using BussinessLogic.Worker;
 using BussinessLogic.Worker.Authentication;
+using BussinessLogic.Worker.PullTransactions;
 using BussinessLogic.Worker.Roles;
 
 namespace FuelFlow.Extensions;
@@ -16,6 +17,7 @@ public static class BackgroundWorkerExtensions
 		services.AddHostedService<EmailBackgroundService>();
 		services.AddHostedService<SalesSummaryWorker>();
 		services.AddHostedService<AuthenticationWorker>();
+		services.AddHostedService<PullTransactionWorker>();
 		//services.AddHostedService<ApiPermissionRoleSeeder>();
 
 		return services;
