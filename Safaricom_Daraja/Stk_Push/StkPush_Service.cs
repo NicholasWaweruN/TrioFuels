@@ -60,7 +60,7 @@ public sealed class StkPushService(
 		ArgumentException.ThrowIfNullOrWhiteSpace(phone);
 		ArgumentException.ThrowIfNullOrWhiteSpace(tillNumber);
 
-		if (amount <= 0)
+		if (amount <= 0)//
 			return DarajaResult<StkPushResponse>.Fail("Amount must be greater than zero.");
 
 		// Validate till belongs to this org
