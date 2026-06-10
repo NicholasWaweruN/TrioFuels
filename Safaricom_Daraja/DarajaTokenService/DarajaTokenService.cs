@@ -53,7 +53,8 @@ public sealed class DarajaTokenService(
 
 	private async Task<DarajaTokenResponse> FetchTokenAsync(CancellationToken ct)
 	{
-		var client = httpFactory.CreateClient("FuelFlow");
+		// ← was "FuelFlow", must match the name in AddDaraja
+		var client = httpFactory.CreateClient("Daraja");
 
 		var credentials = Convert.ToBase64String(
 			Encoding.UTF8.GetBytes($"{_cfg.ConsumerKey}:{_cfg.ConsumerSecret}"));
@@ -61,8 +62,16 @@ public sealed class DarajaTokenService(
 		client.DefaultRequestHeaders.Authorization =
 			new AuthenticationHeaderValue("Basic", credentials);
 
-		var response = await client.GetAsync("/oauth/v1/generate?grant_type=client_credentials", ct);
-		response.EnsureSuccessStatusCode();
+		var response = await client.GetAsync(
+			"/oauth/v1/generate?grant_type=client_credentials", ct);
+
+		if (!response.IsSuccessStatusCode)
+		{
+			var error = await response.Content.ReadAsStringAsync(ct);
+			logger.LogError("Daraja token fetch failed [{Status}]: {Error}",
+				response.StatusCode, error);
+			throw new InvalidOperationException($"Daraja token fetch failed: {error}");
+		}
 
 		var content = await response.Content.ReadAsStringAsync(ct);
 		return JsonSerializer.Deserialize<DarajaTokenResponse>(content)

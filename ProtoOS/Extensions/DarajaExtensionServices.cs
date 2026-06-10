@@ -28,7 +28,7 @@ public static class DarajaServiceExtensions
 				  ?? throw new InvalidOperationException("Daraja configuration section is missing.");
 
 		// Named HttpClient for Daraja — shared base URL, timeout
-		services.AddHttpClient("FuelFlow", client =>
+		services.AddHttpClient("Daraja", client =>
 		{
 			client.BaseAddress = new Uri(cfg.BaseUrl);
 			client.Timeout = TimeSpan.FromSeconds(30);
