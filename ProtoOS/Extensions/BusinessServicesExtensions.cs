@@ -17,7 +17,6 @@ using BusinessLogic.Sales.Receipts;
 using BusinessLogic.Sales.ReverseSales;
 using BusinessLogic.Sales.Target;
 using BusinessLogic.Sales.Wallet;
-using BusinessLogic.Services;
 using BusinessLogic.SetupService;
 using BusinessLogic.Station.DispenserAssignments;
 using BusinessLogic.Station.Nozzzles;
@@ -27,6 +26,7 @@ using BusinessLogic.Station.StationTank;
 using BusinessLogic.Worker.SalesReport;
 
 // ── BussinessLogic (legacy namespace – keep until unified) ─────────────────
+
 using BussinessLogic.Analytics;
 using BussinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Authentication.SignIn;
@@ -55,18 +55,13 @@ using BussinessLogic.Stock.Shifts;
 using BussinessLogic.Stock.Stock;
 using BussinessLogic.Stock.Totalizers;
 using BussinessLogic.Stock.VarianceReport;
-using BussinessLogic.Worker;
-using BussinessLogic.Worker.Authentication;
 using BussinessLogic.Worker.OtherReports;
 using BussinessLogic.Worker.RecordedTotalizer_Readings;
-using BussinessLogic.Worker.Roles;
 using BussinessLogic.Worker.SalesReport;
 using BussinessLogic.Worker.StockReports;
 
 // ── External ───────────────────────────────────────────────────────────────
-using Azure.Identity;
 using DataAccessLayer.DTOs.Messaging;
-using Microsoft.Graph;
 using Syncfusion.Pdf;
 
 namespace FuelFlow.Extensions;

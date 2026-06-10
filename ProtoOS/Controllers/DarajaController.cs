@@ -42,7 +42,6 @@ public class DarajaController(
 		var result = await stkPushService.InitiateAsync(
 			phone: req.Phone,
 			amount: req.Amount,
-			storeNumber: till.StoreNumber,       // The 7-digit Store Number config string
 			tillNumber: till.TillNumber,         // The 7-digit Till Number config string
 			accountReference: till.AccountReference,
 			description: req.Description ?? "Payment",
