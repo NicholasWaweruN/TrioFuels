@@ -85,8 +85,8 @@ public sealed class StkPushService(
 			var payload = new StkPushRequest
 			{
 				TransactionType = "CustomerBuyGoodsOnline",
-				BusinessShortCode = tillNumber,              // e.g. 5617668
-				PartyB = tillNumber,              // same till number
+				BusinessShortCode = till.StoreNumber,   // ← 5545198, not 5617668
+				PartyB = till.StoreNumber,   // ← same
 				Password = password,
 				Timestamp = timestamp,
 				Amount = amount,
