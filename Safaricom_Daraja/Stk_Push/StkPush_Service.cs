@@ -69,10 +69,9 @@ public sealed class StkPushService(
 
 		var till = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
 		if (till is null)
-		{
-			logger.LogError("STK Push rejected — till {TillNumber} not found in config.", tillNumber);
 			return DarajaResult<StkPushResponse>.Fail($"Till {tillNumber} is not configured.");
-		}
+
+		logger.LogInformation("STK Push resolved — TillNumber={TillNumber} StoreNumber={StoreNumber}",till.TillNumber, till.StoreNumber);
 
 		try
 		{
