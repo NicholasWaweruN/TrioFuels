@@ -1,10 +1,4 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
-// DarajaController.cs — wire into your ASP.NET Core app
-// Add attribute routing or Minimal API endpoints as needed.
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-using Daraja.Services;
+﻿using Daraja.Services;
 using FuelFlow.Services.Daraja;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -13,67 +7,82 @@ using Safaricom_Daraja.Stk_Push;
 
 namespace FuelFlow.Controllers;
 
-
-
-
 [Route("fuelflow/[controller]")]
 [ApiController]
 public class DarajaController(
 	IStkPushService stkPushService,
 	IC2BService c2bService,
-	IPullTransactionImportService pullImportService, // ← swap this
+	//IPullTransactionImportService pullImportService,
 	IStkCallbackHandler stkCallbackHandler,
-	IOptions<DarajaConfig> options) : ControllerBase
-
-
+	IOptions<DarajaConfig> options
+) : ControllerBase
 {
 	private readonly DarajaConfig _cfg = options.Value;
 
-	// ─── STK Push ─────────────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────
+	// STK PUSH (PAYBILL-BASED)
+	// ─────────────────────────────────────────────
 	[HttpPost("stk/push")]
-	public async Task<IActionResult> StkPush([FromBody] StkPushApiRequest req, CancellationToken ct)
+	public async Task<IActionResult> StkPush(
+		[FromBody] StkPushApiRequest req,
+		CancellationToken ct)
 	{
-		// Resolve the correct till configuration details from appsettings.json
+		// ✔ Validate till internally only (NOT for STK routing)
 		var till = _cfg.Tills.FirstOrDefault(t =>
-			t.TillNumber == req.TillNumber || t.AccountReference == req.TillReference)
-			?? throw new ArgumentException("Unknown till");
+			t.TillNumber == req.TillNumber ||
+			t.AccountReference == req.TillReference
+		);
 
-		// Pass both 7-digit parameters down sequentially
+		if (till is null)
+			return BadRequest("Unknown till");
+
+		// ✔ STK PUSH DOES NOT USE TILL NUMBER
 		var result = await stkPushService.InitiateAsync(
 			phone: req.Phone,
 			amount: req.Amount,
-			tillNumber: till.TillNumber,         // The 7-digit Till Number config string
-			accountReference: till.AccountReference,
-			description: req.Description ?? "Payment",
-			ct: ct);
 
-		return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
+			// 🔥 THIS is what replaces till in Safaricom world
+			accountReference: till.AccountReference,
+
+			description: req.Description ?? "Payment",
+			ct: ct
+		);
+
+		return result.Success
+			? Ok(result.Data)
+			: BadRequest(result.ErrorMessage);
 	}
 
-
-
-	// tillNumber is required so the password can be rebuilt correctly for the query
+	// ─────────────────────────────────────────────
+	// STK QUERY (NO TILL REQUIRED)
+	// ─────────────────────────────────────────────
 	[HttpGet("stk/query/{checkoutRequestId}")]
 	public async Task<IActionResult> StkQuery(
 		string checkoutRequestId,
-		[FromQuery] string storeNumber,
 		CancellationToken ct)
 	{
-		var result = await stkPushService.QueryStatusAsync(checkoutRequestId, storeNumber, ct);
-		return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
+		var result = await stkPushService.QueryStatusAsync(checkoutRequestId, ct);
+
+		return result.Success
+			? Ok(result.Data)
+			: BadRequest(result.ErrorMessage);
 	}
 
-	// ─── STK Callback (called by Safaricom) ──────────────────────────────────
-
+	// ─────────────────────────────────────────────
+	// CALLBACK (SAFE HANDLER)
+	// ─────────────────────────────────────────────
 	[HttpPost("stk/callback")]
-	public async Task<IActionResult> StkCallback([FromBody] StkCallback callback, CancellationToken ct)
+	public async Task<IActionResult> StkCallback(
+		[FromBody] StkCallback callback,
+		CancellationToken ct)
 	{
 		await stkCallbackHandler.HandleAsync(callback, ct);
 		return Ok();
 	}
 
-	// ─── C2B Register ─────────────────────────────────────────────────────────
-
+	// ─────────────────────────────────────────────
+	// C2B
+	// ─────────────────────────────────────────────
 	[HttpPost("c2b/register")]
 	public async Task<IActionResult> RegisterC2BUrls(CancellationToken ct)
 	{
@@ -81,56 +90,49 @@ public class DarajaController(
 		return Ok(results);
 	}
 
-	// ─── C2B Validation (called by Safaricom) ────────────────────────────────
-
 	[HttpPost("c2b/validate")]
 	public IActionResult C2BValidate([FromBody] C2BValidationRequest req)
 	{
-		var response = c2bService.Validate(req);
-		return Ok(response);
+		return Ok(c2bService.Validate(req));
 	}
 
-	// ─── C2B Confirmation (called by Safaricom) ───────────────────────────────
-
 	[HttpPost("c2b/confirm")]
-	public async Task<IActionResult> C2BConfirm([FromBody] C2BConfirmationRequest req, CancellationToken ct)
+	public async Task<IActionResult> C2BConfirm(
+		[FromBody] C2BConfirmationRequest req,
+		CancellationToken ct)
 	{
 		await c2bService.HandleConfirmationAsync(req, ct);
 		return Ok();
 	}
 
-	// ─── Pull Transactions ────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────
+	// PULL TRANSACTIONS
+	// ─────────────────────────────────────────────
+	//[HttpPost("pull")]
+	//public async Task<IActionResult> PullTransactions(
+	//	[FromBody] PullApiRequest req,
+	//	CancellationToken ct)
+	//{
+	//	var from = req.From ?? DateTime.UtcNow.AddHours(-24);
+	//	var to = req.To ?? DateTime.UtcNow;
 
-	[HttpPost("pull")]
-	public async Task<IActionResult> PullTransactions(
-		[FromBody] PullApiRequest req, CancellationToken ct)
-	{
-		var from = req.From ?? DateTime.UtcNow.AddHours(-24);
-		var to = req.To ?? DateTime.UtcNow;
+	//	if (!string.IsNullOrWhiteSpace(req.TillNumber))
+	//	{
+	//		var result = await pullImportService.ImportForTillAsync(req.TillNumber, from, to, ct);
+	//		return result.Success ? Ok(result) : BadRequest(result.Error);
+	//	}
 
-		if (req.TillNumber is not null)
-		{
-			var result = await pullImportService.ImportForTillAsync(req.TillNumber, from, to, ct);
-			return result.Success ? Ok(result) : BadRequest(result.Error);
-		}
-		else
-		{
-			var results = await pullImportService.ImportAllTillsAsync(from, to, ct);
-			return Ok(results);
-		}
-	}
+	//	var all = await pullImportService.ImportAllTillsAsync(from, to, ct);
+	//	return Ok(all);
+	//}
 }
 
-// ─── API request DTOs ────────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────
+// DTOs
+// ─────────────────────────────────────────────
 public record StkPushApiRequest(
 	string Phone,
 	long Amount,
-	string? TillNumber,
-	string? TillReference,
+	string? TillNumber,        // used ONLY for internal lookup
+	string? TillReference,     // optional alias
 	string? Description);
-
-public record PullApiRequest(
-	string? TillNumber,
-	DateTime? From,
-	DateTime? To);
