@@ -156,7 +156,7 @@ namespace DataAccessLayer.Context
 		private static void SeedDispenser(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Dispenser>().HasData(
-				new Dispenser { Id = 1, DateCreated = DateTime.UtcNow, IsActive = true, StationCode = "S001", UserCode = "00001", DispenserCode = "D01", DispenserName = "D1", StorageLocation = "kenya", TillNumber = "078678", PetroleumCode = "01" }
+				new Dispenser { Id = 1, DateCreated = DateTime.UtcNow, IsActive = true, StationCode = "S001", UserCode = "00001", DispenserCode = "D01", DispenserName = "D1", StorageLocation = "kenya", TillNumber = "5617668", PetroleumCode = "01"}
 			);
 		}
 
