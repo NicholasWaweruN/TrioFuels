@@ -40,6 +40,7 @@ public class DarajaController(
 		var result = await stkPushService.InitiateAsync(
 			phone: req.Phone,
 			amount: req.Amount,
+		   tillNumber: till.TillNumber,        // "5617668"
 
 			// 🔥 THIS is what replaces till in Safaricom world
 			accountReference: till.AccountReference,

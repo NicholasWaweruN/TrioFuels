@@ -122,10 +122,7 @@ public sealed class StkPushService(
 				return DarajaResult<StkPushResponse>.Fail(result.ResponseDescription ?? "Rejected by Daraja.");
 			}
 
-			logger.LogInformation(
-				"STK Push initiated — Phone={Phone} Amount=KES {Amount} Till={Till} ({TillName}) " +
-				"Ref={Ref} CheckoutId={Id}",
-				sanitizedPhone, amount, tillNumber, till.Name, safeRef, result.CheckoutRequestId);
+			logger.LogInformation("STK Push initiated — Phone={Phone} Amount=KES {Amount} Till={Till} ({TillName}) " +"Ref={Ref} CheckoutId={Id}",sanitizedPhone, amount, tillNumber, till.Name, safeRef, result.CheckoutRequestId);
 
 			return DarajaResult<StkPushResponse>.Ok(result);
 		}
