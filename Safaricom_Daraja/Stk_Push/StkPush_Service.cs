@@ -1,10 +1,11 @@
-﻿using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text;
-using System.Text.RegularExpressions;
+﻿using DataAccessLayer.EntityModels.Stations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja.DarajaTokenService;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Safaricom_Daraja.Stk_Push;
 
@@ -78,7 +79,7 @@ public sealed class StkPushService(
 			var sanitizedPhone = SanitizePhone(phone);
 			var safeRef = Truncate(string.IsNullOrWhiteSpace(accountReference) ? tillNumber : accountReference, 12);
 			var safeDesc = Truncate(string.IsNullOrWhiteSpace(description) ? "Payment" : description, 13);
-			var (timestamp, password) = BuildCredentials();
+			var (timestamp, password) = BuildCredentials(till.TillNumber);
 
 			// ── Buy Goods payload ─────────────────────────────────────────────
 			// BusinessShortCode + PartyB = till number (not the org shortcode)
@@ -146,7 +147,7 @@ public sealed class StkPushService(
 
 		try
 		{
-			var (timestamp, password) = BuildCredentials();
+			var (timestamp, password) = BuildCredentials("");
 
 			// Query also uses the org shortcode (4161705), not the till number
 			var payload = new StkQueryRequest
@@ -194,18 +195,18 @@ public sealed class StkPushService(
 	/// Password always uses the org BusinessShortCode (4161705) + PassKey —
 	/// even for Buy Goods transactions where the payload uses the till number.
 	/// </summary>
-	private (string Timestamp, string Password) BuildCredentials()
-	{
-		var timestamp = DateTimeOffset.UtcNow
-			.ToOffset(TimeSpan.FromHours(3))
-			.ToString("yyyyMMddHHmmss");
+	// For CustomerBuyGoodsOnline, password uses TILL number
+private (string Timestamp, string Password) BuildCredentials(string shortCode)
+{
+    var timestamp = DateTimeOffset.UtcNow
+        .ToOffset(TimeSpan.FromHours(3))
+        .ToString("yyyyMMddHHmmss");
 
-		// Always org shortcode here — PassKey is issued against 4161705, not the tills
-		var raw = $"{_cfg.BusinessShortCode}{_cfg.PassKey}{timestamp}";
-		var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
+    var raw = $"{shortCode}{_cfg.PassKey}{timestamp}";
+    var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
 
-		return (timestamp, password);
-	}
+    return (timestamp, password);
+}
 
 	private static string SanitizePhone(string phone)
 	{
