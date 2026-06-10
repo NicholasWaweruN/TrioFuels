@@ -64,6 +64,9 @@ public sealed class StkPushService(
 			return DarajaResult<StkPushResponse>.Fail("Amount must be greater than zero.");
 
 		// Validate till belongs to this org
+
+
+
 		var till = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
 		if (till is null)
 		{
