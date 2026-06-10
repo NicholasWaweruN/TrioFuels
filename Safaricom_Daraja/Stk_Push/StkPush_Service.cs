@@ -1,10 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja.DarajaTokenService;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using Xunit;
 
 namespace Safaricom_Daraja.Stk_Push;
 
@@ -90,8 +93,7 @@ public sealed class StkPushService(
 				return DarajaResult<StkPushResponse>.Fail(result.ResponseDescription ?? "Rejected by Daraja.");
 			}
 
-			logger.LogInformation("STK push initiated. Phone={Phone} Amount={Amount} Ref={Ref} CheckoutId={Id}",
-				sanitizedPhone, amount, safeRef, result.CheckoutRequestId);
+			logger.LogInformation("STK push initiated. Phone={Phone} Amount={Amount} Ref={Ref} CheckoutId={Id}",sanitizedPhone, amount, safeRef, result.CheckoutRequestId);
 
 			return DarajaResult<StkPushResponse>.Ok(result);
 		}
@@ -137,8 +139,7 @@ public sealed class StkPushService(
 			if (result is null)
 				return DarajaResult<StkQueryResponse>.Fail("Null response from Daraja.");
 
-			logger.LogInformation("STK query success. CheckoutId={Id} ResultCode={Code}",
-				checkoutRequestId, result.ResultCode);
+			logger.LogInformation("STK query success. CheckoutId={Id} ResultCode={Code}",checkoutRequestId, result.ResultCode);
 
 			return DarajaResult<StkQueryResponse>.Ok(result);
 		}
@@ -193,4 +194,9 @@ public sealed class StkPushService(
 			new AuthenticationHeaderValue("Bearer", token);
 		return client;
 	}
+
+
 }
+
+
+

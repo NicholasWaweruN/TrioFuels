@@ -83,16 +83,25 @@ public class DarajaController(
 	// ─────────────────────────────────────────────
 	// C2B
 	// ─────────────────────────────────────────────
+
+	/// <summary>
+	/// One-time call to register validation/confirmation URLs with Safaricom.
+	/// Targets the master BusinessShortCode (4161705), not individual tills.
+	/// </summary>
 	[HttpPost("c2b/register")]
 	public async Task<IActionResult> RegisterC2BUrls(CancellationToken ct)
 	{
-		var results = await c2bService.RegisterAllTillsAsync(ct);
-		return Ok(results);
+		var result = await c2bService.RegisterMasterShortCodeAsync(ct);
+
+		return result.Success
+			? Ok(result.Data)
+			: BadRequest(result.ErrorMessage);
 	}
 
 	[HttpPost("c2b/validate")]
 	public IActionResult C2BValidate([FromBody] C2BValidationRequest req)
 	{
+		// Safaricom expects a 200 OK with ResultCode in the body — never a 4xx.
 		return Ok(c2bService.Validate(req));
 	}
 
@@ -102,6 +111,8 @@ public class DarajaController(
 		CancellationToken ct)
 	{
 		await c2bService.HandleConfirmationAsync(req, ct);
+
+		// Safaricom expects a 200 OK — any non-200 triggers a retry storm.
 		return Ok();
 	}
 
