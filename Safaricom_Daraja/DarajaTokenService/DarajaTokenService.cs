@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Safaricom_Daraja;
 
 namespace Safaricom_Daraja.DarajaTokenService;
 
@@ -54,7 +53,7 @@ public sealed class DarajaTokenService(
 
 	private async Task<DarajaTokenResponse> FetchTokenAsync(CancellationToken ct)
 	{
-		var client = httpFactory.CreateClient("Daraja");
+		var client = httpFactory.CreateClient("FuelFlow");
 
 		var credentials = Convert.ToBase64String(
 			Encoding.UTF8.GetBytes($"{_cfg.ConsumerKey}:{_cfg.ConsumerSecret}"));

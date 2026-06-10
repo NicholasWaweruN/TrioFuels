@@ -189,7 +189,7 @@ public sealed class StkPushService(
 	private async Task<HttpClient> GetAuthenticatedClientAsync(CancellationToken ct)
 	{
 		var token = await tokenService.GetAccessTokenAsync(ct);
-		var client = httpFactory.CreateClient("Daraja");
+		var client = httpFactory.CreateClient("FuelFlow");
 		client.DefaultRequestHeaders.Authorization =
 			new AuthenticationHeaderValue("Bearer", token);
 		return client;
