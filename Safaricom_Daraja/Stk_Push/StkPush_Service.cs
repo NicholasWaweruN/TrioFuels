@@ -86,11 +86,11 @@ public sealed class StkPushService(
 			// TransactionType            = CustomerBuyGoodsOnline (not CustomerPayBillOnline)
 			var payload = new StkPushRequest
 			{
-				TransactionType = "CustomerBuyGoodsOnline",
-				BusinessShortCode = till.StoreNumber,   // ← 5545198, not 5617668
-				PartyB = till.StoreNumber,   // ← same
-				Password = password,
-				Timestamp = timestamp,
+				TransactionType = "CustomerBuyGoodsOnline",  // ✅ was CustomerPayBillOnline
+				BusinessShortCode = till.TillNumber,            // ✅ was _cfg.BusinessShortCode
+				PartyB = till.TillNumber,            // ✅ was _cfg.BusinessShortCode
+				Password = password,                   // ✅ keep — built from 4161705
+				Timestamp = timestamp,                  // ✅ keep
 				Amount = amount,
 				PartyA = sanitizedPhone,
 				PhoneNumber = sanitizedPhone,

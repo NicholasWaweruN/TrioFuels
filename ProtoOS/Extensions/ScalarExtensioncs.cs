@@ -30,20 +30,6 @@ public static class ScalarExtensions
 				return Task.CompletedTask;
 			});
 
-			// Railway Production URL
-			options.AddDocumentTransformer((document, context, ct) =>
-			{
-				document.Servers =
-				[
-					new OpenApiServer
-					{
-						Url = "https://triofuels-production.up.railway.app"
-					}
-				];
-
-				return Task.CompletedTask;
-			});
-
 			// Sort endpoints alphabetically
 			options.AddDocumentTransformer((document, context, ct) =>
 			{
@@ -88,13 +74,14 @@ public static class ScalarExtensions
 			options.DefaultOpenAllTags = true;
 
 			options.ShowOperationId = false;
-			options.OperationTitleSource =
-				OperationTitleSource.Summary;
+			options.OperationTitleSource = OperationTitleSource.Summary;
 
 			options.HideClientButton = false;
 			options.HideTestRequestButton = false;
 
 			options.PersistentAuthentication = true;
+
+			options.WithOpenApiRoutePattern("/openapi/{documentName}.json");
 
 			options.DefaultHttpClient =
 				new KeyValuePair<ScalarTarget, ScalarClient>(
@@ -109,11 +96,10 @@ public static class ScalarExtensions
 			});
 
 			options.ExpandAllModelSections = false;
-			options.ExpandAllResponses = false;
+			options.ExpandAllResponses = true;
 			options.OrderRequiredPropertiesFirst = true;
 
-			options.DocumentDownloadType =
-				DocumentDownloadType.None;
+			options.DocumentDownloadType = DocumentDownloadType.Json;
 		});
 
 		return app;
