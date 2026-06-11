@@ -40,6 +40,10 @@ public static class DarajaServiceExtensions
 		services.AddScoped<IC2BService, C2BService>();
 		services.AddScoped<IPullTransactionService, PullTransactionService>();
 		services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
+		services.AddScoped<C2BRegistrar>();
+		services.AddScoped<C2BValidator>();
+		services.AddScoped<C2BConfirmationHandler>();
+
 
 		// ── Add this to your DarajaServiceExtensions.cs or wherever you register Daraja ──
 		// (just one extra line next to your existing IStkPushService registration)
