@@ -2,8 +2,8 @@
 
 namespace Safaricom_Daraja;
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
- 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
 public class DarajaTokenResponse
 {
 	[JsonPropertyName("access_token")]
@@ -13,20 +13,42 @@ public class DarajaTokenResponse
 	public string ExpiresIn { get; set; } = string.Empty;
 }
 
-// ─── STK Push ────────────────────────────────────────────────────────────────
+// ─── STK Push ─────────────────────────────────────────────────────────────────
 
 public class StkPushRequest
 {
+	// ✅ All fields explicitly named — Safaricom is case-sensitive
+	[JsonPropertyName("BusinessShortCode")]
 	public string BusinessShortCode { get; set; } = string.Empty;
+
+	[JsonPropertyName("Password")]
 	public string Password { get; set; } = string.Empty;
+
+	[JsonPropertyName("Timestamp")]
 	public string Timestamp { get; set; } = string.Empty;
-	public string TransactionType { get; set; } = "CustomerBuyGoodsOnline"; // or CustomerPayBillOnline
+
+	[JsonPropertyName("TransactionType")]
+	public string TransactionType { get; set; } = "CustomerBuyGoodsOnline";
+
+	[JsonPropertyName("Amount")]
 	public long Amount { get; set; }
-	public string PartyA { get; set; } = string.Empty;   // Customer phone
-	public string PartyB { get; set; } = string.Empty;   // Till number
+
+	[JsonPropertyName("PartyA")]
+	public string PartyA { get; set; } = string.Empty;
+
+	[JsonPropertyName("PartyB")]
+	public string PartyB { get; set; } = string.Empty;
+
+	[JsonPropertyName("PhoneNumber")]
 	public string PhoneNumber { get; set; } = string.Empty;
+
+	[JsonPropertyName("CallBackURL")]
 	public string CallBackURL { get; set; } = string.Empty;
+
+	[JsonPropertyName("AccountReference")]
 	public string AccountReference { get; set; } = string.Empty;
+
+	[JsonPropertyName("TransactionDesc")]
 	public string TransactionDesc { get; set; } = string.Empty;
 }
 
@@ -48,11 +70,20 @@ public class StkPushResponse
 	public string CustomerMessage { get; set; } = string.Empty;
 }
 
+// ─── STK Query ────────────────────────────────────────────────────────────────
+
 public class StkQueryRequest
 {
+	[JsonPropertyName("BusinessShortCode")]
 	public string BusinessShortCode { get; set; } = string.Empty;
+
+	[JsonPropertyName("Password")]
 	public string Password { get; set; } = string.Empty;
+
+	[JsonPropertyName("Timestamp")]
 	public string Timestamp { get; set; } = string.Empty;
+
+	[JsonPropertyName("CheckoutRequestID")]
 	public string CheckoutRequestID { get; set; } = string.Empty;
 }
 
@@ -77,7 +108,7 @@ public class StkQueryResponse
 	public string ResultDesc { get; set; } = string.Empty;
 }
 
-// ─── STK Callback ────────────────────────────────────────────────────────────
+// ─── STK Callback ─────────────────────────────────────────────────────────────
 
 public class StkCallback
 {
@@ -128,15 +159,22 @@ public class StkCallbackItem
 
 public class C2BRegisterRequest
 {
+	[JsonPropertyName("ShortCode")]
 	public string ShortCode { get; set; } = string.Empty;
-	public string ResponseType { get; set; } = "Completed"; // or "Cancelled"
+
+	[JsonPropertyName("ResponseType")]
+	public string ResponseType { get; set; } = "Completed";
+
+	[JsonPropertyName("ConfirmationURL")]
 	public string ConfirmationURL { get; set; } = string.Empty;
+
+	[JsonPropertyName("ValidationURL")]
 	public string ValidationURL { get; set; } = string.Empty;
 }
 
 public class C2BRegisterResponse
 {
-	[JsonPropertyName("OriginatorCoversationID")]
+	[JsonPropertyName("OriginatorCoversationID")]  // Safaricom typo — "Coversa" not "Conversa"
 	public string OriginatorConversationId { get; set; } = string.Empty;
 
 	[JsonPropertyName("ResponseCode")]
@@ -166,7 +204,7 @@ public class C2BValidationRequest
 	public string BusinessShortCode { get; set; } = string.Empty;
 
 	[JsonPropertyName("BillRefNumber")]
-	public string BillRefNumber { get; set; } = string.Empty;   // Till AccountReference
+	public string BillRefNumber { get; set; } = string.Empty;
 
 	[JsonPropertyName("InvoiceNumber")]
 	public string InvoiceNumber { get; set; } = string.Empty;
@@ -193,7 +231,7 @@ public class C2BValidationRequest
 public class C2BValidationResponse
 {
 	[JsonPropertyName("ResultCode")]
-	public string ResultCode { get; set; } = "0";           // "0" = accept, "C2B00011" = reject
+	public string ResultCode { get; set; } = "0";
 
 	[JsonPropertyName("ResultDesc")]
 	public string ResultDesc { get; set; } = "Accepted";
@@ -245,9 +283,16 @@ public class C2BConfirmationRequest
 
 public class PullTransactionRequest
 {
+	[JsonPropertyName("ShortCode")]
 	public string ShortCode { get; set; } = string.Empty;
+
+	[JsonPropertyName("StartDate")]
 	public string StartDate { get; set; } = string.Empty;   // yyyyMMddHHmmss
+
+	[JsonPropertyName("EndDate")]
 	public string EndDate { get; set; } = string.Empty;
+
+	[JsonPropertyName("Offset")]
 	public int Offset { get; set; } = 0;
 }
 

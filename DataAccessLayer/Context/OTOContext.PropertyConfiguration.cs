@@ -30,5 +30,7 @@ namespace DataAccessLayer.Context
                 property.SetIsUnicode(false);
             }
         }
+
+
     }
 }

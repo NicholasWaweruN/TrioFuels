@@ -81,9 +81,7 @@ public sealed class PullTransactionService(
 			var raw = await response.Content.ReadAsStringAsync(ct);
 			var result = JsonSerializer.Deserialize<PullTransactionResponse>(raw);
 
-			logger.LogInformation(
-				"Pulled {Count} transactions for {Till} | offset={Offset}",
-				result?.Transactions.Count ?? 0, tillNumber, offset);
+			logger.LogInformation("Pulled {Count} transactions for {Till} | offset={Offset}",result?.Transactions.Count ?? 0, tillNumber, offset);
 
 			return DarajaResult<PullTransactionResponse>.Ok(result!);
 		}

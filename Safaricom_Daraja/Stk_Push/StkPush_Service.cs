@@ -1,55 +1,30 @@
-﻿using DataAccessLayer.EntityModels.Stations;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using Safaricom_Daraja.DarajaTokenService;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
+using DataAccessLayer.EntityModels.Daraja;
+using DataAccessLayer.Context;
 
 namespace Safaricom_Daraja.Stk_Push;
-
-public interface IStkPushService
-{
-	/// <summary>
-	/// Initiates an STK Push to a specific Buy Goods till.
-	/// </summary>
-	/// <param name="phone">Customer phone number (07xx, 01xx, or 254xx format).</param>
-	/// <param name="amount">Amount in KES — must be greater than zero.</param>
-	/// <param name="tillNumber">The Buy Goods till number to receive the payment (e.g. "5617668").</param>
-	/// <param name="accountReference">Short label shown to the customer on the prompt (max 12 chars).</param>
-	/// <param name="description">Internal transaction description (max 13 chars).</param>
-	/// <param name="ct">Cancellation token.</param>
-	Task<DarajaResult<StkPushResponse>> InitiateAsync(
-		string phone,
-		long amount,
-		string tillNumber,
-		string accountReference,
-		string description = "Payment",
-		CancellationToken ct = default);
-
-	/// <summary>
-	/// Queries the status of a previously initiated STK Push.
-	/// </summary>
-	/// <param name="checkoutRequestId">The CheckoutRequestID returned by InitiateAsync.</param>
-	/// <param name="ct">Cancellation token.</param>
-	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
-		string checkoutRequestId,
-		CancellationToken ct = default);
-}
 
 public sealed class StkPushService(
 	IHttpClientFactory httpFactory,
 	IDarajaTokenService tokenService,
 	IOptions<DarajaConfig> options,
-	ILogger<StkPushService> logger) : IStkPushService
+	ILogger<StkPushService> logger,
+	OTOContext context) : IStkPushService
 {
 	private readonly DarajaConfig _cfg = options.Value;
+	private readonly OTOContext _context = context;
 
-	// ── STK Push ──────────────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────────────────────
+	// STK PUSH
+	// ─────────────────────────────────────────────────────────────
 
-	/// <inheritdoc/>
 	public async Task<DarajaResult<StkPushResponse>> InitiateAsync(
 		string phone,
 		long amount,
@@ -58,41 +33,44 @@ public sealed class StkPushService(
 		string description = "Payment",
 		CancellationToken ct = default)
 	{
+		// ── VALIDATION ──────────────────────────────────────────
 		ArgumentException.ThrowIfNullOrWhiteSpace(phone);
 		ArgumentException.ThrowIfNullOrWhiteSpace(tillNumber);
 
 		if (amount <= 0)
 			return DarajaResult<StkPushResponse>.Fail("Amount must be greater than zero.");
 
-		// ── Resolve till from config ──────────────────────────────────────────
-		var till = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
-		if (till is null)
-			return DarajaResult<StkPushResponse>.Fail($"Till {tillNumber} is not configured.");
-
-		logger.LogInformation("STK Push resolved — TillNumber={TillNumber} StoreNumber={StoreNumber} HeadOffice={HO}",till.TillNumber, till.StoreNumber, _cfg.BusinessShortCode);
+		string sanitizedPhone;
 
 		try
 		{
-			var sanitizedPhone = SanitizePhone(phone);
+			sanitizedPhone = SanitizePhone(phone);
+		}
+		catch (ArgumentException ex)
+		{
+			return DarajaResult<StkPushResponse>.Fail(ex.Message);
+		}
+
+		var till = await _context.Tills
+			.Where(x => x.TillNumber == tillNumber)
+			.FirstOrDefaultAsync(ct);
+
+		if (till is null)
+			return DarajaResult<StkPushResponse>.Fail($"Till {tillNumber} is not configured.");
+
+		// ── INITIATE ─────────────────────────────────────────────
+		try
+		{
 			var safeRef = Truncate(string.IsNullOrWhiteSpace(accountReference) ? tillNumber : accountReference, 12);
 			var safeDesc = Truncate(string.IsNullOrWhiteSpace(description) ? "Payment" : description, 13);
-
-			// ── FIX: Password ALWAYS uses head-office shortcode (4161705) ─────
-			// For CustomerBuyGoodsOnline:
-			//   BusinessShortCode = till number  (identifies who receives funds)
-			//   PartyB            = till number  (same)
-			//   Password          = Base64(HeadOfficeShortCode + PassKey + Timestamp)
-			//                                    ^ NOT the till number
-			// Safaricom validates the password against the head-office shortcode
-			// on their side regardless of TransactionType.
-			var (timestamp, password) = BuildCredentials(_cfg.BusinessShortCode);
+			var (timestamp, password) = BuildCredentials();
 
 			var payload = new StkPushRequest
 			{
 				TransactionType = "CustomerBuyGoodsOnline",
-				BusinessShortCode = till.TillNumber,         // till receives the funds
-				PartyB = till.TillNumber,         // same as BusinessShortCode for Buy Goods
-				Password = password,                // built from 4161705 + PassKey + Timestamp
+				BusinessShortCode = _cfg.BusinessShortCode,
+				PartyB = till.TillNumber,
+				Password = password,
 				Timestamp = timestamp,
 				Amount = amount,
 				PartyA = sanitizedPhone,
@@ -102,39 +80,48 @@ public sealed class StkPushService(
 				TransactionDesc = safeDesc
 			};
 
-			// ── Diagnostic: log the exact payload being sent ──────────────────
-			logger.LogDebug("STK Push payload — {Payload}",JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = false }));
-
-			logger.LogInformation("STK Push sending — Phone={Phone} Amount=KES {Amount} Till={Till} Ref={Ref} BaseUrl={BaseUrl} Callback={Callback}",sanitizedPhone, amount, till.TillNumber, safeRef, _cfg.BaseUrl, _cfg.StkCallbackUrl);
-
 			var client = await GetAuthenticatedClientAsync(ct);
 			var response = await client.PostAsJsonAsync("/mpesa/stkpush/v1/processrequest", payload, ct);
-			var content = await response.Content.ReadAsStringAsync(ct);
+
+			// ✅ READ ONCE — avoids consuming the stream twice
+			var result = await response.Content.ReadFromJsonAsync<StkPushResponse>(ct);
 
 			if (!response.IsSuccessStatusCode)
 			{
-				logger.LogError(
-					"STK Push HTTP error — Till={Till} Status={Status} Response={Response}",
-					tillNumber, (int)response.StatusCode, content);
-				return DarajaResult<StkPushResponse>.Fail(content);
-			}
+				logger.LogError("STK Push failed — Till={Till} Status={Status}",
+					tillNumber, (int)response.StatusCode);
 
-			var result = await response.Content.ReadFromJsonAsync<StkPushResponse>(ct);
+				return DarajaResult<StkPushResponse>.Fail($"Daraja HTTP {(int)response.StatusCode}");
+			}
 
 			if (result is null)
 				return DarajaResult<StkPushResponse>.Fail("Null response from Daraja.");
 
 			if (result.ResponseCode != "0")
 			{
-				logger.LogWarning(
-					"STK Push rejected by Daraja — Till={Till} Code={Code} Desc={Desc}",
+				logger.LogWarning("STK Push rejected — Till={Till} Code={Code} Desc={Desc}",
 					tillNumber, result.ResponseCode, result.ResponseDescription);
+
 				return DarajaResult<StkPushResponse>.Fail(result.ResponseDescription ?? "Rejected by Daraja.");
 			}
 
-			logger.LogInformation(
-				"STK Push initiated ✅ — Phone={Phone} Amount=KES {Amount} Till={Till} ({TillName}) Ref={Ref} CheckoutId={Id}",
-				sanitizedPhone, amount, tillNumber, till.Name, safeRef, result.CheckoutRequestId);
+			// ── PERSIST PENDING TRANSACTION ───────────────────────
+			var transaction = new StkTransaction
+			{
+				CheckoutRequestId = result.CheckoutRequestId,
+				MerchantRequestId = result.MerchantRequestId,
+				PhoneNumber = sanitizedPhone,
+				Amount = amount,
+				TillNumber = tillNumber,
+				AccountReference = safeRef,
+				Status = "Pending",
+				DateCreated = DateTime.UtcNow
+			};
+
+			_context.StkTransactions.Add(transaction);
+			await _context.SaveChangesAsync(ct);
+
+			logger.LogInformation("STK Push initiated ✅ — Phone={Phone} Amount=KES {Amount} Till={TillName} ({Till}) Ref={Ref} CheckoutId={Id}",sanitizedPhone, amount, till.TillName, tillNumber, safeRef, result.CheckoutRequestId);
 
 			return DarajaResult<StkPushResponse>.Ok(result);
 		}
@@ -145,9 +132,10 @@ public sealed class StkPushService(
 		}
 	}
 
-	// ── STK Query ─────────────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────────────────────
+	// STK QUERY
+	// ─────────────────────────────────────────────────────────────
 
-	/// <inheritdoc/>
 	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
 		string checkoutRequestId,
 		CancellationToken ct = default)
@@ -156,9 +144,7 @@ public sealed class StkPushService(
 
 		try
 		{
-			// Query always uses head-office shortcode (4161705) for both
-			// BusinessShortCode and password — this is correct for all transaction types.
-			var (timestamp, password) = BuildCredentials(_cfg.BusinessShortCode);
+			var (timestamp, password) = BuildCredentials();
 
 			var payload = new StkQueryRequest
 			{
@@ -168,29 +154,55 @@ public sealed class StkPushService(
 				CheckoutRequestID = checkoutRequestId
 			};
 
-			logger.LogInformation(
-				"STK Query sending — CheckoutId={Id} ShortCode={SC}",
-				checkoutRequestId, _cfg.BusinessShortCode);
-
 			var client = await GetAuthenticatedClientAsync(ct);
 			var response = await client.PostAsJsonAsync("/mpesa/stkpushquery/v1/query", payload, ct);
-			var content = await response.Content.ReadAsStringAsync(ct);
+
+			// ✅ READ ONCE — avoids consuming the stream twice
+			var result = await response.Content.ReadFromJsonAsync<StkQueryResponse>(ct);
 
 			if (!response.IsSuccessStatusCode)
 			{
-				logger.LogError(
-					"STK Query HTTP error — CheckoutId={Id} Status={Status} Response={Response}",
-					checkoutRequestId, (int)response.StatusCode, content);
-				return DarajaResult<StkQueryResponse>.Fail(content);
-			}
+				logger.LogError("STK Query failed — CheckoutId={Id} Status={Status}",
+					checkoutRequestId, (int)response.StatusCode);
 
-			var result = await response.Content.ReadFromJsonAsync<StkQueryResponse>(ct);
+				return DarajaResult<StkQueryResponse>.Fail($"Daraja HTTP {(int)response.StatusCode}");
+			}
 
 			if (result is null)
 				return DarajaResult<StkQueryResponse>.Fail("Null response from Daraja.");
 
-			logger.LogInformation(
-				"STK Query success ✅ — CheckoutId={Id} ResultCode={Code} Desc={Desc}",
+			// ── UPDATE TRANSACTION STATUS ─────────────────────────
+			var transaction = await _context.StkTransactions
+				.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutRequestId, ct);
+
+			if (transaction != null)
+			{
+				transaction.ResultCode = result.ResultCode;
+				transaction.ResultDescription = result.ResultDesc;
+
+				// ✅ FIXED result code handling (was: != "1" treated pending as failed)
+				if (result.ResultCode == "0")
+				{
+					// SUCCESS
+					transaction.Status = "Completed";
+					transaction.DateCompleted = DateTime.UtcNow;
+				}
+				else if (result.ResultCode == "1")
+				{
+					// INSUFFICIENT BALANCE — still pending, don't close
+					transaction.Status = "Pending";
+				}
+				else
+				{
+					// TERMINAL FAILURES: 1032 (cancelled), 1037 (timeout), 2001 (wrong PIN)
+					transaction.Status = "Failed";
+					transaction.DateCompleted = DateTime.UtcNow;
+				}
+
+				await _context.SaveChangesAsync(ct);
+			}
+
+			logger.LogInformation("STK Query ✅ — CheckoutId={Id} ResultCode={Code} Desc={Desc}",
 				checkoutRequestId, result.ResultCode, result.ResultDesc);
 
 			return DarajaResult<StkQueryResponse>.Ok(result);
@@ -202,42 +214,22 @@ public sealed class StkPushService(
 		}
 	}
 
-	// ── Private helpers ───────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────────────────────
+	// HELPERS
+	// ─────────────────────────────────────────────────────────────
 
-	/// <summary>
-	/// Builds timestamp (EAT UTC+3) and Base64 password.
-	/// <para>
-	/// IMPORTANT: For both CustomerBuyGoodsOnline and CustomerPayBillOnline,
-	/// <paramref name="shortCode"/> must always be the HEAD-OFFICE shortcode
-	/// (e.g. 4161705), NOT the individual till number.
-	/// Pass <c>_cfg.BusinessShortCode</c> from every call site.
-	/// </para>
-	/// </summary>
-	private (string Timestamp, string Password) BuildCredentials(string shortCode)
+	private (string Timestamp, string Password) BuildCredentials()
 	{
-		if (string.IsNullOrWhiteSpace(shortCode))
-			throw new InvalidOperationException(
-				"BuildCredentials called with empty shortCode. Always pass _cfg.BusinessShortCode (4161705).");
-
 		var timestamp = DateTimeOffset.UtcNow
 			.ToOffset(TimeSpan.FromHours(3))
 			.ToString("yyyyMMddHHmmss");
 
-		// Concatenation order is critical: ShortCode + PassKey + Timestamp
-		var raw = $"{shortCode}{_cfg.PassKey}{timestamp}";
+		var raw = $"{_cfg.BusinessShortCode}{_cfg.PassKey}{timestamp}";
 		var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
-
-		logger.LogDebug(
-			"BuildCredentials — ShortCode={SC} Timestamp={TS} PasswordLength={Len}",
-			shortCode, timestamp, password.Length);
 
 		return (timestamp, password);
 	}
 
-	/// <summary>
-	/// Normalises a Kenyan phone number to 254XXXXXXXXX format.
-	/// Accepts 07xx, 01xx, or 254xx (with or without +).
-	/// </summary>
 	private static string SanitizePhone(string phone)
 	{
 		phone = phone.Trim().Replace("+", "").Replace(" ", "");
@@ -258,8 +250,43 @@ public sealed class StkPushService(
 	{
 		var token = await tokenService.GetAccessTokenAsync(ct);
 		var client = httpFactory.CreateClient("Daraja");
+
 		client.DefaultRequestHeaders.Authorization =
 			new AuthenticationHeaderValue("Bearer", token);
+
 		return client;
 	}
+}
+
+// ─────────────────────────────────────────────────────────────
+// INTERFACE
+// ─────────────────────────────────────────────────────────────
+
+public interface IStkPushService
+{
+	/// <summary>
+	/// Initiates an STK Push to a specific Buy Goods till.
+	/// </summary>
+	/// <param name="phone">Customer phone number (07xx, 01xx, or 254xx format).</param>
+	/// <param name="amount">Amount in KES — must be greater than zero.</param>
+	/// <param name="tillNumber">The Buy Goods till number to receive the payment.</param>
+	/// <param name="accountReference">Short label shown on customer prompt (max 12 chars).</param>
+	/// <param name="description">Internal transaction description (max 13 chars).</param>
+	/// <param name="ct">Cancellation token.</param>
+	Task<DarajaResult<StkPushResponse>> InitiateAsync(
+		string phone,
+		long amount,
+		string tillNumber,
+		string accountReference,
+		string description = "Payment",
+		CancellationToken ct = default);
+
+	/// <summary>
+	/// Queries the status of a previously initiated STK Push.
+	/// </summary>
+	/// <param name="checkoutRequestId">CheckoutRequestID returned from InitiateAsync.</param>
+	/// <param name="ct">Cancellation token.</param>
+	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
+		string checkoutRequestId,
+		CancellationToken ct = default);
 }

@@ -6,6 +6,7 @@ using DataAccessLayer.EntityModels.Approvals;
 using DataAccessLayer.EntityModels.Authorisations;
 using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.Customer;
+using DataAccessLayer.EntityModels.Daraja;
 using DataAccessLayer.EntityModels.Emails;
 using DataAccessLayer.EntityModels.Loyalty_Program;
 using DataAccessLayer.EntityModels.Messaging;
@@ -127,7 +128,11 @@ namespace DataAccessLayer.Context
         public DbSet<Reports> Reports { get; set; }
         public DbSet<Vw_SalesData> VwSalesData { get; set; }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+
+		//Daraja
+
+		public DbSet<StkTransaction> StkTransactions { get; set; }
+		protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 

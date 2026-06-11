@@ -6,6 +6,7 @@ using DataAccessLayer.EntityModels.Approvals;
 using DataAccessLayer.EntityModels.Authorisations;
 using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.Customer;
+using DataAccessLayer.EntityModels.Daraja;
 using DataAccessLayer.EntityModels.Db_Views;
 using DataAccessLayer.EntityModels.Emails;
 using DataAccessLayer.EntityModels.Loyalty_Program;
@@ -313,6 +314,19 @@ namespace DataAccessLayer.Context
             modelBuilder.Entity<SalesTransactions>()
                 .HasIndex(f => f.OrderId)
                 .HasDatabaseName("IX_FailedTransactions_TransactionId");
-        }
+
+			modelBuilder.Entity<StkTransaction>(entity =>
+			{
+				entity.Property(x => x.CheckoutRequestId).HasMaxLength(100);
+				entity.Property(x => x.MerchantRequestId).HasMaxLength(100);
+				entity.Property(x => x.PhoneNumber).HasMaxLength(15);
+				entity.Property(x => x.TillNumber).HasMaxLength(20);
+				entity.Property(x => x.AccountReference).HasMaxLength(50);
+				entity.Property(x => x.Status).HasMaxLength(20);
+				entity.Property(x => x.MpesaReceiptNumber).HasMaxLength(20);
+				entity.Property(x => x.ResultCode).HasMaxLength(10);
+				entity.Property(x => x.ResultDescription).HasMaxLength(255);
+			});
+		}
     }
 }
