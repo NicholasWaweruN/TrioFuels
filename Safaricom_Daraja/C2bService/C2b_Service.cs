@@ -10,251 +10,196 @@ using Safaricom_Daraja.DarajaTokenService;
 
 namespace Daraja.Services;
 
-public sealed class C2BService(
-	IHttpClientFactory httpFactory,
-	IDarajaTokenService tokenService,
-	IOptions<DarajaConfig> options,
-	ILogger<C2BService> logger,
-	OTOContext context
-) : IC2BService
+public sealed class C2BService : IC2BService
 {
-	private readonly DarajaConfig _cfg = options.Value;
-	private readonly OTOContext _context = context;
+	private readonly IHttpClientFactory _httpFactory;
+	private readonly IDarajaTokenService _tokenService;
+	private readonly DarajaConfig _cfg;
+	private readonly ILogger<C2BService> _logger;
+	private readonly OTOContext _context;
 
-	// ─────────────────────────────────────────────────────────────
+	public C2BService(
+		IHttpClientFactory httpFactory,
+		IDarajaTokenService tokenService,
+		IOptions<DarajaConfig> options,
+		ILogger<C2BService> logger,
+		OTOContext context)
+	{
+		_httpFactory = httpFactory;
+		_tokenService = tokenService;
+		_cfg = options.Value;
+		_logger = logger;
+		_context = context;
+	}
+
+	// ─────────────────────────────────────────────
 	// URL REGISTRATION
-	// ─────────────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────
 
-	/// <inheritdoc/>
 	public async Task<DarajaResult<C2BRegisterResponse>> RegisterMasterShortCodeAsync(
 		CancellationToken ct = default)
 	{
-		// C2B URL registration is at the shortcode level, not per-till.
-		// A single registration on the master shortcode covers all tills under it.
 		return await RegisterUrlsAsync(_cfg.C2BShortCode, ct);
 	}
 
-	/// <inheritdoc/>
 	public async Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(
 		string shortCode,
 		CancellationToken ct = default)
 	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(shortCode);
-
-		// Sanitize URLs — strip double slashes, normalize to lowercase
-		// appsettings had: https://host.up.railway.app//fuelflow/Daraja/c2b/validate
-		//                                               ^^ double slash + capital D
 		var validationUrl = SanitizeUrl(_cfg.C2BValidationUrl);
 		var confirmationUrl = SanitizeUrl(_cfg.C2BConfirmationUrl);
 
-		logger.LogInformation("C2B RegisterUrls — ShortCode={SC} ValidationUrl={V} ConfirmationUrl={C}",shortCode, validationUrl, confirmationUrl);
+		var client = await GetClientAsync(ct);
 
-		try
+		var payload = new C2BRegisterRequest
 		{
-			var payload = new C2BRegisterRequest
-			{
-				ShortCode = shortCode,
+			ShortCode = shortCode,
+			ResponseType = "Completed", // Buy Goods + Paybill safe mode
+			ValidationURL = validationUrl,
+			ConfirmationURL = confirmationUrl
+		};
 
-				// "Completed" = Safaricom auto-accepts all payments without calling ValidationURL.
-				// "Cancelled" requires External Validation enabled on the shortcode by Safaricom.
-				// Email apisupport@safaricom.co.ke to request it — until then use "Completed".
-				ResponseType = "Completed",
-				ValidationURL = validationUrl,
-				ConfirmationURL = confirmationUrl
-			};
+		var response = await client.PostAsJsonAsync(
+			"/mpesa/c2b/v2/registerurl",
+			payload,
+			ct);
 
-			// Use v2 endpoint — matches Daraja app products on the portal
-			// v1: /mpesa/c2b/v1/registerurl  ← old, not approved for this app
-			// v2: /mpesa/c2b/v2/registerurl  ← correct
-			var client = await GetAuthenticatedClientAsync(ct);
-			var response = await client.PostAsJsonAsync("/mpesa/c2b/v2/registerurl", payload, ct);
+		var result = await response.Content
+			.ReadFromJsonAsync<C2BRegisterResponse>(cancellationToken: ct);
 
-			// ✅ READ ONCE — avoids consuming the stream twice
-			var result = await response.Content.ReadFromJsonAsync<C2BRegisterResponse>(
-				cancellationToken: ct);
-
-			if (!response.IsSuccessStatusCode)
-			{
-				logger.LogError(
-					"C2B RegisterUrls failed [{Status}] ShortCode={SC}",
-					(int)response.StatusCode, shortCode);
-
-				return DarajaResult<C2BRegisterResponse>.Fail($"Daraja HTTP {(int)response.StatusCode}");
-			}
-
-			if (result is null)
-				return DarajaResult<C2BRegisterResponse>.Fail("Null response from Daraja.");
-
-			logger.LogInformation(
-				"C2B URLs registered ✅ — ShortCode={SC} Desc={Desc}",
-				shortCode, result.ResponseDescription);
-
-			return DarajaResult<C2BRegisterResponse>.Ok(result);
-		}
-		catch (Exception ex)
+		if (!response.IsSuccessStatusCode || result == null)
 		{
-			logger.LogError(ex, "C2B RegisterUrls threw — ShortCode={SC}", shortCode);
-			return DarajaResult<C2BRegisterResponse>.Fail(ex.Message);
+			_logger.LogError("C2B URL registration failed {Status}", response.StatusCode);
+			return DarajaResult<C2BRegisterResponse>.Fail("Registration failed");
 		}
+
+		_logger.LogInformation("C2B URLs registered for {SC}", shortCode);
+		return DarajaResult<C2BRegisterResponse>.Ok(result);
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// VALIDATION
-	// ─────────────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────
+	// VALIDATION (Paybill only / optional for Buy Goods)
+	// ─────────────────────────────────────────────
 
-	/// <inheritdoc/>
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		// Reject if BillRefNumber is missing — don't accept blind payments
-		if (string.IsNullOrWhiteSpace(request.BillRefNumber))
-		{
-			logger.LogWarning(
-				"C2B Validation REJECTED — missing BillRefNumber Phone={Phone} TransID={Id}",
-				request.PhoneNumber, request.TransactionId);
+		var refValue = request.BillRefNumber?.Trim();
 
-			return Rejected("C2B00011", "Rejected — missing account reference");
+		if (string.IsNullOrWhiteSpace(refValue))
+		{
+			_logger.LogWarning("C2B Validation missing BillRefNumber");
+			return Accept(); // allow Buy Goods / flexible mode
 		}
 
-		var knownRefs = _cfg.Tills
-			.Select(t => t.AccountReference)
+		var validRefs = _cfg.Tills
+			.Select(x => x.AccountReference)
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-		if (!knownRefs.Contains(request.BillRefNumber))
+		if (!validRefs.Contains(refValue))
 		{
-			logger.LogWarning(
-				"C2B Validation REJECTED — unknown BillRefNumber='{Ref}' Phone={Phone} TransID={Id}",
-				request.BillRefNumber, request.PhoneNumber, request.TransactionId);
-
-			return Rejected("C2B00011", "Rejected — unknown account reference");
+			_logger.LogWarning("C2B Validation rejected ref {Ref}", refValue);
+			return Reject("Invalid account reference");
 		}
 
-		logger.LogInformation("C2B Validation ACCEPTED — TransID={Id} Amount={Amount} Phone={Phone} Ref={Ref}",request.TransactionId, request.TransAmount, request.PhoneNumber, request.BillRefNumber);
-
-		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+		_logger.LogInformation("C2B Validation accepted {Ref}", refValue);
+		return Accept();
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// CONFIRMATION
-	// ─────────────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────
+	// CONFIRMATION (MAIN LEDGER ENTRY POINT)
+	// ─────────────────────────────────────────────
 
-	/// <inheritdoc/>
 	public async Task HandleConfirmationAsync(
 		C2BConfirmationRequest request,
 		CancellationToken ct = default)
 	{
 		var till = ResolveTill(request);
 
-		if (till is null)
-		{
-			// Confirmed by Safaricom but not matched to any known till.
-			// Never silently drop — log a warning and route to unmatched queue.
-			logger.LogWarning(
-				"C2B CONFIRMED but no matching till — ShortCode={SC} Ref={Ref} " +
-				"TransID={Id} Amount=KES {Amount} Phone={Phone}",
-				request.BusinessShortCode, request.BillRefNumber,
-				request.TransactionId, request.TransAmount, request.PhoneNumber);
+		var transactionId = request.TransactionId;
 
-			// TODO: persist to an unmatched_transactions table
-			return;
-		}
-
-		// ── DUPLICATE PROTECTION ──────────────────────────────────
+		// ── IDEMPOTENCY (CRITICAL)
 		var exists = await _context.MpesaTransactions
-			.AnyAsync(x => x.TransID == request.TransactionId, ct);
+			.AnyAsync(x => x.TransID == transactionId, ct);
 
 		if (exists)
 		{
-			logger.LogWarning(
-				"C2B duplicate confirmation ignored — TransID={Id}",
-				request.TransactionId);
+			_logger.LogWarning("Duplicate C2B ignored {Id}", transactionId);
 			return;
 		}
 
-		// ── PERSIST TO LEDGER ─────────────────────────────────────
+		var amount = decimal.TryParse(request.TransAmount, out var amt) ? amt : 0;
+
 		var transaction = new MpesaTransaction
 		{
-			TransactionType = request.TransactionType ?? "Pay Bill",
-			TransID = request.TransactionId,
-			MpesaReceiptNumber = request.TransactionId,
-			CheckoutRequestID = string.Empty,             // N/A for C2B
-			MerchantRequestID = string.Empty,             // N/A for C2B
-			TransAmount =  decimal.TryParse(request.TransAmount, out var transAmount) ? transAmount : 0,
-			TransTime = DateTime.Parse(request.TransTime),
+			TransactionType = "C2B",
+			TransID = transactionId,
+			MpesaReceiptNumber = transactionId,
+
 			BusinessShortCode = request.BusinessShortCode ?? _cfg.C2BShortCode,
-			TillNumber = till.TillNumber,
-			TillName = till.Name,
-			PaymentMethod = "C2B",
+
+			TillNumber = till?.TillNumber ?? request.BusinessShortCode ?? "UNKNOWN",
+			TillName = till?.Name ?? "UNMAPPED_TILL",
+
+			TransAmount = amount,
+			UsageBalance = amount,
+
+			TransTime = TryParseDate(request.TransTime),
+
 			MSISDN = request.PhoneNumber,
+
 			FirstName = request.FirstName ?? string.Empty,
 			LastName = request.LastName ?? string.Empty,
 			MiddName = request.MiddleName ?? string.Empty,
-			OrgAccountBalance = decimal.TryParse(request.OrgAccountBalance, out var orgBalance) ? orgBalance : 0,
-			UsageBalance = transAmount,
-			Status = 1,                        // SUCCESS ONLY (ledger rule)
+
+			OrgAccountBalance = decimal.TryParse(request.OrgAccountBalance, out var bal) ? bal : 0,
+
+			Status = 1,
 			UserCode = "Mpesa",
-			DateTimeStamp = DateTime.UtcNow.AddHours(3),
+
 			DateCreated = DateTime.UtcNow.AddHours(3),
-			DateModified = DateTime.UtcNow.AddHours(3)
+			DateModified = DateTime.UtcNow.AddHours(3),
+			DateTimeStamp = DateTime.UtcNow.AddHours(3)
 		};
 
 		_context.MpesaTransactions.Add(transaction);
 		await _context.SaveChangesAsync(ct);
 
-		logger.LogInformation("C2B LEDGER SAVED ✅ — TransID={Id} Amount=KES {Amount} Phone={Phone} " +"Till={TillName} ({TillNumber}) Ref={Ref}",request.TransactionId, request.TransAmount, request.PhoneNumber,till.Name, till.TillNumber, request.BillRefNumber);
+		_logger.LogInformation(
+			"C2B SAVED ✓ {Id} Amount={Amount} Till={Till}",
+			transactionId, amount, till?.Name ?? "UNKNOWN");
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// HELPERS
-	// ─────────────────────────────────────────────────────────────
+	// ─────────────────────────────────────────────
+	// TILL RESOLUTION (BUY GOODS + PAYBILL SAFE)
+	// ─────────────────────────────────────────────
 
 	private TillConfig? ResolveTill(C2BConfirmationRequest request)
 	{
-		// 1. Match by BillRefNumber (AccountReference) — most explicit
-		//    Customer types e.g. "TILL_5617668" as the account reference
-		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
-		{
-			var byRef = _cfg.Tills.FirstOrDefault(t =>
-				string.Equals(t.AccountReference, request.BillRefNumber,
-					StringComparison.OrdinalIgnoreCase));
+		var refValue = request.BillRefNumber?.Trim();
 
-			if (byRef is not null) return byRef;
+		if (!string.IsNullOrWhiteSpace(refValue))
+		{
+			var byRef = _cfg.Tills.FirstOrDefault(x =>
+				x.AccountReference.Equals(refValue, StringComparison.OrdinalIgnoreCase));
+
+			if (byRef != null) return byRef;
 		}
 
-		// C2B confirmation sends BusinessShortCode = head-office shortcode, NOT the till number.
-		// The old code compared request.BusinessShortCode == till.TillNumber which would NEVER match.
-		// Correct fallback: if ShortCode matches our registered C2B shortcode, it's ours —
-		// but we can't pinpoint which till, so route to unmatched queue instead of wrong till.
-		if (request.BusinessShortCode == _cfg.C2BShortCode ||
-			request.BusinessShortCode == _cfg.BusinessShortCode)
-		{
-			logger.LogWarning("C2B ResolveTill — ShortCode matched HO {SC} but BillRefNumber '{Ref}' " +"did not match any till AccountReference. Routing to unmatched.",
-				request.BusinessShortCode, request.BillRefNumber);
-		}
+		// Buy Goods fallback
+		var byTill = _cfg.Tills.FirstOrDefault(x =>
+			x.TillNumber == request.BusinessShortCode);
 
-		return null;
+		return byTill;
 	}
 
-	/// <summary>
-	/// Removes double slashes in path and normalises scheme + host to lowercase.
-	/// Fixes: https://host.com//path/Daraja/... → https://host.com/path/daraja/...
-	/// </summary>
-	private static string SanitizeUrl(string url)
+	// ─────────────────────────────────────────────
+	// HELPERS
+	// ─────────────────────────────────────────────
+
+	private async Task<HttpClient> GetClientAsync(CancellationToken ct)
 	{
-		if (string.IsNullOrWhiteSpace(url)) return url;
-
-		var uri = new Uri(url);
-		var path = uri.AbsolutePath
-			.Replace("//", "/")
-			.ToLowerInvariant();
-
-		var query = string.IsNullOrEmpty(uri.Query) ? "" : uri.Query;
-		return $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}{path}{query}";
-	}
-
-	private async Task<HttpClient> GetAuthenticatedClientAsync(CancellationToken ct)
-	{
-		var token = await tokenService.GetAccessTokenAsync(ct);
-		var client = httpFactory.CreateClient("Daraja");
+		var token = await _tokenService.GetAccessTokenAsync(ct);
+		var client = _httpFactory.CreateClient("Daraja");
 
 		client.DefaultRequestHeaders.Authorization =
 			new AuthenticationHeaderValue("Bearer", token);
@@ -262,14 +207,28 @@ public sealed class C2BService(
 		return client;
 	}
 
-	private static C2BValidationResponse Rejected(string code, string desc) =>
-		new() { ResultCode = code, ResultDesc = desc };
+	private static DateTime TryParseDate(string value)
+	{
+		if (DateTime.TryParse(value, out var dt))
+			return dt;
+
+		return DateTime.UtcNow;
+	}
+
+	private static C2BValidationResponse Accept() =>
+		new() { ResultCode = "0", ResultDesc = "Accepted" };
+
+	private static C2BValidationResponse Reject(string reason) =>
+		new() { ResultCode = "C2B00011", ResultDesc = reason };
+
+	private static string SanitizeUrl(string url)
+	{
+		if (string.IsNullOrWhiteSpace(url)) return url;
+
+		var uri = new Uri(url);
+		return $"{uri.Scheme.ToLower()}://{uri.Host.ToLower()}{uri.AbsolutePath.Replace("//", "/")}{uri.Query}";
+	}
 }
-
-// ─────────────────────────────────────────────────────────────
-// INTERFACE
-// ─────────────────────────────────────────────────────────────
-
 public interface IC2BService
 {
 	/// <summary>

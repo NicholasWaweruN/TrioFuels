@@ -72,7 +72,9 @@ public class DarajaController(
 
 	// ─────────────────────────────────────────────
 	// CALLBACK (SAFE HANDLER)
-	// ─────────────────────────────────────────────
+	// ───────────────────────────────────────
+	//
+	// ──────
 	[HttpPost("stk/callback")]
 	public async Task<IActionResult> StkCallback([FromBody] StkCallback callback)
 	{
