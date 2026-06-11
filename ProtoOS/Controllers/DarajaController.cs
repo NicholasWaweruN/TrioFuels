@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja;
 using Safaricom_Daraja.Stk_Push;
+using Serilog.Core;
 
 namespace FuelFlow.Controllers;
 
@@ -73,11 +74,11 @@ public class DarajaController(
 	// CALLBACK (SAFE HANDLER)
 	// ─────────────────────────────────────────────
 	[HttpPost("stk/callback")]
-	public async Task<IActionResult> StkCallback(
-		[FromBody] StkCallback callback,
-		CancellationToken ct)
+	public async Task<IActionResult> StkCallback([FromBody] StkCallback callback)
 	{
-		await stkCallbackHandler.HandleAsync(callback, ct);
+		Console.WriteLine("🔥 CALLBACK HIT CONTROLLER");
+
+		await stkCallbackHandler.HandleAsync(callback);
 		return Ok();
 	}
 
