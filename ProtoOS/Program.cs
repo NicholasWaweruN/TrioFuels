@@ -1,4 +1,5 @@
-﻿using DataAccessLayer.Context;
+﻿using Daraja.Services;
+using DataAccessLayer.Context;
 using FuelFlow.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,7 @@ builder.Services.AddDaraja(builder.Configuration);
 // ── Application services ────────────────────────────────────────────────────
 builder.Services.AddBusinessServices();
 builder.Services.AddBackgroundWorkers();
-builder.Services.AddHttpClient();
+
 Console.WriteLine($"ENV: {builder.Environment.EnvironmentName}");
 
 builder.Logging.ClearProviders();
@@ -89,6 +90,13 @@ var app = builder.Build();
 
 //	Console.WriteLine("Startup complete.");
 //}
+
+// Program.cs / Startup.cs
+app.MapGet("/register-tills", async (C2BRegistrar registrar, CancellationToken ct) =>
+{
+	await registrar.RegisterAllTillsAsync(ct);
+	return Results.Ok();
+});
 app.ConfigureMiddleware();
 
 app.Run();
