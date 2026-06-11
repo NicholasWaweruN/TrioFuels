@@ -1,8 +1,11 @@
 ﻿// ═══════════════════════════════════════════════════════════════
 // IC2BService.cs  —  Public contract
+// ═══════════════════════════════════════════════════════════════
+
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja;
@@ -20,7 +23,10 @@ public interface IC2BService
 	/// <summary>Registers validation and confirmation URLs for a given shortcode.</summary>
 	Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(string shortCode, CancellationToken ct = default);
 
-	/// <summary>Validates an incoming C2B payment. Return Reject() to block unknown transactions.</summary>
+	/// <summary>Registers all configured tills individually (required for Buy Goods).</summary>
+	Task RegisterAllTillsAsync(CancellationToken ct = default);
+
+	/// <summary>Validates an incoming C2B payment. Returns Reject() to block unknown transactions.</summary>
 	C2BValidationResponse Validate(C2BValidationRequest request);
 
 	/// <summary>Persists a confirmed C2B payment to the ledger.</summary>
@@ -29,34 +35,36 @@ public interface IC2BService
 
 
 // ═══════════════════════════════════════════════════════════════
-// C2BService.cs  —  Orchestrator (thin, delegates everything)
+// C2BService.cs  —  Thin orchestrator
 // ═══════════════════════════════════════════════════════════════
-
 
 public sealed class C2BService : IC2BService
 {
 	private readonly C2BRegistrar _registrar;
 	private readonly C2BValidator _validator;
 	private readonly C2BConfirmationHandler _confirmationHandler;
-	private readonly DarajaConfig _cfg;
+	private readonly IOptionsMonitor<DarajaConfig> _options;
 
 	public C2BService(
 		C2BRegistrar registrar,
 		C2BValidator validator,
 		C2BConfirmationHandler confirmationHandler,
-		IOptions<DarajaConfig> options)
+		IOptionsMonitor<DarajaConfig> options)
 	{
 		_registrar = registrar;
 		_validator = validator;
 		_confirmationHandler = confirmationHandler;
-		_cfg = options.Value;
+		_options = options;
 	}
 
 	public Task<DarajaResult<C2BRegisterResponse>> RegisterMasterShortCodeAsync(CancellationToken ct = default)
-		=> _registrar.RegisterAsync(_cfg.C2BShortCode, ct);
+		=> _registrar.RegisterAsync(_options.CurrentValue.C2BShortCode, ct);
 
 	public Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(string shortCode, CancellationToken ct = default)
 		=> _registrar.RegisterAsync(shortCode, ct);
+
+	public Task RegisterAllTillsAsync(CancellationToken ct = default)
+		=> _registrar.RegisterAllTillsAsync(ct);
 
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 		=> _validator.Validate(request);
@@ -70,23 +78,22 @@ public sealed class C2BService : IC2BService
 // C2BRegistrar.cs  —  URL registration only
 // ═══════════════════════════════════════════════════════════════
 
-
 public sealed class C2BRegistrar
 {
 	private readonly IHttpClientFactory _httpFactory;
 	private readonly IDarajaTokenService _tokenService;
-	private readonly DarajaConfig _cfg;
+	private readonly IOptionsMonitor<DarajaConfig> _options;
 	private readonly ILogger<C2BRegistrar> _logger;
 
 	public C2BRegistrar(
 		IHttpClientFactory httpFactory,
 		IDarajaTokenService tokenService,
-		IOptions<DarajaConfig> options,
+		IOptionsMonitor<DarajaConfig> options,
 		ILogger<C2BRegistrar> logger)
 	{
 		_httpFactory = httpFactory;
 		_tokenService = tokenService;
-		_cfg = options.Value;
+		_options = options;
 		_logger = logger;
 	}
 
@@ -94,14 +101,15 @@ public sealed class C2BRegistrar
 		string shortCode,
 		CancellationToken ct = default)
 	{
+		var cfg = _options.CurrentValue;
 		var client = await BuildAuthenticatedClientAsync(ct);
 
 		var payload = new C2BRegisterRequest
 		{
 			ShortCode = shortCode,
 			ResponseType = "Completed",
-			ValidationURL = SanitizeUrl(_cfg.C2BValidationUrl),
-			ConfirmationURL = SanitizeUrl(_cfg.C2BConfirmationUrl),
+			ValidationURL = SanitizeUrl(cfg.C2BValidationUrl),
+			ConfirmationURL = SanitizeUrl(cfg.C2BConfirmationUrl),
 		};
 
 		var response = await client.PostAsJsonAsync("/mpesa/c2b/v2/registerurl", payload, ct);
@@ -109,7 +117,8 @@ public sealed class C2BRegistrar
 
 		if (!response.IsSuccessStatusCode || result is null)
 		{
-			_logger.LogError("C2B URL registration failed. ShortCode={ShortCode} Status={Status}",
+			_logger.LogError(
+				"C2B URL registration failed. ShortCode={ShortCode} Status={Status}",
 				shortCode, response.StatusCode);
 			return DarajaResult<C2BRegisterResponse>.Fail("Registration failed");
 		}
@@ -118,14 +127,21 @@ public sealed class C2BRegistrar
 		return DarajaResult<C2BRegisterResponse>.Ok(result);
 	}
 
-	// ── Register all tills individually (required for Buy Goods)
+	/// <summary>
+	/// Registers each configured till individually.
+	/// For Buy Goods, each till number must be registered as its own shortcode.
+	/// </summary>
 	public async Task RegisterAllTillsAsync(CancellationToken ct = default)
 	{
-		foreach (var till in _cfg.Tills)
+		var tills = _options.CurrentValue.Tills;
+
+		foreach (var till in tills)
 		{
 			var result = await RegisterAsync(till.TillNumber, ct);
 			if (!result.Success)
-				_logger.LogWarning("Till registration failed. Till={Till}", till.TillNumber);
+				_logger.LogWarning(
+					"Till registration failed. Till={Till} Name={Name}",
+					till.TillNumber, till.Name);
 		}
 	}
 
@@ -139,6 +155,10 @@ public sealed class C2BRegistrar
 		return client;
 	}
 
+	/// <summary>
+	/// Normalises scheme and host to lowercase and collapses any double slashes in the path.
+	/// Railway-generated URLs can occasionally include these artefacts.
+	/// </summary>
 	private static string SanitizeUrl(string url)
 	{
 		if (string.IsNullOrWhiteSpace(url)) return url;
@@ -152,45 +172,58 @@ public sealed class C2BRegistrar
 // C2BValidator.cs  —  Validation logic only
 // ═══════════════════════════════════════════════════════════════
 
-
 public sealed class C2BValidator
 {
-	private readonly DarajaConfig _cfg;
+	private readonly IOptionsMonitor<DarajaConfig> _options;
 	private readonly ILogger<C2BValidator> _logger;
 
-	// Precomputed set — built once, never re-allocated per request
-	private readonly HashSet<string> _validRefs;
-
-	public C2BValidator(IOptions<DarajaConfig> options, ILogger<C2BValidator> logger)
+	public C2BValidator(IOptionsMonitor<DarajaConfig> options, ILogger<C2BValidator> logger)
 	{
-		_cfg = options.Value;
+		_options = options;
 		_logger = logger;
-		_validRefs = _cfg.Tills
-			.Select(x => x.AccountReference)
-			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 	}
 
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
 		var billRef = request.BillRefNumber?.Trim();
 
-		// Buy Goods — no BillRefNumber expected; accept immediately
+		// Buy Goods — no BillRefNumber expected; accept immediately.
 		if (string.IsNullOrWhiteSpace(billRef))
 		{
 			_logger.LogInformation("C2B Validation accepted (Buy Goods / no BillRefNumber)");
 			return Accept();
 		}
 
-		// Paybill — validate against known account references
-		if (!_validRefs.Contains(billRef))
+		// Paybill — validate BillRefNumber against known account references.
+		// ValidRefs is derived from current config on each call so hot-reloaded
+		// tills are picked up without restarting the service.
+		var validRefs = BuildValidRefs();
+
+		if (!validRefs.Contains(billRef))
 		{
-			_logger.LogWarning("C2B Validation rejected unknown ref. BillRef={BillRef}", billRef);
+			_logger.LogWarning(
+				"C2B Validation rejected unknown ref. BillRef={BillRef}", billRef);
 			return Reject("Invalid account reference");
 		}
 
 		_logger.LogInformation("C2B Validation accepted. BillRef={BillRef}", billRef);
 		return Accept();
 	}
+
+	// ── Helpers ──────────────────────────────────────────────────
+
+	/// <summary>
+	/// Builds the valid-refs set from the current config snapshot.
+	/// HashSet construction is O(n) on the number of tills — negligible
+	/// compared to the inbound HTTP round-trip, and keeps the validator
+	/// correct when tills are added or removed without a service restart.
+	/// If your till list is large and allocation pressure matters, switch to
+	/// <see cref="IOptionsMonitor{T}.OnChange"/> to invalidate a cached set.
+	/// </summary>
+	private HashSet<string> BuildValidRefs() =>
+		_options.CurrentValue.Tills
+			.Select(x => x.AccountReference)
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
 	private static C2BValidationResponse Accept() =>
 		new() { ResultCode = "0", ResultDesc = "Accepted" };
@@ -204,20 +237,23 @@ public sealed class C2BValidator
 // C2BConfirmationHandler.cs  —  Ledger persistence only
 // ═══════════════════════════════════════════════════════════════
 
-
 public sealed class C2BConfirmationHandler
 {
+	// EAT = UTC+3. No DST observed — offset is constant year-round.
+	private static readonly TimeZoneInfo _eat =
+		TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
+
 	private readonly OTOContext _context;
-	private readonly DarajaConfig _cfg;
+	private readonly IOptionsMonitor<DarajaConfig> _options;
 	private readonly ILogger<C2BConfirmationHandler> _logger;
 
 	public C2BConfirmationHandler(
 		OTOContext context,
-		IOptions<DarajaConfig> options,
+		IOptionsMonitor<DarajaConfig> options,
 		ILogger<C2BConfirmationHandler> logger)
 	{
 		_context = context;
-		_cfg = options.Value;
+		_options = options;
 		_logger = logger;
 	}
 
@@ -227,18 +263,19 @@ public sealed class C2BConfirmationHandler
 			"C2B Confirmation received. TransID={TransID} ShortCode={ShortCode} Phone={Phone}",
 			request.TransactionId, request.BusinessShortCode, request.PhoneNumber);
 
-		// ── Idempotency guard ──────────────────────────────────────
-		if (await IsDuplicateAsync(request.TransactionId, ct))
-		{
-			_logger.LogWarning("C2B duplicate ignored. TransID={TransID}", request.TransactionId);
-			return;
-		}
-
-		var till = ResolveTill(request);
-		var transaction = BuildTransaction(request, till);
-
 		try
 		{
+			// ── Idempotency guard ──────────────────────────────────
+			if (await IsDuplicateAsync(request.TransactionId, ct))
+			{
+				_logger.LogWarning(
+					"C2B duplicate ignored. TransID={TransID}", request.TransactionId);
+				return;
+			}
+
+			var till = ResolveTill(request);
+			var transaction = BuildTransaction(request, till);
+
 			_context.MpesaTransactions.Add(transaction);
 			await _context.SaveChangesAsync(ct);
 
@@ -249,8 +286,11 @@ public sealed class C2BConfirmationHandler
 		catch (Exception ex)
 		{
 			_logger.LogError(ex,
-				"C2B DB save failed. TransID={TransID}", request.TransactionId);
-			throw; // let the caller / middleware return non-200 so M-Pesa retries
+				"C2B processing failed. TransID={TransID}", request.TransactionId);
+
+			// Re-throw so the caller / middleware returns a non-200,
+			// which causes M-Pesa to retry the confirmation callback.
+			throw;
 		}
 	}
 
@@ -258,24 +298,26 @@ public sealed class C2BConfirmationHandler
 
 	private TillConfig? ResolveTill(C2BConfirmationRequest request)
 	{
-		// Paybill: match on BillRefNumber / AccountReference
+		var cfg = _options.CurrentValue;
 		var billRef = request.BillRefNumber?.Trim();
+
+		// Paybill: match on BillRefNumber / AccountReference.
 		if (!string.IsNullOrWhiteSpace(billRef))
 		{
-			var byRef = _cfg.Tills.FirstOrDefault(t =>
+			var byRef = cfg.Tills.FirstOrDefault(t =>
 				t.AccountReference.Equals(billRef, StringComparison.OrdinalIgnoreCase));
 
 			if (byRef is not null) return byRef;
 		}
 
-		// Buy Goods: M-Pesa sends the till number as BusinessShortCode
-		var byTill = _cfg.Tills.FirstOrDefault(t =>
+		// Buy Goods: M-Pesa sends the till number as BusinessShortCode.
+		var byTill = cfg.Tills.FirstOrDefault(t =>
 			string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
 
 		if (byTill is null)
 			_logger.LogWarning(
-				"No till mapped. BusinessShortCode={ShortCode} BillRef={BillRef}",
-				request.BusinessShortCode, billRef);
+				"No till mapped. BusinessShortCode={ShortCode} BillRef={BillRef} TransType={TransType}",
+				request.BusinessShortCode, billRef, request.TransactionType);
 
 		return byTill;
 	}
@@ -284,7 +326,8 @@ public sealed class C2BConfirmationHandler
 
 	private MpesaTransaction BuildTransaction(C2BConfirmationRequest request, TillConfig? till)
 	{
-		var now = DateTime.UtcNow.AddHours(3); // EAT
+		var cfg = _options.CurrentValue;
+		var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _eat);
 
 		return new MpesaTransaction
 		{
@@ -292,7 +335,7 @@ public sealed class C2BConfirmationHandler
 			TransID = request.TransactionId,
 			MpesaReceiptNumber = request.TransactionId,
 
-			BusinessShortCode = request.BusinessShortCode ?? _cfg.C2BShortCode,
+			BusinessShortCode = request.BusinessShortCode ?? cfg.C2BShortCode,
 			TillNumber = till?.TillNumber ?? request.BusinessShortCode ?? "UNKNOWN",
 			TillName = till?.Name ?? "UNMAPPED_TILL",
 
@@ -329,7 +372,10 @@ public sealed class C2BConfirmationHandler
 		decimal.TryParse(value, out var result) ? result : 0m;
 
 	/// <summary>
-	/// M-Pesa sends TransTime as "YYYYMMDDHHmmss" — DateTime.TryParse cannot handle this format.
+	/// Parses M-Pesa's non-standard TransTime format "yyyyMMddHHmmss".
+	/// <c>DateTime.TryParse</c> cannot handle this format — explicit
+	/// <c>TryParseExact</c> with <see cref="System.Globalization.CultureInfo.InvariantCulture"/>
+	/// is required.
 	/// </summary>
 	private static DateTime ParseTransTime(string? value)
 	{
@@ -347,3 +393,11 @@ public sealed class C2BConfirmationHandler
 		return DateTime.UtcNow;
 	}
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// C2BRegistrationStartupService.cs
+// Automatically registers all tills on application startup.
+// Wire up in Program.cs: builder.Services.AddHostedService<C2BRegistrationStartupService>();
+// ═══════════════════════════════════════════════════════════════
+

@@ -1,4 +1,5 @@
 ﻿
+using BussinessLogic.Worker.PullTransactions;
 using Daraja.Services;
 using FuelFlow.Services.Daraja;
 using Microsoft.Extensions.Configuration;
@@ -43,6 +44,8 @@ public static class DarajaServiceExtensions
 		services.AddScoped<C2BRegistrar>();
 		services.AddScoped<C2BValidator>();
 		services.AddScoped<C2BConfirmationHandler>();
+		services.AddHostedService<C2BRegistrationStartupService>();
+
 
 
 		// ── Add this to your DarajaServiceExtensions.cs or wherever you register Daraja ──
