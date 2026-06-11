@@ -30,7 +30,7 @@ public sealed class C2BRegistrationStartupService : IHostedService
 			var c2bService = scope.ServiceProvider.GetRequiredService<IC2BService>();
 
 			await c2bService.RegisterMasterShortCodeAsync(cancellationToken);
-			await c2bService.RegisterAllTillsAsync(cancellationToken);
+		
 
 			_logger.LogInformation("C2B URL registration complete.");
 		}

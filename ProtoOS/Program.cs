@@ -92,11 +92,7 @@ var app = builder.Build();
 //}
 
 // Program.cs / Startup.cs
-app.MapGet("/register-tills", async (C2BRegistrar registrar, CancellationToken ct) =>
-{
-	await registrar.RegisterAllTillsAsync(ct);
-	return Results.Ok();
-});
+
 app.ConfigureMiddleware();
 
 app.Run();

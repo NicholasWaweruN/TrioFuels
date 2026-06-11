@@ -41,9 +41,6 @@ public static class DarajaServiceExtensions
 		services.AddScoped<IC2BService, C2BService>();
 		services.AddScoped<IPullTransactionService, PullTransactionService>();
 		services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
-		services.AddScoped<C2BRegistrar>();
-		services.AddScoped<C2BValidator>();
-		services.AddScoped<C2BConfirmationHandler>();
 		services.AddHostedService<C2BRegistrationStartupService>();
 
 
