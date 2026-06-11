@@ -41,6 +41,19 @@ public static class DarajaServiceExtensions
 		services.AddScoped<IPullTransactionService, PullTransactionService>();
 		services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
 
+		// ── Add this to your DarajaServiceExtensions.cs or wherever you register Daraja ──
+		// (just one extra line next to your existing IStkPushService registration)
+
+		services.AddScoped<StkPushDiagnosticService>();
+
+		// Also ensure appsettings.json "Daraja" section is bound:
+		// services.Configure<DarajaConfig>(configuration.GetSection("Daraja"));
+
+		// And your named HttpClient "Daraja" is registered:
+		// services.AddHttpClient("Daraja", client =>
+		// {
+		//     client.BaseAddress = new Uri(configuration["Daraja:BaseUrl"]!);
+		// });
 
 		// Callback handlers
 		services.AddScoped<IStkCallbackHandler, StkCallbackHandler>();

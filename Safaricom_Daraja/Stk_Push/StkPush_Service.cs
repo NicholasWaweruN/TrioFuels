@@ -5,6 +5,7 @@ using Safaricom_Daraja.DarajaTokenService;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Safaricom_Daraja.Stk_Push;
@@ -42,8 +43,7 @@ public sealed class StkPushService(
 	IHttpClientFactory httpFactory,
 	IDarajaTokenService tokenService,
 	IOptions<DarajaConfig> options,
-	ILogger<StkPushService> logger
-) : IStkPushService
+	ILogger<StkPushService> logger) : IStkPushService
 {
 	private readonly DarajaConfig _cfg = options.Value;
 
@@ -61,37 +61,39 @@ public sealed class StkPushService(
 		ArgumentException.ThrowIfNullOrWhiteSpace(phone);
 		ArgumentException.ThrowIfNullOrWhiteSpace(tillNumber);
 
-		if (amount <= 0)//
+		if (amount <= 0)
 			return DarajaResult<StkPushResponse>.Fail("Amount must be greater than zero.");
 
-		// Validate till belongs to this org
-
-
-
+		// ── Resolve till from config ──────────────────────────────────────────
 		var till = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
 		if (till is null)
 			return DarajaResult<StkPushResponse>.Fail($"Till {tillNumber} is not configured.");
 
-		logger.LogInformation("STK Push resolved — TillNumber={TillNumber} StoreNumber={StoreNumber}",till.TillNumber, till.StoreNumber);
+		logger.LogInformation("STK Push resolved — TillNumber={TillNumber} StoreNumber={StoreNumber} HeadOffice={HO}",till.TillNumber, till.StoreNumber, _cfg.BusinessShortCode);
 
 		try
 		{
 			var sanitizedPhone = SanitizePhone(phone);
 			var safeRef = Truncate(string.IsNullOrWhiteSpace(accountReference) ? tillNumber : accountReference, 12);
 			var safeDesc = Truncate(string.IsNullOrWhiteSpace(description) ? "Payment" : description, 13);
-			var (timestamp, password) = BuildCredentials(till.TillNumber);
 
-			// ── Buy Goods payload ─────────────────────────────────────────────
-			// BusinessShortCode + PartyB = till number (not the org shortcode)
-			// Password                   = built from org shortcode (4161705) + PassKey
-			// TransactionType            = CustomerBuyGoodsOnline (not CustomerPayBillOnline)
+			// ── FIX: Password ALWAYS uses head-office shortcode (4161705) ─────
+			// For CustomerBuyGoodsOnline:
+			//   BusinessShortCode = till number  (identifies who receives funds)
+			//   PartyB            = till number  (same)
+			//   Password          = Base64(HeadOfficeShortCode + PassKey + Timestamp)
+			//                                    ^ NOT the till number
+			// Safaricom validates the password against the head-office shortcode
+			// on their side regardless of TransactionType.
+			var (timestamp, password) = BuildCredentials(_cfg.BusinessShortCode);
+
 			var payload = new StkPushRequest
 			{
-				TransactionType = "CustomerBuyGoodsOnline",  // ✅ was CustomerPayBillOnline
-				BusinessShortCode = till.TillNumber,            // ✅ was _cfg.BusinessShortCode
-				PartyB = till.TillNumber,            // ✅ was _cfg.BusinessShortCode
-				Password = password,                   // ✅ keep — built from 4161705
-				Timestamp = timestamp,                  // ✅ keep
+				TransactionType = "CustomerBuyGoodsOnline",
+				BusinessShortCode = till.TillNumber,         // till receives the funds
+				PartyB = till.TillNumber,         // same as BusinessShortCode for Buy Goods
+				Password = password,                // built from 4161705 + PassKey + Timestamp
+				Timestamp = timestamp,
 				Amount = amount,
 				PartyA = sanitizedPhone,
 				PhoneNumber = sanitizedPhone,
@@ -100,6 +102,11 @@ public sealed class StkPushService(
 				TransactionDesc = safeDesc
 			};
 
+			// ── Diagnostic: log the exact payload being sent ──────────────────
+			logger.LogDebug("STK Push payload — {Payload}",JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = false }));
+
+			logger.LogInformation("STK Push sending — Phone={Phone} Amount=KES {Amount} Till={Till} Ref={Ref} BaseUrl={BaseUrl} Callback={Callback}",sanitizedPhone, amount, till.TillNumber, safeRef, _cfg.BaseUrl, _cfg.StkCallbackUrl);
+
 			var client = await GetAuthenticatedClientAsync(ct);
 			var response = await client.PostAsJsonAsync("/mpesa/stkpush/v1/processrequest", payload, ct);
 			var content = await response.Content.ReadAsStringAsync(ct);
@@ -107,7 +114,7 @@ public sealed class StkPushService(
 			if (!response.IsSuccessStatusCode)
 			{
 				logger.LogError(
-					"STK Push failed — Till={Till} Status={Status} Response={Response}",
+					"STK Push HTTP error — Till={Till} Status={Status} Response={Response}",
 					tillNumber, (int)response.StatusCode, content);
 				return DarajaResult<StkPushResponse>.Fail(content);
 			}
@@ -125,7 +132,9 @@ public sealed class StkPushService(
 				return DarajaResult<StkPushResponse>.Fail(result.ResponseDescription ?? "Rejected by Daraja.");
 			}
 
-			logger.LogInformation("STK Push initiated — Phone={Phone} Amount=KES {Amount} Till={Till} ({TillName}) " +"Ref={Ref} CheckoutId={Id}",sanitizedPhone, amount, tillNumber, till.Name, safeRef, result.CheckoutRequestId);
+			logger.LogInformation(
+				"STK Push initiated ✅ — Phone={Phone} Amount=KES {Amount} Till={Till} ({TillName}) Ref={Ref} CheckoutId={Id}",
+				sanitizedPhone, amount, tillNumber, till.Name, safeRef, result.CheckoutRequestId);
 
 			return DarajaResult<StkPushResponse>.Ok(result);
 		}
@@ -147,9 +156,10 @@ public sealed class StkPushService(
 
 		try
 		{
-			var (timestamp, password) = BuildCredentials("");
+			// Query always uses head-office shortcode (4161705) for both
+			// BusinessShortCode and password — this is correct for all transaction types.
+			var (timestamp, password) = BuildCredentials(_cfg.BusinessShortCode);
 
-			// Query also uses the org shortcode (4161705), not the till number
 			var payload = new StkQueryRequest
 			{
 				BusinessShortCode = _cfg.BusinessShortCode,
@@ -158,6 +168,10 @@ public sealed class StkPushService(
 				CheckoutRequestID = checkoutRequestId
 			};
 
+			logger.LogInformation(
+				"STK Query sending — CheckoutId={Id} ShortCode={SC}",
+				checkoutRequestId, _cfg.BusinessShortCode);
+
 			var client = await GetAuthenticatedClientAsync(ct);
 			var response = await client.PostAsJsonAsync("/mpesa/stkpushquery/v1/query", payload, ct);
 			var content = await response.Content.ReadAsStringAsync(ct);
@@ -165,7 +179,7 @@ public sealed class StkPushService(
 			if (!response.IsSuccessStatusCode)
 			{
 				logger.LogError(
-					"STK Query failed — CheckoutId={Id} Status={Status} Response={Response}",
+					"STK Query HTTP error — CheckoutId={Id} Status={Status} Response={Response}",
 					checkoutRequestId, (int)response.StatusCode, content);
 				return DarajaResult<StkQueryResponse>.Fail(content);
 			}
@@ -176,7 +190,7 @@ public sealed class StkPushService(
 				return DarajaResult<StkQueryResponse>.Fail("Null response from Daraja.");
 
 			logger.LogInformation(
-				"STK Query success — CheckoutId={Id} ResultCode={Code} Desc={Desc}",
+				"STK Query success ✅ — CheckoutId={Id} ResultCode={Code} Desc={Desc}",
 				checkoutRequestId, result.ResultCode, result.ResultDesc);
 
 			return DarajaResult<StkQueryResponse>.Ok(result);
@@ -191,23 +205,39 @@ public sealed class StkPushService(
 	// ── Private helpers ───────────────────────────────────────────────────────
 
 	/// <summary>
-	/// Builds timestamp (EAT UTC+3) and password.
-	/// Password always uses the org BusinessShortCode (4161705) + PassKey —
-	/// even for Buy Goods transactions where the payload uses the till number.
+	/// Builds timestamp (EAT UTC+3) and Base64 password.
+	/// <para>
+	/// IMPORTANT: For both CustomerBuyGoodsOnline and CustomerPayBillOnline,
+	/// <paramref name="shortCode"/> must always be the HEAD-OFFICE shortcode
+	/// (e.g. 4161705), NOT the individual till number.
+	/// Pass <c>_cfg.BusinessShortCode</c> from every call site.
+	/// </para>
 	/// </summary>
-	// For CustomerBuyGoodsOnline, password uses TILL number
-private (string Timestamp, string Password) BuildCredentials(string shortCode)
-{
-    var timestamp = DateTimeOffset.UtcNow
-        .ToOffset(TimeSpan.FromHours(3))
-        .ToString("yyyyMMddHHmmss");
+	private (string Timestamp, string Password) BuildCredentials(string shortCode)
+	{
+		if (string.IsNullOrWhiteSpace(shortCode))
+			throw new InvalidOperationException(
+				"BuildCredentials called with empty shortCode. Always pass _cfg.BusinessShortCode (4161705).");
 
-    var raw = $"{shortCode}{_cfg.PassKey}{timestamp}";
-    var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
+		var timestamp = DateTimeOffset.UtcNow
+			.ToOffset(TimeSpan.FromHours(3))
+			.ToString("yyyyMMddHHmmss");
 
-    return (timestamp, password);
-}
+		// Concatenation order is critical: ShortCode + PassKey + Timestamp
+		var raw = $"{shortCode}{_cfg.PassKey}{timestamp}";
+		var password = Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
 
+		logger.LogDebug(
+			"BuildCredentials — ShortCode={SC} Timestamp={TS} PasswordLength={Len}",
+			shortCode, timestamp, password.Length);
+
+		return (timestamp, password);
+	}
+
+	/// <summary>
+	/// Normalises a Kenyan phone number to 254XXXXXXXXX format.
+	/// Accepts 07xx, 01xx, or 254xx (with or without +).
+	/// </summary>
 	private static string SanitizePhone(string phone)
 	{
 		phone = phone.Trim().Replace("+", "").Replace(" ", "");
