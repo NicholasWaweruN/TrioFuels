@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace FuelFlow.Controllers;
 
-[Route("fuelflow/[controller]")]
+[Route("fuelflow")]
 [ApiController]
 public class DarajaController(
 	IStkPushService stkPushService,
