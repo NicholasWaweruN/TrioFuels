@@ -11,48 +11,104 @@ public interface IStkCallbackHandler
 	Task HandleAsync(StkCallback callback, CancellationToken ct = default);
 }
 
-public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHandler> logger) : IStkCallbackHandler
+public sealed class StkCallbackHandler(
+	OTOContext context,
+	ILogger<StkCallbackHandler> logger) : IStkCallbackHandler
 {
-	private readonly OTOContext _context = context;
-
 	public async Task HandleAsync(StkCallback callback, CancellationToken ct = default)
 	{
 		var data = callback?.Body?.StkCallback;
 
-		if (data == null)
+		if (data is null)
 		{
-			logger.LogWarning("Invalid STK callback payload");
+			logger.LogWarning("[STK][Callback] ❌ Invalid payload — Body.StkCallback is null.");
 			return;
 		}
 
 		var checkoutId = data.CheckoutRequestId;
 
-		// ❌ FAIL CASE (do NOT write ledger)
+		logger.LogInformation(
+			"[STK][Callback] ▶ CheckoutRequestID={CID} MerchantRequestID={MID} " +
+			"ResultCode={RC} ResultDesc={RD}",
+			checkoutId, data.MerchantRequestId, data.ResultCode, data.ResultDesc);
+
+		// ── FIX 1: Always update StkTransaction status regardless of result ─────
+		var stkTx = await context.StkTransactions
+			.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutId, ct);
+
+		if (stkTx is null)
+		{
+			logger.LogWarning(
+				"[STK][Callback] ⚠️ No StkTransaction found for CheckoutRequestID={CID} — " +
+				"was InitiateAsync called first?", checkoutId);
+		}
+
+		// ── FAIL CASE — update StkTransaction, do NOT write ledger ──────────────
 		if (data.ResultCode != 0)
 		{
-			logger.LogWarning("STK FAILED — CheckoutId={CheckoutId} Desc={Desc}",checkoutId,data.ResultDesc);
+			logger.LogWarning(
+				"[STK][Callback] ❌ Payment FAILED — CheckoutID={CID} ResultCode={RC} Desc={Desc}",
+				checkoutId, data.ResultCode, data.ResultDesc);
+
+			if (stkTx is not null)
+			{
+				stkTx.Status = "Failed";
+				stkTx.ResultCode = data.ResultCode.ToString();
+				stkTx.ResultDescription = data.ResultDesc ?? string.Empty;
+				stkTx.DateCompleted = DateTime.UtcNow;
+				await context.SaveChangesAsync(ct);
+
+				logger.LogInformation(
+					"[STK][Callback] StkTransaction updated → Status=Failed CheckoutID={CID}", checkoutId);
+			}
+
 			return;
 		}
 
+		// ── SUCCESS — extract metadata ────────────────────────────────────────────
 		var meta = data.CallbackMetadata?.Items ?? new List<StkCallbackItem>();
-
 		var receipt = Get(meta, "MpesaReceiptNumber");
 		var amount = Get(meta, "Amount");
 		var phone = Get(meta, "PhoneNumber");
 		var transDate = Get(meta, "TransactionDate");
 		var balance = Get(meta, "Balance");
 
+		logger.LogInformation(
+			"[STK][Callback] Metadata — Receipt={R} Amount={A} Phone={P} TransDate={D} Balance={B}",
+			receipt, amount, phone, transDate, balance);
 
-		// ⚠️ DUPLICATE PROTECTION (VERY IMPORTANT)
-		var exists = await _context.MpesaTransactions.AnyAsync(x => x.MpesaReceiptNumber == receipt, ct);
+		// ── DUPLICATE PROTECTION ──────────────────────────────────────────────────
+		var exists = await context.MpesaTransactions
+			.AnyAsync(x => x.MpesaReceiptNumber == receipt, ct);
 
 		if (exists)
 		{
-			logger.LogWarning("Duplicate STK callback ignored — Receipt={Receipt}", receipt);
+			logger.LogWarning(
+				"[STK][Callback] ⚠️ Duplicate — Receipt={Receipt} already in MpesaTransactions. Ignored.",
+				receipt);
 			return;
 		}
 
-		// ✔ CREATE FINAL LEDGER ENTRY (ONLY HERE)
+		// ── FIX 2: Pull TillNumber + TillName from StkTransaction ────────────────
+		// StkTransaction was saved during InitiateAsync and has the till info.
+		var tillNumber = stkTx?.TillNumber ?? string.Empty;
+		var tillName = string.Empty;
+
+		if (!string.IsNullOrEmpty(tillNumber))
+		{
+			var till = await context.Tills
+				.Where(t => t.TillNumber == tillNumber)
+				.Select(t => t.TillName)
+				.FirstOrDefaultAsync(ct);
+
+			tillName = till ?? string.Empty;
+		}
+
+		logger.LogInformation(
+			"[STK][Callback] Till resolved from StkTransaction — TillNumber={TN} TillName={Name}",
+			tillNumber, tillName);
+
+		// ── WRITE LEDGER ──────────────────────────────────────────────────────────
 		var transaction = new MpesaTransaction
 		{
 			TransactionType = "STK",
@@ -62,33 +118,43 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 			MerchantRequestID = data.MerchantRequestId,
 			TransAmount = decimal.TryParse(amount, out var amt) ? amt : 0,
 			TransTime = ParseDate(transDate),
-			BusinessShortCode = string.Empty, // optional if not in callback
-			TillNumber = string.Empty,        // fill if you map tills elsewhere
-			TillName = string.Empty,
+			BusinessShortCode = string.Empty,
+			TillNumber = tillNumber,          // ✅ FIX: filled from StkTransaction
+			TillName = tillName,            // ✅ FIX: filled from Tills table
 			PaymentMethod = "STK",
 			MSISDN = phone,
-			Status = 1, // SUCCESS ONLY (ledger rule)
+			Status = 1,
 			DateTimeStamp = DateTime.UtcNow.AddHours(3),
 			DateModified = DateTime.UtcNow.AddHours(3),
 			DateCreated = DateTime.UtcNow.AddHours(3),
 			FirstName = string.Empty,
 			LastName = string.Empty,
 			MiddName = string.Empty,
-			OrgAccountBalance = decimal.TryParse(balance, out var bal) ? bal : 0, 
-			UsageBalance = decimal.TryParse(amount, out var usageBalance) ? usageBalance : 0,
+			OrgAccountBalance = decimal.TryParse(balance, out var bal) ? bal : 0,
+			UsageBalance = decimal.TryParse(amount, out var usage) ? usage : 0,
 			UserCode = "Mpesa"
 		};
 
-		_context.MpesaTransactions.Add(transaction);
-		await _context.SaveChangesAsync(ct);
+		context.MpesaTransactions.Add(transaction);
 
-		logger.LogInformation("STK LEDGER SAVED — Receipt={Receipt} Amount={Amount} Phone={Phone}",receipt, amount, phone);
+		// ── FIX 3: Update StkTransaction to Completed ─────────────────────────────
+		if (stkTx is not null)
+		{
+			stkTx.Status = "Completed";
+			stkTx.MpesaReceiptNumber = receipt;
+			stkTx.ResultCode = "0";
+			stkTx.ResultDescription = data.ResultDesc ?? "Success";
+			stkTx.DateCompleted = DateTime.UtcNow;
+		}
+
+		await context.SaveChangesAsync(ct);
+
+		logger.LogInformation(
+			"[STK][Callback] ✅ Ledger saved — Receipt={Receipt} Amount={Amount} " +
+			"Phone={Phone} Till={TN} ({TillName})",
+			receipt, amount, phone, tillNumber, tillName);
 	}
 
-	// ─────────────────────────────────────────────
-	// HELPERS
-	// ─────────────────────────────────────────────
-	
 	private static string Get(List<StkCallbackItem> items, string name)
 		=> items.FirstOrDefault(x => x.Name == name)?.Value?.ToString() ?? string.Empty;
 
@@ -98,9 +164,7 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 		{
 			var s = dt.ToString();
 			if (s.Length == 14)
-			{
 				return DateTime.ParseExact(s, "yyyyMMddHHmmss", null);
-			}
 		}
 		return DateTime.UtcNow;
 	}
