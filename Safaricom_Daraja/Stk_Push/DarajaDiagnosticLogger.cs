@@ -130,11 +130,11 @@ public sealed class StkPushDiagnosticService(
 		// Variant B: password from till number — what the old buggy code did
 		// We always send Variant A; we log both so you can confirm the difference.
 
-		var (timestampA, passwordA) = BuildCredentials(_cfg.BusinessShortCode);   // ✅ correct
+		var (timestampA, passwordA) = BuildCredentials(_cfg.BusinessShortCode ?? "");   // ✅ correct
 		var (_, passwordB) = BuildCredentials(till.TillNumber);           // ❌ old bug
 
 		row["Timestamp_EAT"] = timestampA;
-		row["Payload_PasswordRaw_ShortCode"] = _cfg.BusinessShortCode; // what we used
+		row["Payload_PasswordRaw_ShortCode"] = _cfg.BusinessShortCode ?? ""; // what we used
 		row["Payload_PasswordLength"] = passwordA.Length.ToString();
 		row["Payload_PasswordFirst16"] = SafeSubstring(passwordA, 0, 16);
 
@@ -164,20 +164,20 @@ public sealed class StkPushDiagnosticService(
 		var payload = new StkPushRequest
 		{
 			TransactionType = "CustomerBuyGoodsOnline",
-			BusinessShortCode = _cfg.BusinessShortCode,  // ✅ head office (4161705)
+			BusinessShortCode = _cfg.BusinessShortCode ?? "",  // ✅ head office (4161705)
 			PartyB = till.TillNumber,          // ✅ till receives the funds (5617668)
 			Password = passwordA,                // ALWAYS from head-office shortcode
 			Timestamp = timestampA,
 			Amount = amount,
 			PartyA = sanitizedPhone,
 			PhoneNumber = sanitizedPhone,
-			CallBackURL = _cfg.StkCallbackUrl,
+			CallBackURL = _cfg.StkCallbackUrl ?? "",
 			AccountReference = safeRef,
 			TransactionDesc = safeDesc
 		};
 
 		row["Payload_TransactionType"] = payload.TransactionType;
-		row["Payload_BusinessShortCode"] = payload.BusinessShortCode;
+		row["Payload_BusinessShortCode"] = payload.BusinessShortCode ?? "";
 		row["Payload_PartyB"] = payload.PartyB;
 		row["Payload_PartyA"] = payload.PartyA;
 		row["Payload_PhoneNumber"] = payload.PhoneNumber;

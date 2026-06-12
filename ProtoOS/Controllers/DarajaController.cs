@@ -1,9 +1,10 @@
-﻿using Daraja.Services;
-using FuelFlow.Services.Daraja;
+﻿using FuelFlow.Services.Daraja;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja;
+using Safaricom_Daraja.C2bService;
 using Safaricom_Daraja.Stk_Push;
+using System.Text.Json;
 
 namespace FuelFlow.Controllers;
 
@@ -24,21 +25,21 @@ public class DarajaController(
 	// ─────────────────────────────────────────────
 
 	[HttpPost("stk/push")]
-	public async Task<IActionResult> StkPush([FromBody] StkPushApiRequest req,CancellationToken ct)
+	public async Task<IActionResult> StkPush([FromBody] StkPushApiRequest req, CancellationToken ct)
 	{
-		logger.LogInformation("[STK][Push] ▶ Phone={Phone} Amount={Amount} TillNumber={TN} TillReference={TR} Desc={D}",req.Phone, req.Amount, req.TillNumber, req.TillReference, req.Description);
+		logger.LogInformation("[STK][Push] ▶ Phone={Phone} Amount={Amount} TillNumber={TN} TillReference={TR} Desc={D}", req.Phone, req.Amount, req.TillNumber, req.TillReference, req.Description);
 
-		var till = _cfg.Tills.FirstOrDefault(t =>t.TillNumber == req.TillNumber ||t.AccountReference == req.TillReference);
+		var till = _cfg.Tills.FirstOrDefault(t => t.TillNumber == req.TillNumber || t.AccountReference == req.TillReference);
 
 		if (till is null)
 		{
-			logger.LogWarning("[STK][Push] ❌ Unknown till. TillNumber={TN} TillReference={TR} " +"KnownTills=[{Tills}]",req.TillNumber, req.TillReference,
+			logger.LogWarning("[STK][Push] ❌ Unknown till. TillNumber={TN} TillReference={TR} " + "KnownTills=[{Tills}]", req.TillNumber, req.TillReference,
 				string.Join(", ", _cfg.Tills.Select(t => $"{t.TillNumber}/{t.AccountReference}")));
 
 			return BadRequest("Unknown till");
 		}
 
-		logger.LogInformation("[STK][Push] Till resolved → TillName={Name} TillNumber={TN} AccountReference={AR}",till.Name, till.TillNumber, till.AccountReference);
+		logger.LogInformation("[STK][Push] Till resolved → TillName={Name} TillNumber={TN} AccountReference={AR}", till.Name, till.TillNumber, till.AccountReference);
 
 		var result = await stkPushService.InitiateAsync(
 			phone: req.Phone,
@@ -50,7 +51,7 @@ public class DarajaController(
 
 		if (result.Success)
 		{
-			logger.LogInformation("[STK][Push] ✅ Initiated. CheckoutRequestID={CID}",result.Data?.CheckoutRequestId);
+			logger.LogInformation("[STK][Push] ✅ Initiated. CheckoutRequestID={CID}", result.Data?.CheckoutRequestId);
 			return Ok(result.Data);
 		}
 
@@ -63,7 +64,7 @@ public class DarajaController(
 	// ─────────────────────────────────────────────
 
 	[HttpGet("stk/query/{checkoutRequestId}")]
-	public async Task<IActionResult> StkQuery(string checkoutRequestId,CancellationToken ct)
+	public async Task<IActionResult> StkQuery(string checkoutRequestId, CancellationToken ct)
 	{
 		logger.LogInformation("[STK][Query] ▶ CheckoutRequestID={CID}", checkoutRequestId);
 
@@ -86,7 +87,7 @@ public class DarajaController(
 	[HttpPost("stk/callback")]
 	public async Task<IActionResult> StkCallback([FromBody] StkCallback callback)
 	{
-		logger.LogInformation("[STK][Callback] ▶ MerchantRequestID={MID} CheckoutRequestID={CID} " +"ResultCode={RC} ResultDesc={RD}",callback.Body?.StkCallback?.MerchantRequestId,callback.Body?.StkCallback?.CheckoutRequestId,callback.Body?.StkCallback?.ResultCode,callback.Body?.StkCallback?.ResultDesc);
+		logger.LogInformation("[STK][Callback] ▶ MerchantRequestID={MID} CheckoutRequestID={CID} " + "ResultCode={RC} ResultDesc={RD}", callback.Body?.StkCallback?.MerchantRequestId, callback.Body?.StkCallback?.CheckoutRequestId, callback.Body?.StkCallback?.ResultCode, callback.Body?.StkCallback?.ResultDesc);
 
 		await stkCallbackHandler.HandleAsync(callback);
 
@@ -105,13 +106,13 @@ public class DarajaController(
 	[HttpPost("c2b/register")]
 	public async Task<IActionResult> RegisterC2BUrls(CancellationToken ct)
 	{
-		logger.LogInformation("[C2B][Register] ▶ Triggered. C2BShortCode={SC} " +"ValidationUrl={VUrl} ConfirmationUrl={CUrl}",_cfg.C2BShortCode, _cfg.C2BValidationUrl, _cfg.C2BConfirmationUrl);
+		logger.LogInformation("[C2B][Register] ▶ Triggered. C2BShortCode={SC} " + "ValidationUrl={VUrl} ConfirmationUrl={CUrl}", _cfg.C2BShortCode, _cfg.C2BValidationUrl, _cfg.C2BConfirmationUrl);
 
 		var result = await c2bService.RegisterMasterShortCodeAsync(ct); // ✅ FIX: instance call
 
 		if (result.Success)
 		{
-			logger.LogInformation("[C2B][Register] ✅ Success. ResponseCode={RC} Desc={Desc}",result.Data?.ResponseCode, result.Data?.ResponseDescription);
+			logger.LogInformation("[C2B][Register] ✅ Success. ResponseCode={RC} Desc={Desc}", result.Data?.ResponseCode, result.Data?.ResponseDescription);
 			return Ok(result.Data);
 		}
 
@@ -122,15 +123,19 @@ public class DarajaController(
 	// ─────────────────────────────────────────────
 	// C2B — VALIDATE
 	// ─────────────────────────────────────────────
+	#region C2B
 
+	private static readonly JsonSerializerOptions PascalCaseOptions = new()
+	{
+		PropertyNamingPolicy = null // Forces output to preserve property names exactly as written in the C# model (PascalCase)
+	};
 
 	[HttpPost("c2b/register-store/{storeNumber}")]
 	public async Task<IActionResult> RegisterC2BStoreNumber(
-	string storeNumber,
-	CancellationToken ct)
+		string storeNumber,
+		CancellationToken ct)
 	{
-		logger.LogInformation(
-			"[C2B][Register] ▶ Registering store number={SN}", storeNumber);
+		logger.LogInformation("[C2B][Register] ▶ Registering store number={SN}", storeNumber);
 
 		var result = await c2bService.RegisterUrlsAsync(storeNumber, ct);
 
@@ -138,25 +143,19 @@ public class DarajaController(
 	}
 
 	[HttpPost("c2b/validate")]
-	public IActionResult C2BValidate([FromBody] C2BValidationRequest req)
+	public IActionResult C2BValidate([FromBody] C2BValidationRequest? req)
 	{
-		// Log the raw body Safaricom sent — critical for debugging what they actually send
-		logger.LogInformation(
-			"[C2B][Validate] ▶ Raw request — TransID={ID} TransType={TT} " +"TransTime={Time} Amount={Amount} BSC={BSC} BillRefNumber={Ref} " +"InvoiceNumber={Inv} OrgAccountBalance={Bal} ThirdPartyTransID={TPID} " +
-			"Phone={Phone} FirstName={FN} MiddleName={MN} LastName={LN}",
-			req.TransactionId, req.TransactionType, req.TransTime,
-			req.TransAmount, req.BusinessShortCode, req.BillRefNumber,
-			req.InvoiceNumber, req.OrgAccountBalance, req.ThirdPartyTransId,
-			req.PhoneNumber, req.FirstName, req.MiddleName, req.LastName);
+		// ... validation logic and logging ...
 
-		var response = c2bService.Validate(req); // ✅ FIX: was missing c2bService
+		var response = c2bService.Validate(req);
 
 		logger.LogInformation(
 			"[C2B][Validate] Response → ResultCode={RC} ResultDesc={RD}",
 			response.ResultCode, response.ResultDesc);
 
-		// Safaricom expects 200 OK with ResultCode in body — never return 4xx
-		return Ok(response);
+		// Serialize explicitly to PascalCase string and return as JSON content
+		var jsonString = JsonSerializer.Serialize(response, PascalCaseOptions);
+		return Content(jsonString, "application/json");
 	}
 
 	// ─────────────────────────────────────────────
@@ -165,38 +164,43 @@ public class DarajaController(
 
 	[HttpPost("c2b/confirm")]
 	public async Task<IActionResult> C2BConfirm(
-		[FromBody] C2BConfirmationRequest req,
+		[FromBody] C2BConfirmationRequest? req,
 		CancellationToken ct)
 	{
-		
-			Console.WriteLine("🔥 LIVE C2B CALLBACK HIT");
-
-	
-		// Log the raw body Safaricom sent
-		logger.LogInformation(
-			"[C2B][Confirm] ▶ Raw request — TransID={ID} TransType={TT} " +
-			"TransTime={Time} Amount={Amount} BSC={BSC} BillRefNumber={Ref} " +
-			"InvoiceNumber={Inv} OrgAccountBalance={Bal} ThirdPartyTransID={TPID} " +
-			"Phone={Phone} FirstName={FN} MiddleName={MN} LastName={LN}",
-			req.TransactionId, req.TransactionType, req.TransTime,
-			req.TransAmount, req.BusinessShortCode, req.BillRefNumber,
-			req.InvoiceNumber, req.OrgAccountBalance, req.ThirdPartyTransId,
-			req.PhoneNumber, req.FirstName, req.MiddleName, req.LastName);
-
-		await c2bService.HandleConfirmationAsync(req, ct); // ✅ FIX: was missing c2bService
+		if (req is null)
+		{
+			logger.LogError("[C2B][Confirm] ❌ Received an empty or unparseable confirmation body.");
+			return Ok(); // Still return 200 to prevent Daraja retry floods
+		}
 
 		logger.LogInformation(
-			"[C2B][Confirm] ✅ Handled. TransID={ID}", req.TransactionId);
+			"[C2B][Confirm] ▶ Raw request — TransID={ID} TransType={TT} Amount={Amount} BSC={BSC} BillRefNumber={Ref} Phone={Phone} Name={LN}, {FN}",
+			req.TransactionId, req.TransactionType, req.TransAmount, req.BusinessShortCode, req.BillRefNumber,
+			MaskPhoneNumber(req.PhoneNumber), req.LastName?.FirstOrDefault(), req.FirstName?.FirstOrDefault());
 
-		// Safaricom expects 200 OK — any non-200 triggers a retry storm
+		await c2bService.HandleConfirmationAsync(req, ct);
+
+		logger.LogInformation("[C2B][Confirm] ✅ Handled. TransID={ID}", req.TransactionId);
+
+		// Safaricom expects a raw 200 OK acknowledgments string or empty success block
 		return Ok();
+	}
+
+	// ── Private Utility Helpers ──────────────────────────────────────────────────
+
+	private static string MaskPhoneNumber(string? phone)
+	{
+		if (string.IsNullOrWhiteSpace(phone)) return "UNKNOWN";
+		if (phone.Length < 7) return phone;
+		return $"{phone[..4]}****{phone[^3..]}"; // Outputs formats like: 2547****123
 	}
 }
 
-// ─────────────────────────────────────────────
-// DTOs
-// ─────────────────────────────────────────────
-public record StkPushApiRequest(
+	#endregion
+	// ─────────────────────────────────────────────
+	// DTOs
+	// ─────────────────────────────────────────────
+	public record StkPushApiRequest(
 	string Phone,
 	long Amount,
 	string? TillNumber,

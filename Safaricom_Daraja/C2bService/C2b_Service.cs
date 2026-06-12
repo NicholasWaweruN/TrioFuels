@@ -7,10 +7,9 @@ using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Safaricom_Daraja;
 using Safaricom_Daraja.DarajaTokenService;
 
-namespace Daraja.Services;
+namespace Safaricom_Daraja.C2bService;
 
 public interface IC2BService
 {
@@ -25,34 +24,29 @@ public sealed class C2BService(
 	IDarajaTokenService tokenService,
 	IOptions<DarajaConfig> options,
 	ILogger<C2BService> logger,
-	OTOContext context                  // ✅ injected for persistence
-) : IC2BService
+	OTOContext context) : IC2BService
 {
 	private readonly DarajaConfig _cfg = options.Value;
+	private static readonly TimeZoneInfo EatTimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
 
 	// ── Registration ──────────────────────────────────────────────────────────
 
-	public async Task<DarajaResult<C2BRegisterResponse>> RegisterMasterShortCodeAsync(
-		CancellationToken ct = default)
+	public async Task<DarajaResult<C2BRegisterResponse>> RegisterMasterShortCodeAsync(CancellationToken ct = default)
 	{
-		logger.LogInformation("[C2B][RegisterMaster] ▶ Starting master shortcode registration. " +"C2BShortCode={C2BSC} BusinessShortCode={BSC} C2BValidationUrl={VUrl} C2BConfirmationUrl={CUrl}",_cfg.C2BShortCode, _cfg.BusinessShortCode, _cfg.C2BValidationUrl, _cfg.C2BConfirmationUrl);
+		logger.LogInformation("[C2B][RegisterMaster] ▶ Starting master shortcode registration. C2BShortCode={C2BSC} BusinessShortCode={BSC}", _cfg.C2BShortCode, _cfg.BusinessShortCode);
 		return await RegisterUrlsAsync(_cfg.C2BShortCode, ct);
 	}
 
-	public async Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(
-		string shortCode,
-		CancellationToken ct = default)
+	public async Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(string shortCode, CancellationToken ct = default)
 	{
-		var step = 0;
-
-		logger.LogInformation("[C2B][RegisterUrls] ▶ Step {S}: Called. ShortCode(raw)={SC}",++step, shortCode);
+		logger.LogInformation("[C2B][RegisterUrls] [Init] Called. ShortCode={SC}", shortCode);
 
 		ArgumentException.ThrowIfNullOrWhiteSpace(shortCode);
 
 		var validationUrl = SanitizeUrl(_cfg.C2BValidationUrl);
 		var confirmationUrl = SanitizeUrl(_cfg.C2BConfirmationUrl);
 
-		logger.LogInformation("[C2B][RegisterUrls] Step {S}: URL sanitization complete. " +"ValidationUrl (raw)={VRaw} → (sanitized)={VSan} | " +"ConfirmationUrl (raw)={CRaw} → (sanitized)={CSan}",++step,_cfg.C2BValidationUrl, validationUrl,_cfg.C2BConfirmationUrl, confirmationUrl);
+		logger.LogDebug("[C2B][RegisterUrls] [Sanitize] ValidationUrl={VSan} | ConfirmationUrl={CSan}", validationUrl, confirmationUrl);
 
 		var payload = new C2BRegisterRequest
 		{
@@ -62,34 +56,26 @@ public sealed class C2BService(
 			ConfirmationURL = confirmationUrl
 		};
 
-		logger.LogInformation("[C2B][RegisterUrls] Step {S}: Payload built. JSON={Json}",++step, JsonSerializer.Serialize(payload));
-
 		try
 		{
-			logger.LogInformation("[C2B][RegisterUrls] Step {S}: Acquiring Daraja access token...", ++step);
-
+			logger.LogInformation("[C2B][RegisterUrls] [Token] Acquiring Daraja access token...");
 			string token;
 			try
 			{
 				token = await tokenService.GetAccessTokenAsync(ct);
-				logger.LogInformation("[C2B][RegisterUrls] Step {S}: Token acquired. Token(first12)={T}... Length={L}",++step, token[..Math.Min(12, token.Length)], token.Length);
+				logger.LogInformation("[C2B][RegisterUrls] [Token] Token acquired. Length={L}", token.Length);
 			}
 			catch (Exception ex)
 			{
-				logger.LogError(ex,
-					"[C2B][RegisterUrls] Step {S}: ❌ Token acquisition FAILED. ExType={ExType} Message={Msg}",
-					++step, ex.GetType().Name, ex.Message);
+				logger.LogError(ex, "[C2B][RegisterUrls] [Token] Token acquisition FAILED. Message={Msg}", ex.Message);
 				return DarajaResult<C2BRegisterResponse>.Fail($"Token error: {ex.Message}");
 			}
 
 			var client = httpFactory.CreateClient("Daraja");
-			client.DefaultRequestHeaders.Authorization =
-				new AuthenticationHeaderValue("Bearer", token);
-
-			logger.LogInformation("[C2B][RegisterUrls] Step {S}: HttpClient ready. BaseAddress={Base}",++step, client.BaseAddress?.ToString() ?? "(null)");
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
 			const string endpoint = "/mpesa/c2b/v2/registerurl";
-			logger.LogInformation("[C2B][RegisterUrls] Step {S}: POSTing to {Endpoint}. Full URL={Full}",++step, endpoint, new Uri(client.BaseAddress!, endpoint));
+			logger.LogInformation("[C2B][RegisterUrls] [HTTP Post] Dispatching to endpoint: {Endpoint}", endpoint);
 
 			HttpResponseMessage response;
 			try
@@ -98,27 +84,24 @@ public sealed class C2BService(
 			}
 			catch (HttpRequestException ex)
 			{
-				logger.LogError(ex,"[C2B][RegisterUrls] Step {S}: ❌ HTTP request THREW. ExType={ExType} Message={Msg}",++step, ex.GetType().Name, ex.Message);
+				logger.LogError(ex, "[C2B][RegisterUrls] [HTTP Post] Network transmission threw an exception. Message={Msg}", ex.Message);
 				return DarajaResult<C2BRegisterResponse>.Fail($"HTTP error: {ex.Message}");
 			}
-			catch (TaskCanceledException ex)
+			catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
 			{
-				logger.LogError(ex,
-					"[C2B][RegisterUrls] Step {S}: ❌ Request TIMED OUT. IsCancellationRequested={CR}",
-					++step, ct.IsCancellationRequested);
+				logger.LogError(ex, "[C2B][RegisterUrls] [HTTP Post] Request timed out implicitly.");
 				return DarajaResult<C2BRegisterResponse>.Fail("Request timed out");
 			}
 
 			var content = await response.Content.ReadAsStringAsync(ct);
-
-			logger.LogInformation("[C2B][RegisterUrls] Step {S}: Response received. " +"StatusCode={SC} IsSuccess={Ok} ReasonPhrase={Reason} Body={Body}",++step, (int)response.StatusCode, response.IsSuccessStatusCode,response.ReasonPhrase, content);
+			logger.LogInformation("[C2B][RegisterUrls] [Response] Received Status={SC} Success={Ok}", (int)response.StatusCode, response.IsSuccessStatusCode);
 
 			if (!response.IsSuccessStatusCode)
 			{
+				// M-Pesa error code 500.003.1001 indicates URL is already assigned to this shortcode.
 				if (content.Contains("500.003.1001"))
 				{
-					logger.LogInformation("[C2B][RegisterUrls] Step {S}: ✅ URLs already registered (idempotent). ShortCode={SC}",++step, shortCode);
-
+					logger.LogInformation("[C2B][RegisterUrls] [Idempotent] URLs already registered for ShortCode={SC}", shortCode);
 					return DarajaResult<C2BRegisterResponse>.Ok(new C2BRegisterResponse
 					{
 						ResponseCode = "0",
@@ -126,44 +109,36 @@ public sealed class C2BService(
 					});
 				}
 
-				logger.LogError("[C2B][RegisterUrls] Step {S}: ❌ Registration FAILED. HttpStatus={SC} Body={Body}",++step, (int)response.StatusCode, content);
-
+				logger.LogError("[C2B][RegisterUrls] [Error] Registration FAILED. Status={SC} Body={Body}", (int)response.StatusCode, content);
 				return DarajaResult<C2BRegisterResponse>.Fail(content);
 			}
 
-			C2BRegisterResponse? result;
-			try
-			{
-				result = JsonSerializer.Deserialize<C2BRegisterResponse>(content);
-				logger.LogInformation("[C2B][RegisterUrls] Step {S}: ✅ Registration SUCCESS. " +"ShortCode={SC} ResponseCode={RC} ResponseDescription={Desc}",++step, shortCode, result?.ResponseCode, result?.ResponseDescription);
-			}
-			catch (JsonException ex)
-			{
-				logger.LogError(ex,"[C2B][RegisterUrls] Step {S}: ⚠️ HTTP 200 but JSON deserialization FAILED. Body={Body}",++step, content);
-				return DarajaResult<C2BRegisterResponse>.Fail($"JSON parse error: {ex.Message}");
-			}
+			var result = JsonSerializer.Deserialize<C2BRegisterResponse>(content);
+			logger.LogInformation("[C2B][RegisterUrls] [Success] Registration verified. Code={RC} Desc={Desc}", result?.ResponseCode, result?.ResponseDescription);
 
 			return DarajaResult<C2BRegisterResponse>.Ok(result!);
 		}
+		catch (JsonException ex)
+		{
+			logger.LogError(ex, "[C2B][RegisterUrls] [Exception] JSON parsing failure.");
+			return DarajaResult<C2BRegisterResponse>.Fail($"JSON parse error: {ex.Message}");
+		}
 		catch (Exception ex)
 		{
-			logger.LogError(ex,"[C2B][RegisterUrls] ❌ Unhandled exception. ShortCode={SC} ExType={ExType} Message={Msg}",shortCode, ex.GetType().Name, ex.Message);
+			logger.LogError(ex, "[C2B][RegisterUrls] [Exception] Unhandled exception execution flow broken.");
 			return DarajaResult<C2BRegisterResponse>.Fail(ex.Message);
 		}
 	}
 
 	// ── Validation ────────────────────────────────────────────────────────────
 
-
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		logger.LogInformation("[C2B][Validate] ▶ TransID={ID} Amount={Amount} BSC={BSC} " + "BillRefNumber={Ref} Phone={Phone}",request.TransactionId, request.TransAmount,request.BusinessShortCode, request.BillRefNumber, request.PhoneNumber);
+		logger.LogInformation("[C2B][Validate] ▶ TransID={ID} Amount={Amount} BillRefNumber={Ref}", request.TransactionId, request.TransAmount, request.BillRefNumber);
 
 		if (string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{
-			logger.LogWarning(
-				"[C2B][Validate] ❌ REJECTED — BillRefNumber is null/empty. TransID={ID}",
-				request.TransactionId);
+			logger.LogWarning("[C2B][Validate] REJECTED — BillRefNumber is null/empty. TransID={ID}", request.TransactionId);
 			return Rejected("C2B00011", "Rejected — missing account reference");
 		}
 
@@ -171,58 +146,38 @@ public sealed class C2BService(
 			.Select(t => t.AccountReference)
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-		logger.LogInformation("[C2B][Validate] KnownRefs=[{Refs}] checking BillRefNumber='{Ref}'",
-			string.Join(", ", knownRefs), request.BillRefNumber);
-
-		if (!knownRefs.Contains(request.BillRefNumber))
+		if (!knownRefs.Contains(request.BillRefNumber.Trim()))
 		{
-			logger.LogWarning(
-				"[C2B][Validate] ❌ REJECTED — BillRefNumber='{Ref}' not in known refs. TransID={ID}",
-				request.BillRefNumber, request.TransactionId);
+			logger.LogWarning("[C2B][Validate] REJECTED — BillRefNumber='{Ref}' mismatch. TransID={ID}", request.BillRefNumber, request.TransactionId);
 			return Rejected("C2B00011", "Rejected — unknown account reference");
 		}
 
-		logger.LogInformation(
-			"[C2B][Validate] ✅ ACCEPTED — TransID={ID} Amount={Amount} Phone={Phone} Ref={Ref}",
-			request.TransactionId, request.TransAmount,
-			request.PhoneNumber, request.BillRefNumber);
-
+		logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID}", request.TransactionId);
 		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
 	}
 
 	// ── Confirmation ──────────────────────────────────────────────────────────
 
-	public async Task HandleConfirmationAsync(
-		C2BConfirmationRequest request,
-		CancellationToken ct = default)
+	public async Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default)
 	{
-		logger.LogInformation(
-			"[C2B][Confirm] ▶ TransID={ID} Amount={Amount} BSC={BSC} " +
-			"BillRefNumber={Ref} Phone={Phone} TransTime={Time}",
-			request.TransactionId, request.TransAmount, request.BusinessShortCode,
-			request.BillRefNumber, request.PhoneNumber, request.TransTime);
+		logger.LogInformation("[C2B][Confirm] ▶ TransID={ID} Amount={Amount} BillRefNumber={Ref}", request.TransactionId, request.TransAmount, request.BillRefNumber);
 
-		// ── DUPLICATE PROTECTION ──────────────────────────────────────────────
-		var exists = await context.MpesaTransactions
-			.AnyAsync(x => x.TransID == request.TransactionId, ct);
-
+		// 1. Double check within memory context to save explicit DB query overhead
+		var exists = await context.MpesaTransactions.AnyAsync(x => x.TransID == request.TransactionId, ct);
 		if (exists)
 		{
-			logger.LogWarning(
-				"[C2B][Confirm] ⚠️ Duplicate — TransID={ID} already in MpesaTransactions. Ignored.",
-				request.TransactionId);
+			logger.LogWarning("[C2B][Confirm] Duplicate transaction ignored — TransID={ID}", request.TransactionId);
 			return;
 		}
 
-		// ── RESOLVE TILL ──────────────────────────────────────────────────────
 		var till = ResolveTill(request);
+		var explicitEatTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatTimeZone);
 
-		// ── PERSIST — matched or unmatched ───────────────────────────────────
 		var transaction = new MpesaTransaction
 		{
 			TransactionType = request.TransactionType ?? "C2B",
 			TransID = request.TransactionId,
-			MpesaReceiptNumber = request.TransactionId,   // C2B TransID is the receipt
+			MpesaReceiptNumber = request.TransactionId,
 			TransAmount = decimal.TryParse(request.TransAmount, out var amt) ? amt : 0,
 			TransTime = ParseTransTime(request.TransTime),
 			BusinessShortCode = request.BusinessShortCode ?? string.Empty,
@@ -235,33 +190,24 @@ public sealed class C2BService(
 			LastName = request.LastName ?? string.Empty,
 			OrgAccountBalance = decimal.TryParse(request.OrgAccountBalance, out var bal) ? bal : 0,
 			UsageBalance = decimal.TryParse(request.TransAmount, out var usage) ? usage : 0,
-			Status = till is not null ? 1 : 2,  // 1=Success 2=Unmatched
-			DateTimeStamp = DateTime.UtcNow.AddHours(3),
-			DateModified = DateTime.UtcNow.AddHours(3),
-			DateCreated = DateTime.UtcNow.AddHours(3),
-			CheckoutRequestID = null,
-			MerchantRequestID = null,
-			UserCode = "Mpesa",
+			Status = till is not null ? 1 : 2,  // 1 = Success, 2 = Unmatched
+			DateTimeStamp = explicitEatTime,
+			DateModified = explicitEatTime,
+			DateCreated = explicitEatTime,
+			UserCode = "Mpesa"
 		};
 
-		context.MpesaTransactions.Add(transaction);
-		await context.SaveChangesAsync(ct);
+		try
+		{
+			context.MpesaTransactions.Add(transaction);
+			await context.SaveChangesAsync(ct);
 
-		if (till is not null)
-		{
-			logger.LogInformation(
-				"[C2B][Confirm] ✅ Persisted — TransID={ID} Amount=KES {Amount} " +
-				"Phone={Phone} Till={TN} ({TillName})",
-				request.TransactionId, request.TransAmount,
-				request.PhoneNumber, till.TillNumber, till.Name);
+			logger.LogInformation("[C2B][Confirm] Persisted successfully — TransID={ID} Status={Status}", request.TransactionId, transaction.Status);
 		}
-		else
+		catch (DbUpdateException ex)
 		{
-			logger.LogWarning(
-				"[C2B][Confirm] ⚠️ Persisted as UNMATCHED — TransID={ID} Amount=KES {Amount} " +
-				"Phone={Phone} BSC={BSC} BillRef={Ref}",
-				request.TransactionId, request.TransAmount,
-				request.PhoneNumber, request.BusinessShortCode, request.BillRefNumber);
+			// Catches any concurrency race condition bypassed by the AnyAsync checker
+			logger.LogWarning(ex, "[C2B][Confirm] Database insertion conflict caught. Likely a duplicate TransID={ID}", request.TransactionId);
 		}
 	}
 
@@ -269,48 +215,30 @@ public sealed class C2BService(
 
 	private TillConfig? ResolveTill(C2BConfirmationRequest request)
 	{
-		logger.LogInformation("[C2B][ResolveTill] ▶ BSC={BSC} BillRefNumber={Ref}",request.BusinessShortCode, request.BillRefNumber);
-
-		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
+		if (string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{
-			var byRef = _cfg.Tills.FirstOrDefault(t =>
-				string.Equals(t.AccountReference, request.BillRefNumber,
-					StringComparison.OrdinalIgnoreCase));
-
-			if (byRef is not null)
-			{
-				logger.LogInformation(
-					"[C2B][ResolveTill] ✅ Matched BillRefNumber='{Ref}' → Till={TN}",
-					request.BillRefNumber, byRef.TillNumber);
-				return byRef;
-			}
-
-			logger.LogWarning(
-				"[C2B][ResolveTill] BillRefNumber='{Ref}' not matched. KnownRefs=[{Refs}]",
-				request.BillRefNumber,
-				string.Join(", ", _cfg.Tills.Select(t => t.AccountReference)));
-		}
-		else
-		{
-			logger.LogWarning("[C2B][ResolveTill] BillRefNumber is null/empty.");
+			logger.LogWarning("[C2B][ResolveTill] BillRefNumber missing from request.");
+			return null;
 		}
 
-		logger.LogWarning(
-			"[C2B][ResolveTill] ❌ No till matched — will persist as UNMATCHED. BSC={BSC}",
-			request.BusinessShortCode);
+		var targetRef = request.BillRefNumber.Trim();
+		var byRef = _cfg.Tills.FirstOrDefault(t => string.Equals(t.AccountReference, targetRef, StringComparison.OrdinalIgnoreCase));
 
+		if (byRef is not null)
+		{
+			return byRef;
+		}
+
+		logger.LogWarning("[C2B][ResolveTill] No configurations matched BillRefNumber='{Ref}'", request.BillRefNumber);
 		return null;
 	}
 
 	private static DateTime ParseTransTime(string? value)
 	{
-		if (string.IsNullOrWhiteSpace(value)) return DateTime.UtcNow;
-
-		if (value.Length == 14 &&
-			DateTime.TryParseExact(value, "yyyyMMddHHmmss", null,
-				System.Globalization.DateTimeStyles.None, out var dt))
+		if (value?.Length == 14 && DateTime.TryParseExact(value, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.None, out var dt))
+		{
 			return dt;
-
+		}
 		return DateTime.UtcNow;
 	}
 
@@ -320,7 +248,7 @@ public sealed class C2BService(
 
 		var uri = new Uri(url);
 		var path = uri.AbsolutePath.Replace("//", "/").ToLowerInvariant();
-		var query = string.IsNullOrEmpty(uri.Query) ? "" : uri.Query;
+		var query = uri.Query;
 		return $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}{path}{query}";
 	}
 

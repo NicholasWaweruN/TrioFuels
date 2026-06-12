@@ -1,10 +1,10 @@
 ﻿
 using BussinessLogic.Worker.PullTransactions;
-using Daraja.Services;
 using FuelFlow.Services.Daraja;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Safaricom_Daraja;
+using Safaricom_Daraja.C2bService;
 using Safaricom_Daraja.DarajaTokenService;
 using Safaricom_Daraja.Stk_Push;
 

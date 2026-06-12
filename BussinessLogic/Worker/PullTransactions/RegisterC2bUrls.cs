@@ -1,7 +1,7 @@
-﻿using Daraja.Services;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Safaricom_Daraja.C2bService;
 
 public sealed class C2BRegistrationStartupService : IHostedService
 {
