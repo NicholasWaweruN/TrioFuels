@@ -123,6 +123,20 @@ public class DarajaController(
 	// C2B — VALIDATE
 	// ─────────────────────────────────────────────
 
+
+	[HttpPost("c2b/register-store/{storeNumber}")]
+	public async Task<IActionResult> RegisterC2BStoreNumber(
+	string storeNumber,
+	CancellationToken ct)
+	{
+		logger.LogInformation(
+			"[C2B][Register] ▶ Registering store number={SN}", storeNumber);
+
+		var result = await c2bService.RegisterUrlsAsync(storeNumber, ct);
+
+		return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
+	}
+
 	[HttpPost("c2b/validate")]
 	public IActionResult C2BValidate([FromBody] C2BValidationRequest req)
 	{
