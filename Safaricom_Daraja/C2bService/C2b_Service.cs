@@ -1,14 +1,15 @@
-﻿using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text;
-using System.Text.Json;
-using DataAccessLayer.Context;
+﻿using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja;
 using Safaricom_Daraja.DarajaTokenService;
+using System.Globalization;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 
 namespace Daraja.Services;
 
@@ -156,161 +157,330 @@ public sealed class C2BService(
 
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		logger.LogInformation("[C2B][Validate] ▶ TransID={ID} Amount={Amount} BSC={BSC} " + "BillRefNumber={Ref} Phone={Phone}",request.TransactionId, request.TransAmount,request.BusinessShortCode, request.BillRefNumber, request.PhoneNumber);
-
-		if (string.IsNullOrWhiteSpace(request.BillRefNumber))
-		{
-			logger.LogWarning(
-				"[C2B][Validate] ❌ REJECTED — BillRefNumber is null/empty. TransID={ID}",
-				request.TransactionId);
-			return Rejected("C2B00011", "Rejected — missing account reference");
-		}
-
-		var knownRefs = _cfg.Tills
-			.Select(t => t.AccountReference)
-			.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-		logger.LogInformation("[C2B][Validate] KnownRefs=[{Refs}] checking BillRefNumber='{Ref}'",
-			string.Join(", ", knownRefs), request.BillRefNumber);
-
-		if (!knownRefs.Contains(request.BillRefNumber))
-		{
-			logger.LogWarning(
-				"[C2B][Validate] ❌ REJECTED — BillRefNumber='{Ref}' not in known refs. TransID={ID}",
-				request.BillRefNumber, request.TransactionId);
-			return Rejected("C2B00011", "Rejected — unknown account reference");
-		}
-
 		logger.LogInformation(
-			"[C2B][Validate] ✅ ACCEPTED — TransID={ID} Amount={Amount} Phone={Phone} Ref={Ref}",
-			request.TransactionId, request.TransAmount,
-			request.PhoneNumber, request.BillRefNumber);
+			"[C2B][Validate] Payload={Payload}",
+			JsonSerializer.Serialize(request));
 
-		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+		return new C2BValidationResponse
+		{
+			ResultCode = "0",
+			ResultDesc = "Accepted"
+		};
 	}
+	//public C2BValidationResponse Validate(C2BValidationRequest request)
+	//{
+	//	logger.LogInformation("[C2B][Validate] ▶ TransID={ID} Amount={Amount} BSC={BSC} " + "BillRefNumber={Ref} Phone={Phone}",request.TransactionId, request.TransAmount,request.BusinessShortCode, request.BillRefNumber, request.PhoneNumber);
+
+	//	if (string.IsNullOrWhiteSpace(request.BillRefNumber))
+	//	{
+	//		logger.LogWarning(
+	//			"[C2B][Validate] ❌ REJECTED — BillRefNumber is null/empty. TransID={ID}",
+	//			request.TransactionId);
+	//		return Rejected("C2B00011", "Rejected — missing account reference");
+	//	}
+
+	//	var knownRefs = _cfg.Tills
+	//		.Select(t => t.AccountReference)
+	//		.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+	//	logger.LogInformation("[C2B][Validate] KnownRefs=[{Refs}] checking BillRefNumber='{Ref}'",
+	//		string.Join(", ", knownRefs), request.BillRefNumber);
+
+	//	if (!knownRefs.Contains(request.BillRefNumber))
+	//	{
+	//		logger.LogWarning(
+	//			"[C2B][Validate] ❌ REJECTED — BillRefNumber='{Ref}' not in known refs. TransID={ID}",
+	//			request.BillRefNumber, request.TransactionId);
+	//		return Rejected("C2B00011", "Rejected — unknown account reference");
+	//	}
+
+	//	logger.LogInformation(
+	//		"[C2B][Validate] ✅ ACCEPTED — TransID={ID} Amount={Amount} Phone={Phone} Ref={Ref}",
+	//		request.TransactionId, request.TransAmount,
+	//		request.PhoneNumber, request.BillRefNumber);
+
+	//	return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+	//}
 
 	// ── Confirmation ──────────────────────────────────────────────────────────
 
 	public async Task HandleConfirmationAsync(
-		C2BConfirmationRequest request,
-		CancellationToken ct = default)
+	C2BConfirmationRequest request,
+	CancellationToken ct = default)
 	{
 		logger.LogInformation(
-			"[C2B][Confirm] ▶ TransID={ID} Amount={Amount} BSC={BSC} " +
-			"BillRefNumber={Ref} Phone={Phone} TransTime={Time}",
-			request.TransactionId, request.TransAmount, request.BusinessShortCode,
-			request.BillRefNumber, request.PhoneNumber, request.TransTime);
+			"[C2B][Confirm] RAW PAYLOAD={Payload}",
+			JsonSerializer.Serialize(request));
 
-		// ── DUPLICATE PROTECTION ──────────────────────────────────────────────
-		var exists = await context.MpesaTransactions
-			.AnyAsync(x => x.TransID == request.TransactionId, ct);
-
-		if (exists)
+		try
 		{
-			logger.LogWarning(
-				"[C2B][Confirm] ⚠️ Duplicate — TransID={ID} already in MpesaTransactions. Ignored.",
-				request.TransactionId);
-			return;
-		}
+			if (string.IsNullOrWhiteSpace(request.TransactionId))
+			{
+				logger.LogWarning(
+					"[C2B][Confirm] Missing TransactionId. Ignored.");
+				return;
+			}
 
-		// ── RESOLVE TILL ──────────────────────────────────────────────────────
-		var till = ResolveTill(request);
+			var exists = await context.MpesaTransactions
+				.AsNoTracking()
+				.AnyAsync(
+					x => x.TransID == request.TransactionId,
+					ct);
 
-		// ── PERSIST — matched or unmatched ───────────────────────────────────
-		var transaction = new MpesaTransaction
-		{
-			TransactionType = request.TransactionType ?? "C2B",
-			TransID = request.TransactionId,
-			MpesaReceiptNumber = request.TransactionId,   // C2B TransID is the receipt
-			TransAmount = decimal.TryParse(request.TransAmount, out var amt) ? amt : 0,
-			TransTime = ParseTransTime(request.TransTime),
-			BusinessShortCode = request.BusinessShortCode ?? string.Empty,
-			TillNumber = till?.TillNumber ?? "UNMATCHED",
-			TillName = till?.Name ?? "UNMATCHED",
-			PaymentMethod = "C2B",
-			MSISDN = request.PhoneNumber ?? string.Empty,
-			FirstName = request.FirstName ?? string.Empty,
-			MiddName = request.MiddleName ?? string.Empty,
-			LastName = request.LastName ?? string.Empty,
-			OrgAccountBalance = decimal.TryParse(request.OrgAccountBalance, out var bal) ? bal : 0,
-			UsageBalance = decimal.TryParse(request.TransAmount, out var usage) ? usage : 0,
-			Status = till is not null ? 1 : 2,  // 1=Success 2=Unmatched
-			DateTimeStamp = DateTime.UtcNow.AddHours(3),
-			DateModified = DateTime.UtcNow.AddHours(3),
-			DateCreated = DateTime.UtcNow.AddHours(3),
-			CheckoutRequestID = null,
-			MerchantRequestID = null,
-			UserCode = "Mpesa",
-		};
+			if (exists)
+			{
+				logger.LogWarning(
+					"[C2B][Confirm] Duplicate callback. TransID={ID}",
+					request.TransactionId);
+				return;
+			}
 
-		context.MpesaTransactions.Add(transaction);
-		await context.SaveChangesAsync(ct);
+			var till = ResolveTill(request);
 
-		if (till is not null)
-		{
+			var transaction = new MpesaTransaction
+			{
+				TransactionType =
+					request.TransactionType ?? "C2B",
+
+				TransID =
+					request.TransactionId,
+
+				MpesaReceiptNumber =
+					request.TransactionId,
+
+				TransAmount = decimal.TryParse(request.OrgAccountBalance, out var amt) ? amt : 0,
+
+				TransTime =
+					ParseTransTime(request.TransTime),
+
+				BusinessShortCode =
+					request.BusinessShortCode ?? string.Empty,
+
+				TillNumber =
+					till?.TillNumber ?? "UNMATCHED",
+
+				TillName =
+					till?.Name ?? "UNMATCHED",
+
+				PaymentMethod = "C2B",
+
+				MSISDN =
+					request.PhoneNumber ?? string.Empty,
+
+				FirstName =
+					request.FirstName ?? string.Empty,
+
+				MiddName =
+					request.MiddleName ?? string.Empty,
+
+				LastName =
+					request.LastName ?? string.Empty,
+
+				OrgAccountBalance = decimal.TryParse(request.OrgAccountBalance, out var bal) ? bal : 0,
+
+				UsageBalance = decimal.TryParse(request.OrgAccountBalance, out var usageBalance) ? usageBalance : 0,
+
+				Status =
+					till is not null ? 1 : 2,
+
+				CheckoutRequestID = null,
+				MerchantRequestID = null,
+
+				UserCode = "Mpesa",
+
+				DateCreated = DateTime.UtcNow,
+				DateModified = DateTime.UtcNow,
+				DateTimeStamp = DateTime.UtcNow
+			};
+
+			context.MpesaTransactions.Add(transaction);
+
+			await context.SaveChangesAsync(ct);
+
 			logger.LogInformation(
-				"[C2B][Confirm] ✅ Persisted — TransID={ID} Amount=KES {Amount} " +
-				"Phone={Phone} Till={TN} ({TillName})",
-				request.TransactionId, request.TransAmount,
-				request.PhoneNumber, till.TillNumber, till.Name);
+				"[C2B][Confirm] SAVED. " +
+				"TransID={ID} Amount={Amount} " +
+				"Phone={Phone} Till={Till}",
+				request.TransactionId,
+				transaction.TransAmount,
+				transaction.MSISDN,
+				transaction.TillNumber);
 		}
-		else
+		catch (Exception ex)
 		{
-			logger.LogWarning(
-				"[C2B][Confirm] ⚠️ Persisted as UNMATCHED — TransID={ID} Amount=KES {Amount} " +
-				"Phone={Phone} BSC={BSC} BillRef={Ref}",
-				request.TransactionId, request.TransAmount,
-				request.PhoneNumber, request.BusinessShortCode, request.BillRefNumber);
+			logger.LogError(
+				ex,
+				"[C2B][Confirm] FAILED. TransID={ID}",
+				request.TransactionId);
+
+			throw;
 		}
 	}
 
+	//public async Task HandleConfirmationAsync(
+	//	C2BConfirmationRequest request,
+	//	CancellationToken ct = default)
+	//{
+	//	logger.LogInformation(
+	//		"[C2B][Confirm] ▶ TransID={ID} Amount={Amount} BSC={BSC} " +
+	//		"BillRefNumber={Ref} Phone={Phone} TransTime={Time}",
+	//		request.TransactionId, request.TransAmount, request.BusinessShortCode,
+	//		request.BillRefNumber, request.PhoneNumber, request.TransTime);
+
+	//	// ── DUPLICATE PROTECTION ──────────────────────────────────────────────
+	//	var exists = await context.MpesaTransactions
+	//		.AnyAsync(x => x.TransID == request.TransactionId, ct);
+
+	//	if (exists)
+	//	{
+	//		logger.LogWarning(
+	//			"[C2B][Confirm] ⚠️ Duplicate — TransID={ID} already in MpesaTransactions. Ignored.",
+	//			request.TransactionId);
+	//		return;
+	//	}
+
+	//	// ── RESOLVE TILL ──────────────────────────────────────────────────────
+	//	var till = ResolveTill(request);
+
+	//	// ── PERSIST — matched or unmatched ───────────────────────────────────
+	//	var transaction = new MpesaTransaction
+	//	{
+	//		TransactionType = request.TransactionType ?? "C2B",
+	//		TransID = request.TransactionId,
+	//		MpesaReceiptNumber = request.TransactionId,   // C2B TransID is the receipt
+	//		TransAmount = decimal.TryParse(request.TransAmount, out var amt) ? amt : 0,
+	//		TransTime = ParseTransTime(request.TransTime),
+	//		BusinessShortCode = request.BusinessShortCode ?? string.Empty,
+	//		TillNumber = till?.TillNumber ?? "UNMATCHED",
+	//		TillName = till?.Name ?? "UNMATCHED",
+	//		PaymentMethod = "C2B",
+	//		MSISDN = request.PhoneNumber ?? string.Empty,
+	//		FirstName = request.FirstName ?? string.Empty,
+	//		MiddName = request.MiddleName ?? string.Empty,
+	//		LastName = request.LastName ?? string.Empty,
+	//		OrgAccountBalance = decimal.TryParse(request.OrgAccountBalance, out var bal) ? bal : 0,
+	//		UsageBalance = decimal.TryParse(request.TransAmount, out var usage) ? usage : 0,
+	//		Status = till is not null ? 1 : 2,  // 1=Success 2=Unmatched
+	//		DateTimeStamp = DateTime.UtcNow.AddHours(3),
+	//		DateModified = DateTime.UtcNow.AddHours(3),
+	//		DateCreated = DateTime.UtcNow.AddHours(3),
+	//		CheckoutRequestID = null,
+	//		MerchantRequestID = null,
+	//		UserCode = "Mpesa",
+	//	};
+
+	//	context.MpesaTransactions.Add(transaction);
+	//	await context.SaveChangesAsync(ct);
+
+	//	if (till is not null)
+	//	{
+	//		logger.LogInformation(
+	//			"[C2B][Confirm] ✅ Persisted — TransID={ID} Amount=KES {Amount} " +
+	//			"Phone={Phone} Till={TN} ({TillName})",
+	//			request.TransactionId, request.TransAmount,
+	//			request.PhoneNumber, till.TillNumber, till.Name);
+	//	}
+	//	else
+	//	{
+	//		logger.LogWarning(
+	//			"[C2B][Confirm] ⚠️ Persisted as UNMATCHED — TransID={ID} Amount=KES {Amount} " +
+	//			"Phone={Phone} BSC={BSC} BillRef={Ref}",
+	//			request.TransactionId, request.TransAmount,
+	//			request.PhoneNumber, request.BusinessShortCode, request.BillRefNumber);
+	//	}
+	//}
+
 	// ── Private helpers ───────────────────────────────────────────────────────
 
-	private TillConfig? ResolveTill(C2BConfirmationRequest request)
-	{
-		logger.LogInformation(
-			"[C2B][ResolveTill] ▶ BSC={BSC} BillRefNumber={Ref}",
-			request.BusinessShortCode, request.BillRefNumber);
 
+	private TillConfig? ResolveTill(
+	C2BConfirmationRequest request)
+	{
 		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{
-			var byRef = _cfg.Tills.FirstOrDefault(t =>
-				string.Equals(t.AccountReference, request.BillRefNumber,
-					StringComparison.OrdinalIgnoreCase));
+			var byReference =
+				_cfg.Tills.FirstOrDefault(x =>
+					string.Equals(
+						x.AccountReference,
+						request.BillRefNumber,
+						StringComparison.OrdinalIgnoreCase));
 
-			if (byRef is not null)
+			if (byReference is not null)
 			{
-				logger.LogInformation(
-					"[C2B][ResolveTill] ✅ Matched BillRefNumber='{Ref}' → Till={TN}",
-					request.BillRefNumber, byRef.TillNumber);
-				return byRef;
+				return byReference;
 			}
-
-			logger.LogWarning(
-				"[C2B][ResolveTill] BillRefNumber='{Ref}' not matched. KnownRefs=[{Refs}]",
-				request.BillRefNumber,
-				string.Join(", ", _cfg.Tills.Select(t => t.AccountReference)));
 		}
-		else
+
+		if (!string.IsNullOrWhiteSpace(request.BusinessShortCode))
 		{
-			logger.LogWarning("[C2B][ResolveTill] BillRefNumber is null/empty.");
-		}
+			var byTill =
+				_cfg.Tills.FirstOrDefault(x =>
+					string.Equals(
+						x.TillNumber,
+						request.BusinessShortCode,
+						StringComparison.OrdinalIgnoreCase));
 
-		logger.LogWarning(
-			"[C2B][ResolveTill] ❌ No till matched — will persist as UNMATCHED. BSC={BSC}",
-			request.BusinessShortCode);
+			if (byTill is not null)
+			{
+				return byTill;
+			}
+		}
 
 		return null;
 	}
 
-	private static DateTime ParseTransTime(string? value)
-	{
-		if (string.IsNullOrWhiteSpace(value)) return DateTime.UtcNow;
+	//private TillConfig? ResolveTill(C2BConfirmationRequest request)
+	//{
+	//	logger.LogInformation(
+	//		"[C2B][ResolveTill] ▶ BSC={BSC} BillRefNumber={Ref}",
+	//		request.BusinessShortCode, request.BillRefNumber);
 
-		if (value.Length == 14 &&
-			DateTime.TryParseExact(value, "yyyyMMddHHmmss", null,
-				System.Globalization.DateTimeStyles.None, out var dt))
-			return dt;
+	//	if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
+	//	{
+	//		var byRef = _cfg.Tills.FirstOrDefault(t =>
+	//			string.Equals(t.AccountReference, request.BillRefNumber,
+	//				StringComparison.OrdinalIgnoreCase));
+
+	//		if (byRef is not null)
+	//		{
+	//			logger.LogInformation(
+	//				"[C2B][ResolveTill] ✅ Matched BillRefNumber='{Ref}' → Till={TN}",
+	//				request.BillRefNumber, byRef.TillNumber);
+	//			return byRef;
+	//		}
+
+	//		logger.LogWarning(
+	//			"[C2B][ResolveTill] BillRefNumber='{Ref}' not matched. KnownRefs=[{Refs}]",
+	//			request.BillRefNumber,
+	//			string.Join(", ", _cfg.Tills.Select(t => t.AccountReference)));
+	//	}
+	//	else
+	//	{
+	//		logger.LogWarning("[C2B][ResolveTill] BillRefNumber is null/empty.");
+	//	}
+
+	//	logger.LogWarning(
+	//		"[C2B][ResolveTill] ❌ No till matched — will persist as UNMATCHED. BSC={BSC}",
+	//		request.BusinessShortCode);
+
+	//	return null;
+	//}
+
+	private static DateTime ParseTransTime(
+		string? value)
+	{
+		if (string.IsNullOrWhiteSpace(value))
+			return DateTime.UtcNow;
+
+		if (DateTime.TryParseExact(
+				value,
+				"yyyyMMddHHmmss",
+				CultureInfo.InvariantCulture,
+				DateTimeStyles.None,
+				out var parsed))
+		{
+			return parsed;
+		}
 
 		return DateTime.UtcNow;
 	}
