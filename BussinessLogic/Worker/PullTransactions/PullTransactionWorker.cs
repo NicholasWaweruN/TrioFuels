@@ -10,9 +10,7 @@ namespace BussinessLogic.Worker.PullTransactions;
 /// Background worker that pulls M-Pesa transactions from Safaricom
 /// every hour and upserts them into the MpesaTransactions table.
 /// </summary>
-public sealed class PullTransactionWorker(
-	IServiceScopeFactory scopeFactory,
-	ILogger<PullTransactionWorker> logger) : BackgroundService
+public sealed class PullTransactionWorker(IServiceScopeFactory scopeFactory,ILogger<PullTransactionWorker> logger) : BackgroundService
 {
 	private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
 
@@ -54,9 +52,7 @@ public sealed class PullTransactionWorker(
 			var totalSkipped = results.Values.Sum(r => r.Skipped);
 			var failed = results.Values.Where(r => !r.Success).ToList();
 
-			logger.LogInformation(
-				"Pull cycle complete. Inserted={Inserted} Updated={Updated} Skipped={Skipped}",
-				totalInserted, totalUpdated, totalSkipped);
+			logger.LogInformation("Pull cycle complete. Inserted={Inserted} Updated={Updated} Skipped={Skipped}",totalInserted, totalUpdated, totalSkipped);
 
 			if (failed.Count > 0)
 			{
