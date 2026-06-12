@@ -52,8 +52,7 @@ public sealed class C2BService(
 		var validationUrl = SanitizeUrl(_cfg.C2BValidationUrl);
 		var confirmationUrl = SanitizeUrl(_cfg.C2BConfirmationUrl);
 
-		logger.LogInformation("[C2B][RegisterUrls] Step {S}: URL sanitization complete. " +"ValidationUrl (raw)={VRaw} → (sanitized)={VSan} | " +"ConfirmationUrl (raw)={CRaw} → (sanitized)={CSan}",
-			++step,_cfg.C2BValidationUrl, validationUrl,_cfg.C2BConfirmationUrl, confirmationUrl);
+		logger.LogInformation("[C2B][RegisterUrls] Step {S}: URL sanitization complete. " +"ValidationUrl (raw)={VRaw} → (sanitized)={VSan} | " +"ConfirmationUrl (raw)={CRaw} → (sanitized)={CSan}",++step,_cfg.C2BValidationUrl, validationUrl,_cfg.C2BConfirmationUrl, confirmationUrl);
 
 		var payload = new C2BRegisterRequest
 		{
@@ -63,8 +62,7 @@ public sealed class C2BService(
 			ConfirmationURL = confirmationUrl
 		};
 
-		logger.LogInformation(
-			"[C2B][RegisterUrls] Step {S}: Payload built. JSON={Json}",++step, JsonSerializer.Serialize(payload));
+		logger.LogInformation("[C2B][RegisterUrls] Step {S}: Payload built. JSON={Json}",++step, JsonSerializer.Serialize(payload));
 
 		try
 		{
@@ -88,14 +86,10 @@ public sealed class C2BService(
 			client.DefaultRequestHeaders.Authorization =
 				new AuthenticationHeaderValue("Bearer", token);
 
-			logger.LogInformation(
-				"[C2B][RegisterUrls] Step {S}: HttpClient ready. BaseAddress={Base}",
-				++step, client.BaseAddress?.ToString() ?? "(null)");
+			logger.LogInformation("[C2B][RegisterUrls] Step {S}: HttpClient ready. BaseAddress={Base}",++step, client.BaseAddress?.ToString() ?? "(null)");
 
 			const string endpoint = "/mpesa/c2b/v2/registerurl";
-			logger.LogInformation(
-				"[C2B][RegisterUrls] Step {S}: POSTing to {Endpoint}. Full URL={Full}",
-				++step, endpoint, new Uri(client.BaseAddress!, endpoint));
+			logger.LogInformation("[C2B][RegisterUrls] Step {S}: POSTing to {Endpoint}. Full URL={Full}",++step, endpoint, new Uri(client.BaseAddress!, endpoint));
 
 			HttpResponseMessage response;
 			try
@@ -104,9 +98,7 @@ public sealed class C2BService(
 			}
 			catch (HttpRequestException ex)
 			{
-				logger.LogError(ex,
-					"[C2B][RegisterUrls] Step {S}: ❌ HTTP request THREW. ExType={ExType} Message={Msg}",
-					++step, ex.GetType().Name, ex.Message);
+				logger.LogError(ex,"[C2B][RegisterUrls] Step {S}: ❌ HTTP request THREW. ExType={ExType} Message={Msg}",++step, ex.GetType().Name, ex.Message);
 				return DarajaResult<C2BRegisterResponse>.Fail($"HTTP error: {ex.Message}");
 			}
 			catch (TaskCanceledException ex)
@@ -119,19 +111,13 @@ public sealed class C2BService(
 
 			var content = await response.Content.ReadAsStringAsync(ct);
 
-			logger.LogInformation(
-				"[C2B][RegisterUrls] Step {S}: Response received. " +
-				"StatusCode={SC} IsSuccess={Ok} ReasonPhrase={Reason} Body={Body}",
-				++step, (int)response.StatusCode, response.IsSuccessStatusCode,
-				response.ReasonPhrase, content);
+			logger.LogInformation("[C2B][RegisterUrls] Step {S}: Response received. " +"StatusCode={SC} IsSuccess={Ok} ReasonPhrase={Reason} Body={Body}",++step, (int)response.StatusCode, response.IsSuccessStatusCode,response.ReasonPhrase, content);
 
 			if (!response.IsSuccessStatusCode)
 			{
 				if (content.Contains("500.003.1001"))
 				{
-					logger.LogInformation(
-						"[C2B][RegisterUrls] Step {S}: ✅ URLs already registered (idempotent). ShortCode={SC}",
-						++step, shortCode);
+					logger.LogInformation("[C2B][RegisterUrls] Step {S}: ✅ URLs already registered (idempotent). ShortCode={SC}",++step, shortCode);
 
 					return DarajaResult<C2BRegisterResponse>.Ok(new C2BRegisterResponse
 					{
@@ -140,9 +126,7 @@ public sealed class C2BService(
 					});
 				}
 
-				logger.LogError(
-					"[C2B][RegisterUrls] Step {S}: ❌ Registration FAILED. HttpStatus={SC} Body={Body}",
-					++step, (int)response.StatusCode, content);
+				logger.LogError("[C2B][RegisterUrls] Step {S}: ❌ Registration FAILED. HttpStatus={SC} Body={Body}",++step, (int)response.StatusCode, content);
 
 				return DarajaResult<C2BRegisterResponse>.Fail(content);
 			}
@@ -151,16 +135,11 @@ public sealed class C2BService(
 			try
 			{
 				result = JsonSerializer.Deserialize<C2BRegisterResponse>(content);
-				logger.LogInformation(
-					"[C2B][RegisterUrls] Step {S}: ✅ Registration SUCCESS. " +
-					"ShortCode={SC} ResponseCode={RC} ResponseDescription={Desc}",
-					++step, shortCode, result?.ResponseCode, result?.ResponseDescription);
+				logger.LogInformation("[C2B][RegisterUrls] Step {S}: ✅ Registration SUCCESS. " +"ShortCode={SC} ResponseCode={RC} ResponseDescription={Desc}",++step, shortCode, result?.ResponseCode, result?.ResponseDescription);
 			}
 			catch (JsonException ex)
 			{
-				logger.LogError(ex,
-					"[C2B][RegisterUrls] Step {S}: ⚠️ HTTP 200 but JSON deserialization FAILED. Body={Body}",
-					++step, content);
+				logger.LogError(ex,"[C2B][RegisterUrls] Step {S}: ⚠️ HTTP 200 but JSON deserialization FAILED. Body={Body}",++step, content);
 				return DarajaResult<C2BRegisterResponse>.Fail($"JSON parse error: {ex.Message}");
 			}
 
@@ -168,9 +147,7 @@ public sealed class C2BService(
 		}
 		catch (Exception ex)
 		{
-			logger.LogError(ex,
-				"[C2B][RegisterUrls] ❌ Unhandled exception. ShortCode={SC} ExType={ExType} Message={Msg}",
-				shortCode, ex.GetType().Name, ex.Message);
+			logger.LogError(ex,"[C2B][RegisterUrls] ❌ Unhandled exception. ShortCode={SC} ExType={ExType} Message={Msg}",shortCode, ex.GetType().Name, ex.Message);
 			return DarajaResult<C2BRegisterResponse>.Fail(ex.Message);
 		}
 	}
@@ -179,11 +156,7 @@ public sealed class C2BService(
 
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		logger.LogInformation(
-			"[C2B][Validate] ▶ TransID={ID} Amount={Amount} BSC={BSC} " +
-			"BillRefNumber={Ref} Phone={Phone}",
-			request.TransactionId, request.TransAmount,
-			request.BusinessShortCode, request.BillRefNumber, request.PhoneNumber);
+		logger.LogInformation("[C2B][Validate] ▶ TransID={ID} Amount={Amount} BSC={BSC} " + "BillRefNumber={Ref} Phone={Phone}",request.TransactionId, request.TransAmount,request.BusinessShortCode, request.BillRefNumber, request.PhoneNumber);
 
 		if (string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{

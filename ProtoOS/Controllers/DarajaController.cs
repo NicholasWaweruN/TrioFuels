@@ -154,6 +154,10 @@ public class DarajaController(
 		[FromBody] C2BConfirmationRequest req,
 		CancellationToken ct)
 	{
+		
+			Console.WriteLine("🔥 LIVE C2B CALLBACK HIT");
+
+	
 		// Log the raw body Safaricom sent
 		logger.LogInformation(
 			"[C2B][Confirm] ▶ Raw request — TransID={ID} TransType={TT} " +
