@@ -30,6 +30,19 @@ public static class ScalarExtensions
 				return Task.CompletedTask;
 			});
 
+			options.AddDocumentTransformer((document, context, ct) =>
+			{
+				document.Servers =
+				[
+					new OpenApiServer
+					{
+						Url = "https://triofuels-production.up.railway.app"
+					}
+				];
+
+				return Task.CompletedTask;
+			});
+
 			// Sort endpoints alphabetically
 			options.AddDocumentTransformer((document, context, ct) =>
 			{

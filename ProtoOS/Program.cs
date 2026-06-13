@@ -9,15 +9,15 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Logging ────────────────────────────────────────────────────────────────
 builder.Services.AddApplicationLogging(builder);
 
-//builder.Services.Configure<ForwardedHeadersOptions>(options =>
-//{
-//	options.ForwardedHeaders =
-//		ForwardedHeaders.XForwardedFor |
-//		ForwardedHeaders.XForwardedProto;
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+options.ForwardedHeaders =
+ForwardedHeaders.XForwardedFor |
+ForwardedHeaders.XForwardedProto;
 
-//	options.KnownNetworks.Clear();
-//	options.KnownProxies.Clear();
-//});
+options.KnownNetworks.Clear();
+options.KnownProxies.Clear();
+});
 // ── Core framework ─────────────────────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
