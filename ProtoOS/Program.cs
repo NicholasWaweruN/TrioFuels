@@ -34,7 +34,7 @@ builder.Services.AddIdentityServices();
 builder.Services.AddJwtAuthentication(builder.Configuration, builder.Environment);
 
 // ── API documentation ───────────────────────────────────────────────────────
-builder.Services.AddScalarConfiguration();
+builder.Services.AddScalarConfiguration(builder.Environment);
 builder.Services.AddHttpClient();
 //___ Daraja_________________________________________________________________
 builder.Services.AddDaraja(builder.Configuration);

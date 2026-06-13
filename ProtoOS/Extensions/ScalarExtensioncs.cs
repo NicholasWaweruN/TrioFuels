@@ -6,7 +6,7 @@ namespace FuelFlow.Extensions;
 public static class ScalarExtensions
 {
 	public static IServiceCollection AddScalarConfiguration(
-		this IServiceCollection services)
+		this IServiceCollection services, IWebHostEnvironment environment)
 	{
 		services.AddOpenApi(options =>
 		{
@@ -30,19 +30,21 @@ public static class ScalarExtensions
 				return Task.CompletedTask;
 			});
 
-			
-			options.AddDocumentTransformer((document, context, ct) =>
+			if (environment.IsProduction())
 			{
-				document.Servers =
-				[
-					new OpenApiServer
-					{
-						Url = "https://triofuels-production.up.railway.app"
-					}
-				];
+					options.AddDocumentTransformer((document, context, ct) =>
+				{
+					document.Servers =
+					[
+						new OpenApiServer
+						{
+							Url = "https://triofuels-production.up.railway.app"
+						}
+					];
 
-				return Task.CompletedTask;
-			});
+					return Task.CompletedTask;
+				});
+			}
 
 			// Sort endpoints alphabetically
 			options.AddDocumentTransformer((document, context, ct) =>

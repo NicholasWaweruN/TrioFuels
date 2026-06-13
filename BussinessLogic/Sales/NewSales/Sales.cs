@@ -476,26 +476,10 @@ namespace BussinessLogic.Sales.NewSales
 				{
 					var usableBal = await GetTotalUsableMpesaAsync(
 						s.PaymentDetails.Select(p => p.TransactionReference),
-						ctx.Station.StoreNumber);
+						ctx.Station.TillNumber);
 
 					if (usableBal < ctx.Requested)
 						return Info("Insufficient funds, cannot complete the transaction");
-
-					// SMS for specific product codes only
-					if (ctx.Vehicle.ProductCode is "04" or "05")
-					{
-						var name = _setups.SentenceCase(
-							ctx.Customer.CustomerName?.Split(' ').FirstOrDefault()
-							?? "Customer");
-						var sms =
-							$"Dear {name}, your M-Pesa payment of {ctx.Requested:N2} " +
-							$"has been received for {s.Quantity:N2} litres for vehicle " +
-							$"{ctx.Vehicle.VehicleRegistration} at " +
-							$"{_setups.SentenceCase(ctx.Station.StationName)} " +
-							$"on {DateTime.UtcNow:yyyy-MMM-dd} at {DateTime.UtcNow:HH:mm}. " +
-							$"Thank you!";
-						StageQueuedSms(ctx.Customer.CustomerPhone, sms);
-					}
 
 					return null;
 				}
@@ -512,8 +496,7 @@ namespace BussinessLogic.Sales.NewSales
 				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
 				paymentStep: async (s, ctx, sid) =>
 				{
-					if (!s.IsLoyalCustomer
-						|| string.IsNullOrWhiteSpace(s.LoyaltyPhone))
+					if (!s.IsLoyalCustomer || string.IsNullOrWhiteSpace(s.LoyaltyPhone))
 						return Info("A valid loyalty account is required for this payment method.");
 
 					var customerCode = await _context.Customers
@@ -588,9 +571,7 @@ namespace BussinessLogic.Sales.NewSales
 		// One SaveChangesAsync per handler, just before CommitAsync.
 		// =====================================================================
 
-		private async Task PersistSaleAsync(
-			AddsaleDto sales, SaleContext ctx, string saleId,
-			string? mpesaStoreNumber = null)
+		private async Task PersistSaleAsync(AddsaleDto sales, SaleContext ctx, string saleId,string? mpesaStoreNumber = null)
 		{
 			_context.QuantityTransactions.Add(
 				BuildQuantityTransaction(sales, ctx, saleId));
@@ -622,7 +603,7 @@ namespace BussinessLogic.Sales.NewSales
 				});
 
 				if (!string.IsNullOrWhiteSpace(pay.TransactionReference))
-					_salesTasks.UpdateMpesaPaymentStatus(pay.TransactionReference);
+					await ReconcileAndUpdateUsageBalanceAsync(pay.TransactionReference); // ← replaces UpdateMpesaPaymentStatus
 
 				remaining -= alloc;
 			}
@@ -746,6 +727,34 @@ namespace BussinessLogic.Sales.NewSales
 			return ServiceResponse<object>.Success("Data is valid", null);
 		}
 
+		private async Task ReconcileAndUpdateUsageBalanceAsync(string transId)
+		{
+			var mpesaTx = await _context.MpesaTransactions
+				.FirstOrDefaultAsync(t => t.TransID == transId);
+
+			if (mpesaTx is null) return;
+
+			// ── Step 1: Get all SaleIds that used this M-Pesa code ──────────────
+			var saleIds = await _context.PaymentTransactions
+				.Where(p => p.PaymentRefrence == transId)
+				.Select(p => p.SaleId)
+				.Distinct()
+				.ToListAsync();
+
+			// ── Step 2: Sum AmountCredit from QuantityTransactions for those sales ──
+			var totalUsed = saleIds.Count == 0
+				? 0m
+				: await _context.QuantityTransactions
+					.Where(q => saleIds.Contains(q.SaleId) && !q.IsReversed)
+					.SumAsync(q => q.AmountCredit);
+
+			// ── Step 3: Reconcile UsageBalance against original TransAmount ──────
+			mpesaTx.UsageBalance = Math.Max(0, mpesaTx.TransAmount - totalUsed);
+			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
+			mpesaTx.DateModified = DateTime.UtcNow;
+		}
+
+
 		private static bool ValidateTransactionAmount(decimal calculated, decimal entered)
 			=> entered >= calculated || Math.Abs(entered - calculated) < 0.01m;
 
@@ -828,7 +837,7 @@ namespace BussinessLogic.Sales.NewSales
 						$"Mpesa code {transId} does not exist", 0);
 
 				var store = Regex.Replace(
-					usage.storeNumber ?? string.Empty, @"\s+", "").Trim();
+					usage.StoreNumber ?? string.Empty, @"\s+", "").Trim();
 
 				if (!string.Equals(store, storeNumber.Trim(),
 						StringComparison.OrdinalIgnoreCase))
@@ -851,17 +860,13 @@ namespace BussinessLogic.Sales.NewSales
 
 		private async Task<UsageBalanceDto?> GetUsageBalanceAsync(string transId)
 		{
-			const string sql =
-				"""
-				SELECT TOP 1
-				    CAST(UsageBalance AS int) AS Amount,
-				    BusinessShortCode        AS StoreNumber
-				FROM Protobase..MpesaC2BPayments
-				WHERE TransID = @p0
-				""";
-
-			return await _context.Set<UsageBalanceDto>()
-				.FromSqlRaw(sql, transId)
+			return await _context.MpesaTransactions
+				.Where(t => t.TransID == transId && t.Status == 1)
+				.Select(t => new UsageBalanceDto
+				{
+					Amount = (int)t.UsageBalance,
+					StoreNumber = t.TillNumber
+				})
 				.FirstOrDefaultAsync();
 		}
 

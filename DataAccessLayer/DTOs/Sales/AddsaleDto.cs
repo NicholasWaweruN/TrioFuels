@@ -74,7 +74,7 @@ namespace DataAccessLayer.DTOs.Sales
 	public class UsageBalanceDto
     {
         public int Amount { get; set; }
-		public string storeNumber { get; set; } = string.Empty;
+		public string StoreNumber { get; set; } = string.Empty;
 
 	}
 
