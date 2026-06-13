@@ -90,7 +90,7 @@ public class DarajaController(
 		return Ok(new
 		{
 			ResultCode = "0",
-			TransID = tx.MpesaReceiptNumber,
+			TransID = tx.TransID,
 			Amount = tx.TransAmount.ToString()
 		});
 	}
