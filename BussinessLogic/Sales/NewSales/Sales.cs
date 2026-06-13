@@ -27,8 +27,8 @@ namespace BussinessLogic.Sales.NewSales
 		Customer Customer,
 		decimal UnitPrice,
 		decimal Discount,
-		decimal Calculated,
-		decimal Requested,
+		decimal Calculated,    // effective amount — what gets recorded
+		decimal Requested,     // what the customer actually paid
 		string TransactionRef
 	);
 
@@ -141,9 +141,9 @@ namespace BussinessLogic.Sales.NewSales
 					await _context.SaveChangesAsync();
 					await tx.CommitAsync();
 
+					// ── Clear tracker so reconcile reads fresh committed data ──
 					_context.ChangeTracker.Clear();
 
-					// ── post-commit: reconcile M-Pesa usage balances ──────────
 					foreach (var transId in mpesaRefs)
 						await ReconcileAndUpdateUsageBalanceAsync(transId);
 
@@ -152,7 +152,6 @@ namespace BussinessLogic.Sales.NewSales
 						var saved = await _context.SaveChangesAsync();
 						Console.WriteLine($"[Reconcile] SaveChangesAsync saved {saved} rows");
 					}
-
 
 					await WriteAuditTrailAsync(ctx, sales, operationType, saleId);
 
@@ -214,15 +213,17 @@ namespace BussinessLogic.Sales.NewSales
 					await _context.SaveChangesAsync();
 					await tx.CommitAsync();
 
-					// ── Clear tracker so reconcile reads fresh committed data ────────────
+					// ── Clear tracker so reconcile reads fresh committed data ──
 					_context.ChangeTracker.Clear();
 
-					// ── post-commit: reconcile M-Pesa usage balances ──────────
 					foreach (var transId in mpesaRefs)
 						await ReconcileAndUpdateUsageBalanceAsync(transId);
 
 					if (mpesaRefs.Count > 0)
-						await _context.SaveChangesAsync();
+					{
+						var saved = await _context.SaveChangesAsync();
+						Console.WriteLine($"[Reconcile] SaveChangesAsync saved {saved} rows");
+					}
 
 					await WriteAuditTrailAsync(ctx, sales, operationType, saleId);
 
@@ -549,10 +550,18 @@ namespace BussinessLogic.Sales.NewSales
 			var (unitPrice, disc) = await GetPriceAsync(
 				sales.ProductCode, station.StationCode, sales.VehicleCode);
 
+			var requested = Math.Round(sales.PaymentDetails.Sum(x => x.TransactionAmount), 2);
+			var calculated = Math.Round(unitPrice * sales.Quantity, 2);
+
+			// If customer paid within 1 KES of calculated, use what they paid
+			var effective = (requested >= calculated && requested - calculated <= 1.00m)
+				? requested
+				: calculated;
+
 			return new SaleContext(
 				station, vehicle, customer, unitPrice, disc,
-				Calculated: Math.Floor(unitPrice * sales.Quantity),
-				Requested: Math.Floor(sales.PaymentDetails.Sum(x => x.TransactionAmount)),
+				Calculated: effective,
+				Requested: requested,
 				TransactionRef: transactionRef
 			);
 		}
@@ -575,7 +584,7 @@ namespace BussinessLogic.Sales.NewSales
 			{
 				if (remaining <= 0) break;
 
-				decimal alloc = Math.Min(remaining, Math.Floor(pay.TransactionAmount));
+				decimal alloc = Math.Min(remaining, Math.Round(pay.TransactionAmount, 2));
 
 				if (!string.IsNullOrWhiteSpace(mpesaStoreNumber)
 					&& !string.IsNullOrWhiteSpace(pay.TransactionReference))
@@ -595,7 +604,6 @@ namespace BussinessLogic.Sales.NewSales
 					TransactionAmountDebit = 0
 				});
 
-				// ── collect refs — reconcile AFTER commit ─────────────────
 				if (!string.IsNullOrWhiteSpace(pay.TransactionReference))
 					mpesaRefs.Add(pay.TransactionReference);
 
@@ -640,10 +648,11 @@ namespace BussinessLogic.Sales.NewSales
 			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
 			mpesaTx.DateModified = DateTime.UtcNow;
 
-			_context.Entry(mpesaTx).State = EntityState.Modified; // ← force EF to track
+			_context.Entry(mpesaTx).State = EntityState.Modified;
 
 			Console.WriteLine($"[Reconcile] ✅ NewUsageBalance={mpesaTx.UsageBalance} Status={mpesaTx.Status}");
 		}
+
 		// =====================================================================
 		// Staging helpers
 		// =====================================================================
@@ -745,8 +754,9 @@ namespace BussinessLogic.Sales.NewSales
 			return ServiceResponse<object>.Success("Data is valid", null);
 		}
 
+		// ── Allow up to 1 KES rounding tolerance ─────────────────────────────
 		private static bool ValidateTransactionAmount(decimal calculated, decimal entered)
-			=> entered >= calculated || Math.Abs(entered - calculated) < 0.01m;
+			=> entered >= calculated || Math.Abs(entered - calculated) <= 1.00m;
 
 		public async Task<ServiceResponse<bool>> CheckDuplicates(AddsaleDto sales)
 		{
@@ -793,6 +803,25 @@ namespace BussinessLogic.Sales.NewSales
 			return (basePrice - discount, discount);
 		}
 
+
+		public async Task<ServiceResponse<MpesaManualConfirmationDto?>> ConfirmMpesaManualAsync(string transId, CancellationToken ct)
+		{
+			var tx = await _context.MpesaTransactions
+				.Where(t => t.TransID == transId && t.Status == 1)
+				.FirstOrDefaultAsync(ct);
+
+			if (tx is null)
+				return ServiceResponse<MpesaManualConfirmationDto?>.Information(
+					"Transaction not found or already used", null);
+
+			return ServiceResponse<MpesaManualConfirmationDto?>.Success("Transaction verified successfully",
+				new MpesaManualConfirmationDto(
+					TransID: tx.TransID,
+					Amount: tx.UsageBalance.ToString(),
+					TillNumber: tx.TillNumber,
+					Phone: tx.MSISDN
+				));
+		}
 		private async Task<decimal> GetTotalUsableMpesaAsync(
 			IEnumerable<string?> transIds, string storeNumber)
 		{
@@ -1031,4 +1060,10 @@ namespace BussinessLogic.Sales.NewSales
 		public string PhoneNumber2 { get; set; } = string.Empty;
 		[Precision(18, 2)] public decimal Discount { get; set; }
 	}
+
+	public record MpesaManualConfirmationDto(
+	string TransID,
+	string Amount,
+	string TillNumber,
+	string Phone);
 }

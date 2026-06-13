@@ -13,6 +13,7 @@ using DataAccessLayer.DTOs.Sales;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Serilog.Core;
 using System.Globalization;
 using static BusinessLogic.Sales.Archive_data.Archive_Data;
 using static BussinessLogic.CouponsService.LoyaltyProgramSubscription;
@@ -70,6 +71,18 @@ namespace FuelFlow.Controllers
 		{
 			var response = await _addingSales.AddSalesAsync(sale);
 			return CreateResponse(response);
+		}
+
+		[HttpGet("mpesa/confirm/{transId}")]
+		public async Task<IActionResult> ConfirmMpesaManual(string transId, CancellationToken ct)
+		{
+
+			var result = await _addingSales.ConfirmMpesaManualAsync(transId, ct);
+
+
+			return result.ResponseCode == Response.StatusCode
+				? Ok(new { responseCode = 1, responseMessage = result.ResponseMessage, responseObject = result.ResponseObject })
+				: Ok(new { responseCode = 0, responseMessage = result.ResponseMessage, responseObject = (object?)null });
 		}
 
 		[HttpGet]
