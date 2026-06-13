@@ -1,5 +1,5 @@
-﻿using BussinessLogic.Authentication.CommonTasks;
-using BusinessLogic.Payments.PaymentSetups;
+﻿using BusinessLogic.Payments.PaymentSetups;
+using BussinessLogic.Authentication.CommonTasks;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Payments;
@@ -8,7 +8,10 @@ using DataAccessLayer.EntityModels.Stations;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
+using NpgsqlTypes;
 using System.Reflection;
+using System.Text;
 
 namespace BussinessLogic.Payments.PaymentSetups 
 {
@@ -290,44 +293,73 @@ namespace BussinessLogic.Payments.PaymentSetups
 			}
 		}
 
-		public async Task<ServiceResponse<object>> MpesaTransactions(string? tillNumber, DateTime? dateFrom, DateTime? dateTo, string? transId)
+		public async Task<ServiceResponse<object>> MpesaTransactions(
+			string? tillNumber,
+			DateTime? dateFrom,
+			DateTime? dateTo,
+			string? transId)
 		{
+			// ─────────────────────────────────────────────────────────────────────
+			// Base query
+			// ─────────────────────────────────────────────────────────────────────
+			var sql = new StringBuilder(@"
+        SELECT
+            Mp.""TransID"",
+            Mp.""BusinessShortCode"",
+            Mp.""TransAmount"",
+            t.""StoreNumber"",
+            t.""TillNumber""    AS ""Till"",
+            Mp.""UsageBalance"",
+            Mp.""DateTimeStamp"",
+            CASE
+                WHEN Mp.""Status"" = 0 THEN 'Has Usage Balance'
+                WHEN Mp.""Status"" = 1 THEN 'Fully Used'
+                WHEN Mp.""Status"" = 3 THEN 'Blocked'
+                ELSE ''
+            END AS ""Status""
+        FROM ""MpesaTransactions"" Mp
+        INNER JOIN ""Tills"" t
+               ON CAST(Mp.""TillNumber"" AS VARCHAR(50)) = CAST(t.""TillNumber"" AS VARCHAR(50))
+        WHERE 1=1");
 
-
-			var parameters = new List<SqlParameter>();
-
-			var sql = $@"
-				select Mp.TransID, Mp.BusinessShortCode,TransAmount, t.StoreNumber, t.TillNumber as Till, Mp.UsageBalance,DateTimeStamp,
-				iif(Mp.Status = 0,'Has Usage Balance',iif(Mp.status = 1,'Fully Used',iif(mp.status = 3,'Blocked',''))) as Status 
-				from Protobase..MpesaC2bPayments Mp
-				inner join Protobase..TillNumber t on Cast(Mp.BusinessShortCode as varchar(50)) = cast(t.StoreNumber as varchar(50))
-				where cast(t.StoreNumber as varchar(50)) in
-			   (SELECT StoreNumber COLLATE Latin1_General_CI_AS FROM Tills) ";
+			// ─────────────────────────────────────────────────────────────────────
+			// Dynamic filters
+			// ─────────────────────────────────────────────────────────────────────
+			var parameters = new List<NpgsqlParameter>();
 
 			if (!string.IsNullOrWhiteSpace(transId))
 			{
-				sql += " and Mp.TransID = @transId";
-				parameters.Add(new SqlParameter("@transId", transId));
+				sql.Append(@" AND Mp.""TransID"" = @transId");
+				parameters.Add(new NpgsqlParameter("@transId", transId));
 			}
+
 			if (!string.IsNullOrWhiteSpace(tillNumber))
 			{
-				sql += " and t.TillNumber = @tillNumber";
-				parameters.Add(new SqlParameter("@tillNumber", tillNumber));
+				sql.Append(@" AND t.""TillNumber"" = @tillNumber");
+				parameters.Add(new NpgsqlParameter("@tillNumber", tillNumber));
 			}
+
 			if (dateFrom.HasValue)
 			{
-				sql += " and cast(Mp.DateTimeStamp as Date) >= @dateFrom";
-				parameters.Add(new SqlParameter("@dateFrom", dateFrom.Value));
+				sql.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) >= @dateFrom");
+				parameters.Add(new NpgsqlParameter("@dateFrom", NpgsqlDbType.Date) { Value = dateFrom.Value });
 			}
+
 			if (dateTo.HasValue)
 			{
-				sql += " and cast(Mp.DateTimeStamp as Date) <= @dateTo";
-				parameters.Add(new SqlParameter("@dateTo", dateTo));
+				sql.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) <= @dateTo");
+				parameters.Add(new NpgsqlParameter("@dateTo", NpgsqlDbType.Date) { Value = dateTo.Value });
 			}
+
+			// ─────────────────────────────────────────────────────────────────────
+			// Execute
+			// ─────────────────────────────────────────────────────────────────────
 			try
 			{
-				var result = _context.Database.SqlQueryRaw<MpesaTransactionsDto>(sql, parameters.ToArray());
-				var transactions = await result.AsNoTracking().ToListAsync();
+				var transactions = await _context.Database
+					.SqlQueryRaw<MpesaTransactionsDto>(sql.ToString(), parameters.ToArray())
+					.AsNoTracking()
+					.ToListAsync();
 
 				if (transactions.Count == 0)
 					return ServiceResponse<object>.Information("No Mpesa transactions found", null);
@@ -336,7 +368,9 @@ namespace BussinessLogic.Payments.PaymentSetups
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error getting mpesa transactions");
+				_logger.LogError(ex, "Error retrieving Mpesa transactions for Till={Till}, TransId={TransId}, From={From}, To={To}.",
+					tillNumber, transId, dateFrom, dateTo);
+
 				return GetErrorResponse("Error getting mpesa transactions");
 			}
 		}
