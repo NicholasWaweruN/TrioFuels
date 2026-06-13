@@ -208,6 +208,9 @@ namespace BussinessLogic.Sales.NewSales
 					await _context.SaveChangesAsync();
 					await tx.CommitAsync();
 
+					// ── Clear tracker so reconcile reads fresh committed data ────────────
+					_context.ChangeTracker.Clear();
+
 					// ── post-commit: reconcile M-Pesa usage balances ──────────
 					foreach (var transId in mpesaRefs)
 						await ReconcileAndUpdateUsageBalanceAsync(transId);
@@ -605,25 +608,33 @@ namespace BussinessLogic.Sales.NewSales
 			var mpesaTx = await _context.MpesaTransactions
 				.FirstOrDefaultAsync(t => t.TransID == transId);
 
-			if (mpesaTx is null) return;
+			if (mpesaTx is null)
+			{
+				Console.WriteLine($"[Reconcile] ❌ MpesaTransaction not found for TransID={transId}");
+				return;
+			}
 
-			// All SaleIds that used this M-Pesa code
 			var saleIds = await _context.PaymentTransactions
 				.Where(p => p.PaymentRefrence == transId)
 				.Select(p => p.SaleId)
 				.Distinct()
 				.ToListAsync();
 
-			// Sum committed AmountCredit from QuantityTransactions
+			Console.WriteLine($"[Reconcile] TransID={transId} SaleIds=[{string.Join(",", saleIds)}]");
+
 			var totalUsed = saleIds.Count == 0
 				? 0m
 				: await _context.QuantityTransactions
 					.Where(q => saleIds.Contains(q.SaleId) && !q.IsReversed)
 					.SumAsync(q => q.AmountCredit);
 
+			Console.WriteLine($"[Reconcile] TransAmount={mpesaTx.TransAmount} TotalUsed={totalUsed}");
+
 			mpesaTx.UsageBalance = Math.Max(0, mpesaTx.TransAmount - totalUsed);
 			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
 			mpesaTx.DateModified = DateTime.UtcNow;
+
+			Console.WriteLine($"[Reconcile] ✅ NewUsageBalance={mpesaTx.UsageBalance} Status={mpesaTx.Status}");
 		}
 
 		// =====================================================================
