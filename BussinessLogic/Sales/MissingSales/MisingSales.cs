@@ -129,11 +129,16 @@ namespace BussinessLogic.Sales.MissingSales
 			return ServiceResponse<object>.Success("Price resolved", null);
 		}
 
+		// ─────────────────────────────────────────────
+		// Returns the highest configured discount for a product code,
+		// or 0 if no Prices row exists for that product (MaxAsync throws
+		// on an empty sequence, so we project to a nullable decimal first).
+		// ─────────────────────────────────────────────
 		private async Task<decimal> GetDiscount(string productCode)
 		{
 			return await _context.Prices
 				.Where(d => d.ProductCode == productCode)
-				.MaxAsync(d => d.Discount);
+				.MaxAsync(d => (decimal?)d.Discount) ?? 0m;
 		}
 
 
@@ -182,10 +187,10 @@ namespace BussinessLogic.Sales.MissingSales
 
 		private async Task<decimal> GetEmployeeFallbackPriceAsync(string stationCode)
 		{
-			var employee = await _context.Prices
+			return await _context.Prices
 				.Where(x => x.StationCode == stationCode && x.ProductCode == "02")
-				.Select(x => x.Amount).MaxAsync();
-			return employee;
+				.Select(x => (decimal?)x.Amount)
+				.MaxAsync() ?? 0m;
 		}
 
 		// ====== PAYMENT ROUTING ======
