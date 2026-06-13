@@ -141,12 +141,18 @@ namespace BussinessLogic.Sales.NewSales
 					await _context.SaveChangesAsync();
 					await tx.CommitAsync();
 
+					_context.ChangeTracker.Clear();
+
 					// ── post-commit: reconcile M-Pesa usage balances ──────────
 					foreach (var transId in mpesaRefs)
 						await ReconcileAndUpdateUsageBalanceAsync(transId);
 
 					if (mpesaRefs.Count > 0)
-						await _context.SaveChangesAsync();
+					{
+						var saved = await _context.SaveChangesAsync();
+						Console.WriteLine($"[Reconcile] SaveChangesAsync saved {saved} rows");
+					}
+
 
 					await WriteAuditTrailAsync(ctx, sales, operationType, saleId);
 
@@ -634,9 +640,10 @@ namespace BussinessLogic.Sales.NewSales
 			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
 			mpesaTx.DateModified = DateTime.UtcNow;
 
+			_context.Entry(mpesaTx).State = EntityState.Modified; // ← force EF to track
+
 			Console.WriteLine($"[Reconcile] ✅ NewUsageBalance={mpesaTx.UsageBalance} Status={mpesaTx.Status}");
 		}
-
 		// =====================================================================
 		// Staging helpers
 		// =====================================================================
