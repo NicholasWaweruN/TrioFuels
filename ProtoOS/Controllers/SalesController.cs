@@ -76,13 +76,9 @@ namespace FuelFlow.Controllers
 		[HttpGet("mpesa/confirm/{transId}")]
 		public async Task<IActionResult> ConfirmMpesaManual(string transId, CancellationToken ct)
 		{
-
 			var result = await _addingSales.ConfirmMpesaManualAsync(transId, ct);
 
-
-			return result.ResponseCode == Response.StatusCode
-				? Ok(new { responseCode = 1, responseMessage = result.ResponseMessage, responseObject = result.ResponseObject })
-				: Ok(new { responseCode = 0, responseMessage = result.ResponseMessage, responseObject = (object?)null });
+			return CreateResponse(result);
 		}
 
 		[HttpGet]
