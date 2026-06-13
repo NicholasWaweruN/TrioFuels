@@ -1339,30 +1339,30 @@ namespace BussinessLogic.Sales.SalesData
 				// Data fetch
 				// ─────────────────────────────────────────────────────────────────────
 				const string sql = @"
-            SELECT
-                ""SaleId"",
-                ""SalesDate"",
-                ""TransId"",
-                ""StationName"",
-                ""AttendantName"",
-                ""CustomerName"",
-                ""TillNumber"",
-                ""ShiftNumber"",
-                ""Vehicle"",
-                ""PetroleumName""   AS ""ProductName"",
-                ""PaymentType""     AS ""PaymentType"",
-                ""Litres"",
-                ""Price"",
-                0.00                AS ""Discount"",
-                ""Amount"",
-                ""DispenserName"",
-                ""NozzleName"",
-                ""StorageLocation"",
-                ""RunningBalance""
-            FROM vw_salesdata
-            WHERE ""SalesDate"" >= DATE_TRUNC('month', MAKE_DATE(@year, @month, 1))
-              AND ""SalesDate"" <  DATE_TRUNC('month', MAKE_DATE(@year, @month, 1)) + INTERVAL '1 month'
-            ORDER BY ""SaleId"";";
+    SELECT
+        ""SaleId"",
+        ""SalesDate"",
+        ""TransId"",
+        ""StationName"",
+        ""AttendantName"",
+        ""CustomerName"",
+        ""TillNumber"",
+        ""ShiftNumber"",
+        ""Vehicle"",
+        ""PetroleumName""   AS ""ProductName"",
+        ""PaymentType""     AS ""PaymentType"",
+        ""Litres"",
+        ""Price"",
+        0.00                AS ""Discount"",
+        ""Amount"",
+        ""DispenserName"",
+        ""NozzleName"",
+        ""StorageLocation"",
+        ""RunningBalance""
+    FROM public.""vw_SalesData""
+    WHERE ""SalesDate"" >= DATE_TRUNC('month', MAKE_DATE(@year, @month, 1))
+      AND ""SalesDate"" <  DATE_TRUNC('month', MAKE_DATE(@year, @month, 1)) + INTERVAL '1 month'
+    ORDER BY ""SaleId"";";
 
 				var parameters = new[]
 				{
