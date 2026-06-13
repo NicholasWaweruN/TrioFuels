@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Safaricom_Daraja.Stk_Push;
 
-namespace FuelFlow.API.Controllers.Daraja;
+namespace FuelFlow.Controllers;
 
 /// <summary>
 /// Temporary diagnostic endpoint — remove after the 400.002.02 issue is resolved.

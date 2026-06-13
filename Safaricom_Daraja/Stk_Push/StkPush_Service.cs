@@ -25,13 +25,7 @@ public sealed class StkPushService(
 	// STK PUSH
 	// ─────────────────────────────────────────────────────────────
 
-	public async Task<DarajaResult<StkPushResponse>> InitiateAsync(
-		string phone,
-		long amount,
-		string tillNumber,
-		string accountReference,
-		string description = "Payment",
-		CancellationToken ct = default)
+	public async Task<DarajaResult<StkPushResponse>> InitiateAsync(string phone,long amount,string tillNumber,string accountReference,string description = "Payment",CancellationToken ct = default)
 	{
 		// ── VALIDATION ──────────────────────────────────────────
 		ArgumentException.ThrowIfNullOrWhiteSpace(phone);
@@ -202,8 +196,7 @@ public sealed class StkPushService(
 				await _context.SaveChangesAsync(ct);
 			}
 
-			logger.LogInformation("STK Query ✅ — CheckoutId={Id} ResultCode={Code} Desc={Desc}",
-				checkoutRequestId, result.ResultCode, result.ResultDesc);
+			logger.LogInformation("STK Query ✅ — CheckoutId={Id} ResultCode={Code} Desc={Desc}",checkoutRequestId, result.ResultCode, result.ResultDesc);
 
 			return DarajaResult<StkQueryResponse>.Ok(result);
 		}

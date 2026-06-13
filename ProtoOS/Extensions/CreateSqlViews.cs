@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Graph.Models;
 
+namespace FuelFlow.Extensions;
 public static class ViewInitializer
 {
 	public static async Task UpdateViewsAsync(OTOContext context)
