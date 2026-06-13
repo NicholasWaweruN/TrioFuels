@@ -303,7 +303,7 @@ namespace BussinessLogic.Payments.PaymentSetups
 			// Base query
 			// ─────────────────────────────────────────────────────────────────────
 			var sql = new StringBuilder(@"
-        SELECT
+       SELECT
             Mp.""TransID"",
             Mp.""BusinessShortCode"",
             Mp.""TransAmount"",
@@ -311,6 +311,8 @@ namespace BussinessLogic.Payments.PaymentSetups
             t.""TillNumber""    AS ""Till"",
             Mp.""UsageBalance"",
             Mp.""DateTimeStamp"",
+            Mp.""TransactionType"",
+            Mp.""FirstName"" || ' ' || Mp.""LastName"" || ' ' || Mp.""MiddName"" AS ""Name"",
             CASE
                 WHEN Mp.""Status"" = 0 THEN 'Has Usage Balance'
                 WHEN Mp.""Status"" = 1 THEN 'Fully Used'
