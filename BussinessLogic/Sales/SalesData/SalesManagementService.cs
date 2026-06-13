@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
 using Npgsql;
+using NpgsqlTypes;
 using OfficeOpenXml;
 using System.Drawing;
 using System.Globalization;
@@ -1316,23 +1317,28 @@ namespace BussinessLogic.Sales.SalesData
 		/// </summary>
 		public async Task<ServiceResponse<byte[]>> MonthlySalesReport(int month, int year, CancellationToken ct = default)
 		{
-			// --- Input validation -----------------------------------------------------------------------
+			// ─────────────────────────────────────────────────────────────────────────
+			// Input validation
+			// ─────────────────────────────────────────────────────────────────────────
 			if (month < 1 || month > 12)
-				return ServiceResponse<byte[]>.Information("Invalid month provided. Must be between 1 and 12.", null);
+				return ServiceResponse<byte[]>.Information(
+					"Invalid month provided. Must be between 1 and 12.", null);
 
 			if (year < 2000 || year > DateTime.UtcNow.Year + 1)
 				return ServiceResponse<byte[]>.Information(
 					$"Invalid year provided. Must be between 2000 and {DateTime.UtcNow.Year + 1}.", null);
 
 			const int MaxRows = 500_000;
-
 			var originalTimeout = _context.Database.GetCommandTimeout();
 
 			try
 			{
 				_context.Database.SetCommandTimeout(300);
 
-				var sql = @"
+				// ─────────────────────────────────────────────────────────────────────
+				// Data fetch
+				// ─────────────────────────────────────────────────────────────────────
+				const string sql = @"
             SELECT
                 ""SaleId"",
                 ""SalesDate"",
@@ -1360,20 +1366,20 @@ namespace BussinessLogic.Sales.SalesData
 
 				var parameters = new[]
 				{
-			new NpgsqlParameter("@month", month),
-			new NpgsqlParameter("@year",  year)
+			new NpgsqlParameter("@month", NpgsqlDbType.Integer) { Value = month },
+			new NpgsqlParameter("@year",  NpgsqlDbType.Integer) { Value = year  },
 		};
 
-				// FIX: Use SalesReportRow (keyless DTO) instead of OtopaySales (full entity).
-				// EF only validates columns that exist on the mapped type — no more 'Terminal' error.
-				// AsNoTracking() is implicit on keyless entities but stated explicitly for clarity.
+				// Keyless DTO — EF only maps the projected columns, no full-entity overhead.
+				// AsNoTracking() is implicit on keyless types but stated explicitly for clarity.
 				var salesData = await _context.Set<SalesReportRow>()
 					.FromSqlRaw(sql, parameters)
 					.AsNoTracking()
 					.ToListAsync(ct);
 
-
-				Console.WriteLine(salesData.Count.ToString());
+				_logger.LogInformation(
+					"MonthlySalesReport: {Count} rows fetched for {Month}/{Year}.",
+					salesData.Count, month, year);
 
 				if (salesData.Count == 0)
 					return ServiceResponse<byte[]>.Information("No Sales Data Found", null);
@@ -1383,13 +1389,16 @@ namespace BussinessLogic.Sales.SalesData
 					_logger.LogWarning(
 						"MonthlySalesReport: {Count} rows for {Month}/{Year} exceeds safety cap of {Max}.",
 						salesData.Count, month, year, MaxRows);
+
 					return ServiceResponse<byte[]>.Information(
 						$"Report contains {salesData.Count:N0} rows which exceeds the export limit of {MaxRows:N0}. " +
 						"Please contact your administrator.", null);
 				}
 
-				// --- Excel generation ------------------------------------------------------------------
-				var workbook = new XLWorkbook();
+				// ─────────────────────────────────────────────────────────────────────
+				// Excel generation
+				// ─────────────────────────────────────────────────────────────────────
+				using var workbook = new XLWorkbook();
 				var worksheet = workbook.Worksheets.Add("Sales Report");
 
 				var headers = new[]
@@ -1403,59 +1412,73 @@ namespace BussinessLogic.Sales.SalesData
 				for (int i = 0; i < headers.Length; i++)
 					worksheet.Cell(1, i + 1).Value = headers[i];
 
-				// SuspendEvents cuts ClosedXML recalculation overhead by ~70% on large row counts
-			
-				try
+				// ─────────────────────────────────────────────────────────────────────
+				// Row population — styles applied per-column after loop to avoid
+				// per-cell style object allocation overhead on large row counts
+				// ─────────────────────────────────────────────────────────────────────
+				for (int i = 0; i < salesData.Count; i++)
 				{
-					for (int i = 0; i < salesData.Count; i++)
-					{
-						var row = i + 2;
-						var sale = salesData[i];
+					var row = i + 2;
+					var sale = salesData[i];
 
-						worksheet.Cell(row, 1).Value = sale.SaleId;
-						worksheet.Cell(row, 3).Value = sale.TransId ?? string.Empty;
-						worksheet.Cell(row, 4).Value = sale.StationName ?? string.Empty;
-						worksheet.Cell(row, 5).Value = sale.AttendantName ?? string.Empty;
-						worksheet.Cell(row, 6).Value = sale.CustomerName ?? string.Empty;
-						worksheet.Cell(row, 7).Value = sale.TillNumber ?? string.Empty;
-						worksheet.Cell(row, 8).Value = sale.ShiftNumber ?? string.Empty;
-						worksheet.Cell(row, 9).Value = sale.Vehicle ?? string.Empty;
-						worksheet.Cell(row, 10).Value = sale.ProductName ?? string.Empty;
-						worksheet.Cell(row, 11).Value = sale.PaymentType ?? string.Empty;
-						worksheet.Cell(row, 16).Value = sale.DispenserName ?? string.Empty;
-						worksheet.Cell(row, 17).Value = sale.NozzleName ?? string.Empty;
-						worksheet.Cell(row, 18).Value = sale.StorageLocation ?? string.Empty;
-
-						var dateCell = worksheet.Cell(row, 2);
-						dateCell.Value = sale.SalesDate;
-						dateCell.Style.NumberFormat.Format = "yyyy-MM-dd HH:mm:ss";
-
-						SetNumericCell(worksheet.Cell(row, 12), sale.Litres);
-						SetNumericCell(worksheet.Cell(row, 13), sale.Price);
-						SetNumericCell(worksheet.Cell(row, 14), sale.Discount);
-						SetNumericCell(worksheet.Cell(row, 15), sale.Amount);
-						SetNumericCell(worksheet.Cell(row, 19), sale.RunningBalance);
-					}
-				}
-				finally
-				{
-					
+					worksheet.Cell(row, 1).Value = sale.SaleId;
+					worksheet.Cell(row, 2).Value = sale.SalesDate;
+					worksheet.Cell(row, 3).Value = sale.TransId ?? string.Empty;
+					worksheet.Cell(row, 4).Value = sale.StationName ?? string.Empty;
+					worksheet.Cell(row, 5).Value = sale.AttendantName ?? string.Empty;
+					worksheet.Cell(row, 6).Value = sale.CustomerName ?? string.Empty;
+					worksheet.Cell(row, 7).Value = sale.TillNumber ?? string.Empty;
+					worksheet.Cell(row, 8).Value = sale.ShiftNumber ?? string.Empty;
+					worksheet.Cell(row, 9).Value = sale.Vehicle ?? string.Empty;
+					worksheet.Cell(row, 10).Value = sale.ProductName ?? string.Empty;
+					worksheet.Cell(row, 11).Value = sale.PaymentType ?? string.Empty;
+					worksheet.Cell(row, 12).Value = sale.Litres;
+					worksheet.Cell(row, 13).Value = sale.Price;
+					worksheet.Cell(row, 14).Value = sale.Discount;
+					worksheet.Cell(row, 15).Value = sale.Amount;
+					worksheet.Cell(row, 16).Value = sale.DispenserName ?? string.Empty;
+					worksheet.Cell(row, 17).Value = sale.NozzleName ?? string.Empty;
+					worksheet.Cell(row, 18).Value = sale.StorageLocation ?? string.Empty;
+					worksheet.Cell(row, 19).Value = sale.RunningBalance;
+				
 				}
 
-				var range = worksheet.Range(1, 1, salesData.Count + 1, headers.Length);
+				// ─────────────────────────────────────────────────────────────────────
+				// Post-loop column formatting — one style object per column, not per cell
+				// ─────────────────────────────────────────────────────────────────────
+				var dataRowCount = salesData.Count;
+
+				// Date column — explicit format so Excel renders as datetime, not a serial number
+				worksheet.Range(2, 2, dataRowCount + 1, 2)
+						 .Style.NumberFormat.Format = "yyyy-MM-dd HH:mm:ss";
+
+				// Numeric columns — 2 decimal places
+				var numericCols = new[] { 12, 13, 14, 15, 19 };
+				foreach (var col in numericCols)
+					worksheet.Range(2, col, dataRowCount + 1, col)
+							 .Style.NumberFormat.Format = "#,##0.00";
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Table styling
+				// ─────────────────────────────────────────────────────────────────────
+				var range = worksheet.Range(1, 1, dataRowCount + 1, headers.Length);
 				var table = range.CreateTable();
 				table.Theme = XLTableTheme.TableStyleLight16;
 				table.SetAutoFilter();
 
-				// Fixed widths — AdjustToContents() is O(rows x cols), too slow on large sets
+				// Fixed widths — AdjustToContents() is O(rows × cols), too slow on large sets
 				var columnWidths = new double[]
 				{
 			18, 22, 18, 22, 22, 22, 14, 16, 18, 20,
 			16, 12, 12, 12, 16, 20, 18, 20, 18
 				};
+
 				for (int i = 0; i < columnWidths.Length; i++)
 					worksheet.Column(i + 1).Width = columnWidths[i];
 
+				// ─────────────────────────────────────────────────────────────────────
+				// Serialize to bytes
+				// ─────────────────────────────────────────────────────────────────────
 				byte[] reportBytes;
 				using (var stream = new MemoryStream())
 				{
@@ -1463,11 +1486,15 @@ namespace BussinessLogic.Sales.SalesData
 					reportBytes = stream.ToArray();
 				}
 
+				// ─────────────────────────────────────────────────────────────────────
+				// Audit trail
+				// ─────────────────────────────────────────────────────────────────────
 				var monthName = CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(month);
-				var message = $"Sales Report for {monthName} {year} Exported Successfully " +
+				var message = $"Sales Report for {monthName} {year} exported successfully " +
 								$"by {_authentication.Name()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC";
 
-				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "MonthlySalesReport");
+				await _authentication.AddUserTrail(
+					message, MethodBase.GetCurrentMethod()?.Name ?? "MonthlySalesReport");
 
 				return ServiceResponse<byte[]>.Success("Sales Report Exported Successfully", reportBytes);
 			}
@@ -1486,12 +1513,6 @@ namespace BussinessLogic.Sales.SalesData
 			{
 				_context.Database.SetCommandTimeout(originalTimeout);
 			}
-		}
-
-		private static void SetNumericCell(IXLCell cell, decimal? value)
-		{
-			cell.Value = value ?? 0.00m;
-			cell.Style.NumberFormat.Format = "#,##0.00";
 		}
 
 		//get fueling events for a particular vehicle
