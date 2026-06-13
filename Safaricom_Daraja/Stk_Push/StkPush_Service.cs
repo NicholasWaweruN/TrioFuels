@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using DataAccessLayer.EntityModels.Daraja;
 using DataAccessLayer.Context;
+using DataAccessLayer.EntityModels.Transactions;
 
 namespace Safaricom_Daraja.Stk_Push;
 
@@ -129,6 +130,20 @@ public sealed class StkPushService(
 	// ─────────────────────────────────────────────────────────────
 	// STK QUERY
 	// ─────────────────────────────────────────────────────────────
+
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="checkoutRequestId"></param>
+	/// <param name="ct"></param>
+	/// <returns></returns>
+	/// 
+
+	public async Task<MpesaTransaction?> GetMpesaTransaction(string checkoutRequestId, CancellationToken ct = default)
+	{
+		return await _context.MpesaTransactions
+			.FirstOrDefaultAsync(x => x.CheckoutRequestID == checkoutRequestId, ct);
+	}
 
 	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
 		string checkoutRequestId,
@@ -279,7 +294,6 @@ public interface IStkPushService
 	/// </summary>
 	/// <param name="checkoutRequestId">CheckoutRequestID returned from InitiateAsync.</param>
 	/// <param name="ct">Cancellation token.</param>
-	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
-		string checkoutRequestId,
-		CancellationToken ct = default);
+	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId,CancellationToken ct = default);
+	Task<MpesaTransaction?> GetMpesaTransaction(string checkoutRequestId, CancellationToken ct = default);
 }

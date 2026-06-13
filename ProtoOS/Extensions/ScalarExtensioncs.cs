@@ -30,6 +30,7 @@ public static class ScalarExtensions
 				return Task.CompletedTask;
 			});
 
+			
 			options.AddDocumentTransformer((document, context, ct) =>
 			{
 				document.Servers =

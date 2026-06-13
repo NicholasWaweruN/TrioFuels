@@ -80,6 +80,21 @@ public class DarajaController(
 		return BadRequest(result.ErrorMessage);
 	}
 
+	[HttpGet("stk/result/{checkoutRequestId}")]
+	public async Task<IActionResult> StkResult(string checkoutRequestId, CancellationToken ct)
+	{
+		var tx = await stkPushService.GetMpesaTransaction(checkoutRequestId, ct); ;
+
+		if (tx is null) return NotFound();
+
+		return Ok(new
+		{
+			ResultCode = "0",
+			TransID = tx.MpesaReceiptNumber,
+			Amount = tx.TransAmount.ToString()
+		});
+	}
+
 	// ─────────────────────────────────────────────
 	// STK CALLBACK
 	// ─────────────────────────────────────────────
