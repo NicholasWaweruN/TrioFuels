@@ -734,57 +734,63 @@ namespace BussinessLogic.Stock.Stock
 
 		public async Task<ServiceResponse<object>> AdjustStockTakes(AdjustStockTakeSummaryDto adjust)
 		{
-			await using var transaction = await _context.Database.BeginTransactionAsync();
+			var strategy = _context.Database.CreateExecutionStrategy();
 
-			try
+			return await strategy.ExecuteAsync(async () =>
 			{
-				var nozzleCodes = adjust.Readings.Select(x => x.NozzleCode).ToList();
+				await using var transaction = await _context.Database.BeginTransactionAsync();
 
-				var stockTakes = await _context.StockTakeSummaries
-					.Where(x => x.ShiftNumber == adjust.ShiftNumber
-							 && nozzleCodes.Contains(x.NozzleCode))
-					.ToListAsync();
+				try
+				{
+					var nozzleCodes = adjust.Readings.Select(x => x.NozzleCode).ToList();
 
-				if (!stockTakes.Any())
+					var stockTakes = await _context.StockTakeSummaries
+						.Where(x => x.ShiftNumber == adjust.ShiftNumber
+								 && nozzleCodes.Contains(x.NozzleCode))
+						.ToListAsync();
+
+					if (!stockTakes.Any())
+					{
+						await transaction.RollbackAsync();
+						return ServiceResponse<object>.Information("Stock take summary not found", null);
+					}
+
+					foreach (var stockTake in stockTakes)
+					{
+						var item = adjust.Readings
+							.First(x => x.NozzleCode == stockTake.NozzleCode);
+
+						stockTake.ClosingReading = item.ClosingReading;
+						stockTake.OpeningReading = item.OpeningReading;
+						stockTake.OpeningVariance = 0;
+					}
+
+					await _context.SaveChangesAsync();
+
+					await ReconcileStockSummaries(adjust.ShiftNumber);
+
+					var messages =
+						$"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} for shift {adjust.ShiftNumber}";
+
+					await _authentication.AddUserTrail(messages, MethodBase.GetCurrentMethod()?.Name ?? "");
+
+					await transaction.CommitAsync();
+
+					return ServiceResponse<object>.Success(
+						"Stock take summary adjusted successfully",
+						null
+					);
+				}
+				catch (Exception ex)
 				{
 					await transaction.RollbackAsync();
-					return ServiceResponse<object>.Information("Stock take summary not found", null);
+
+					return ServiceResponse<object>.Error(
+						"Something went wrong",
+						ex.Message
+					);
 				}
-
-				foreach (var stockTake in stockTakes)
-				{
-					var item = adjust.Readings
-						.First(x => x.NozzleCode == stockTake.NozzleCode);
-
-					stockTake.ClosingReading = item.ClosingReading;
-					stockTake.OpeningReading = item.OpeningReading;
-					stockTake.OpeningVariance = 0;
-				}
-
-				await _context.SaveChangesAsync();
-
-				await ReconcileStockSummaries(adjust.ShiftNumber);
-
-				var messages = $"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} for shift {adjust.ShiftNumber}";
-
-				await _authentication.AddUserTrail(messages, MethodBase.GetCurrentMethod()?.Name ?? "");
-
-				await transaction.CommitAsync();
-
-				return ServiceResponse<object>.Success(
-					"Stock take summary adjusted successfully",
-					null
-				);
-			}
-			catch (Exception ex)
-			{
-				await transaction.RollbackAsync();
-
-				return ServiceResponse<object>.Error(
-					"Something went wrong",
-					ex.Message
-				);
-			}
+			});
 		}
 		//export all variances
 		public async Task<ServiceResponse<byte[]>> ExportAllVariances()
