@@ -28,6 +28,7 @@ using BusinessLogic.Worker.SalesReport;
 // ── BussinessLogic (legacy namespace – keep until unified) ─────────────────
 
 using BussinessLogic.Analytics;
+using BussinessLogic.Authentication.AddUsers;
 using BussinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Authentication.SignIn;
 using BussinessLogic.Authentication.Token;

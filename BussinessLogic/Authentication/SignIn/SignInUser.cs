@@ -1,5 +1,4 @@
-﻿using BusinessLogic.Authentication.AddUsers;
-using BussinessLogic.Authentication.CommonTasks;
+﻿using BussinessLogic.Authentication.CommonTasks;
 using BusinessLogic.Authentication.Token;
 using BusinessLogic.EmailService;
 using BusinessLogic.Messaging;
@@ -15,6 +14,7 @@ using System.ComponentModel.DataAnnotations;
 using BusinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Setup;
 using DataAccessLayer.Authentication.Entity;
+using BussinessLogic.Authentication.AddUsers;
 
 namespace BussinessLogic.Authentication.SignIn
 {

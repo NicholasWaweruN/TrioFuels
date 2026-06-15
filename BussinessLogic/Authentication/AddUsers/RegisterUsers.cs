@@ -1,4 +1,5 @@
 ﻿using AfricasTalkingCS;
+using BusinessLogic.Authentication.AddUsers;
 using BusinessLogic.EmailService;
 using BusinessLogic.Messaging;
 using BussinessLogic.Authentication.CommonTasks;
@@ -12,7 +13,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace BusinessLogic.Authentication.AddUsers
+namespace BussinessLogic.Authentication.AddUsers
 {
 	public class RegisterUsers : IRegisterUsers
 	{
@@ -112,7 +113,9 @@ namespace BusinessLogic.Authentication.AddUsers
 					PhoneNumberConfirmed = true,
 					UserType = 1,
 					SecurityStamp = Guid.NewGuid().ToString(),
-					ConcurrencyStamp = Guid.NewGuid().ToString()
+					ConcurrencyStamp = Guid.NewGuid().ToString(),
+					AccessFailedCount = 0,
+					
 				};
 
 				// ─────────────────────────────────────────────
@@ -135,13 +138,7 @@ namespace BusinessLogic.Authentication.AddUsers
 				// ─────────────────────────────────────────────
 				// 7. Save OTP + Audit in ONE DB CALL
 				// ─────────────────────────────────────────────
-				var otpEntity = new Otp
-				{
-					PhoneNumber = phone,
-					OTPCode = otp,
-					OTPStatus = true,
-					DateCreated = DateTime.UtcNow
-				};
+			
 
 				var audit = new UserTrail
 				{
@@ -152,7 +149,7 @@ namespace BusinessLogic.Authentication.AddUsers
 					DateCreated = DateTime.UtcNow
 				};
 
-				_context.AddRange(otpEntity, audit);
+				_context.Add(audit);
 				await _context.SaveChangesAsync();
 
 				// ─────────────────────────────────────────────
@@ -645,11 +642,5 @@ namespace BusinessLogic.Authentication.AddUsers
 		#endregion
 	}
 
-	internal class Otp 
-	{
-		public string PhoneNumber { get; set; } = string.Empty;
-		public string OTPCode { get; set; } = string.Empty;
-		public bool OTPStatus { get; set; }
-		public DateTime DateCreated { get; set; }
-	}
+
 }
