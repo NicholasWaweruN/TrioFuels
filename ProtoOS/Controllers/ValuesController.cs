@@ -12,7 +12,6 @@ namespace FuelFlow.Controllers
 {
 	[ApiController]
 	[Route("api/[controller]")]
-	[AllowAnonymous]
 	public class SmsCallbackController : ControllerBase
 	{
 		private readonly ILogger<SmsCallbackController> _logger;
@@ -51,6 +50,8 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpPost("process-callback")]
+		[AllowAnonymous]
+
 		public async Task<IActionResult> ProcessCallback()
 		{
 			var logPrefix = "SMS Callback";

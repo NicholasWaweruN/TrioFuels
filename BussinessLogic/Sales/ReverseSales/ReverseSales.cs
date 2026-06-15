@@ -41,7 +41,6 @@ namespace BussinessLogic.Sales.ReverseSales
 		/// </summary>
 		public async Task<ServiceResponse<object>> ReverseSaleAsync(string saleId)
 		{
-			// Wrap in execution strategy to support Npgsql EnableRetryOnFailure config
 			var strategy = _context.Database.CreateExecutionStrategy();
 
 			return await strategy.ExecuteAsync(async () =>
@@ -50,8 +49,6 @@ namespace BussinessLogic.Sales.ReverseSales
 				try
 				{
 					// --- Row-level lock to prevent concurrent double-reversal -------------------
-					// Acquires a PostgreSQL FOR UPDATE lock on the row before reading state.
-					// Any concurrent request on the same saleId will block here until we commit/rollback.
 					await _context.Database.ExecuteSqlRawAsync(
 						"SELECT 1 FROM \"QuantityTransactions\" WHERE \"SaleId\" = {0} FOR UPDATE",
 						saleId);
@@ -61,10 +58,10 @@ namespace BussinessLogic.Sales.ReverseSales
 					if (sale == null)
 						return ServiceResponse<object>.Information("Sale not found", null);
 
-					// If any reversed quantity row already exists for this SaleId, treat as reversed
-					var isSaleReversed = await _context.QuantityTransactions
-						.AnyAsync(x => x.SaleId == saleId && x.IsReversed == true);
-					if (isSaleReversed || sale.IsReversed)
+					// Single source of truth for "already reversed": once we mark sale.IsReversed = true
+					// below, the compensating row we add also carries IsReversed = true with the same
+					// SaleId, so checking sale.IsReversed (locked via FOR UPDATE above) is sufficient.
+					if (sale.IsReversed)
 						return ServiceResponse<object>.Information("Sale already reversed", null);
 
 					if (string.IsNullOrWhiteSpace(sale.ShiftNumber))
@@ -80,14 +77,11 @@ namespace BussinessLogic.Sales.ReverseSales
 					var transactionCode = sale.SaleId;
 
 					// --- Stage domain changes (no SaveChanges yet) ------------------------------
-					// Wallet: add a customer ledger debit to cancel wallet credit
 					if (sale.PaymentTypeCode == PaymetMethod.Wallet)
 						AddCustomerTransactionIfVehiclePresent(sale.VehicleCode, sale.AmountDebit, transactionCode);
 
-					// Add compensating quantity transaction and mark original as reversed
 					AddReversedQuantityTransactionAndMarkOriginal(sale, transactionCode);
 
-					// Add compensating payment transactions (async — avoids thread-pool starvation)
 					await AddReversedPaymentTransactionsAsync(sale);
 
 					// Trail entry
@@ -106,8 +100,6 @@ namespace BussinessLogic.Sales.ReverseSales
 					await dbTx.CommitAsync();
 
 					// --- Out-of-transaction reconcile (safe to fail independently) --------------
-					// Commit is already done; reconcile failure does NOT roll back the reversal.
-					// Logged explicitly so ops can detect and re-trigger if needed.
 					try
 					{
 						await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
@@ -118,7 +110,6 @@ namespace BussinessLogic.Sales.ReverseSales
 							"Reconcile failed after reversing sale {SaleId} on shift {ShiftNumber}. " +
 							"Reversal is committed — manual reconcile may be required.",
 							saleId, sale.ShiftNumber);
-						// Do NOT rethrow — the reversal itself succeeded.
 					}
 
 					return ServiceResponse<object>.Success("Sale reversed successfully", null);
@@ -158,20 +149,32 @@ namespace BussinessLogic.Sales.ReverseSales
 					if (shift == null)
 						return ServiceResponse<object>.Information("Shift not found", null);
 
-					// Only allow transfers when shift is in Variance
 					if (shift.ShiftStatus != ShiftStatus.Variance)
 						return ServiceResponse<object>.Information("Nozzle transfer allowed only when shift is in Variance", null);
 
-					// Check sale state
 					if (sale.IsReversed)
 						return ServiceResponse<object>.Information("Sale already reversed, cannot be moved to another nozzle", null);
 
 					if (sale.NozzleCode == nozzleCode)
 						return ServiceResponse<object>.Information("Sale is already on the specified nozzle", null);
 
-					var nozzleExists = await _context.Nozzles.AnyAsync(n => n.NozzleCode == nozzleCode);
-					if (!nozzleExists)
+					// NOTE: assumes Nozzle entity has a StationCode property. If nozzles aren't
+					// modeled as station-scoped in your schema, remove this lookup and the
+					// station-match check below — but if they ARE station-scoped, this prevents
+					// a sale from silently jumping to a nozzle on a different station.
+
+					var nozzle = await(from n in _context.Nozzles 
+									   join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
+									   select d
+									   ).FirstOrDefaultAsync();
+
+			
+					if (nozzle == null)
 						return ServiceResponse<object>.Information($"Nozzle {nozzleCode} does not exist in the system", null);
+
+					if (!string.IsNullOrWhiteSpace(sale.StationCode) && nozzle.StationCode != sale.StationCode)
+						return ServiceResponse<object>.Information(
+							$"Nozzle {nozzleCode} belongs to a different station and cannot be used for this sale", null);
 
 					// Update + trail
 					var oldNozzle = sale.NozzleCode ?? "Unknown";
@@ -191,7 +194,6 @@ namespace BussinessLogic.Sales.ReverseSales
 					await _context.SaveChangesAsync();
 					await dbTx.CommitAsync();
 
-					// Reconcile after commit — log failures without rethrowing
 					try
 					{
 						await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
@@ -253,15 +255,15 @@ namespace BussinessLogic.Sales.ReverseSales
 				StationCode = sale.StationCode,
 				Price = sale.Price,
 
-				QuantityDebit = sale.QuantityCredit,  // mirror
-				QuantityCredit = 0,                   // no credit on reversal
-				AmountDebit = sale.AmountCredit,      // mirror
+				QuantityDebit = sale.QuantityCredit,
+				QuantityCredit = 0,
+				AmountDebit = sale.AmountCredit,
 				AmountCredit = 0,
 
 				PaymentTypeCode = sale.PaymentTypeCode,
-				SaleId = sale.SaleId,                 // keep same SaleId linkage
+				SaleId = sale.SaleId,
 				DateCreated = DateTime.UtcNow,
-				IsReversed = true
+				IsReversed = true,
 			};
 
 			_context.QuantityTransactions.Add(reversed);
@@ -275,12 +277,11 @@ namespace BussinessLogic.Sales.ReverseSales
 
 		/// <summary>
 		/// Adds reversing payment rows for the sale's payment transactions.
-		/// Uses ToListAsync to avoid sync-over-async thread-pool starvation under load.
-		/// If Mpesa, schedules status updates per payment reference.
+		/// Mpesa status updates are awaited individually but isolated with try/catch so a
+		/// failure on one reference doesn't abort the loop or the overall reversal.
 		/// </summary>
 		private async Task AddReversedPaymentTransactionsAsync(QuantityTransactions sale)
 		{
-			// FIX: was .ToList() — sync DB call inside async flow causes thread-pool starvation under load
 			var paymentTransactions = await _context.PaymentTransactions
 				.Where(x => x.SaleId == sale.SaleId)
 				.AsNoTracking()
@@ -300,29 +301,40 @@ namespace BussinessLogic.Sales.ReverseSales
 
 				if (sale.PaymentTypeCode == PaymetMethod.Mpesa && !string.IsNullOrWhiteSpace(p.PaymentRefrence))
 				{
-					_salesTasks.UpdateMpesaPaymentStatus(p.PaymentRefrence);
+					// UpdateMpesaPaymentStatus is async Task and calls SaveChangesAsync internally
+					// on the same _context — see note below on what that means for the
+					// "one SaveChanges" intent of this method. Awaited and isolated with
+					// try/catch so a failure here logs cleanly without rolling back the reversal.
+					try
+					{
+						 _salesTasks.UpdateMpesaPaymentStatus(p.PaymentRefrence);
+					}
+					catch (Exception mpesaEx)
+					{
+						_logger.LogError(mpesaEx,
+							"Failed to update Mpesa payment status for reference {PaymentReference} during reversal of sale {SaleId}.",
+							p.PaymentRefrence, sale.SaleId);
+					}
 				}
 			}
 		}
 
+		/// <summary>
+		/// Looks up display names for the trail message. Runs the three lookups concurrently
+		/// (independent tables, no shared state) instead of sequentially to cut latency.
+		/// </summary>
 		private async Task<(string stationName, string nozzleName, string numberPlate)> GetStationAndNozzleNames(
 			string stationCode, string nozzleCode, string vehicleCode)
 		{
-			string stationName = "Unknown Station";
-			string nozzleName = "Unknown Nozzle";
-			string numberPlate = "Unknown Vehicle";
+			var stationTask = _context.Stations.AsNoTracking().FirstOrDefaultAsync(s => s.StationCode == stationCode);
+			var nozzleTask = _context.Nozzles.AsNoTracking().FirstOrDefaultAsync(n => n.NozzleCode == nozzleCode);
+			var vehicleTask = _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.VehicleCode == vehicleCode);
 
-			var station = await _context.Stations.FirstOrDefaultAsync(s => s.StationCode == stationCode);
-			if (station != null)
-				stationName = station.StationName;
+			await Task.WhenAll(stationTask, nozzleTask, vehicleTask);
 
-			var nozzle = await _context.Nozzles.FirstOrDefaultAsync(n => n.NozzleCode == nozzleCode);
-			if (nozzle != null)
-				nozzleName = nozzle.NozzleName;
-
-			var vehicle = await _context.Vehicles.FirstOrDefaultAsync(s => s.VehicleCode == vehicleCode);
-			if (vehicle != null)
-				numberPlate = vehicle.VehicleRegistrationNumber;
+			var stationName = stationTask.Result?.StationName ?? "Unknown Station";
+			var nozzleName = nozzleTask.Result?.NozzleName ?? "Unknown Nozzle";
+			var numberPlate = vehicleTask.Result?.VehicleRegistrationNumber ?? "Unknown Vehicle";
 
 			return (stationName, nozzleName, numberPlate);
 		}

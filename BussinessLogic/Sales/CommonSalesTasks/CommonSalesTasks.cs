@@ -199,23 +199,35 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 
 
 
-		public void UpdateMpesaPaymentStatus(string transId)
+		public async Task UpdateMpesaPaymentStatus(string transId)
 		{
-			//var query = @"
-			//	DECLARE @Amount DECIMAL = ISNULL((SELECT SUM(TransactionAmount)-SUM(TransactionAmountDebit) FROM ProtoOs..PaymentTransactions WHERE PaymentRefrence = @TransId), 0); 
-				
-			//	DECLARE @OriginalAmount DECIMAL = (SELECT TransAmount FROM Protobase..MpesaC2Bpayments WHERE TransId = @TransId);  
-			//	IF (@OriginalAmount - @Amount <= 0)       
-			//	BEGIN          
-			//		UPDATE Protobase..MpesaC2Bpayments SET UsageBalance = 0, status = 1 WHERE TransID = @TransId;              
-			//	END   
-			//	ELSE IF (@OriginalAmount - @Amount > 0)    
-			//	BEGIN                   
-			//		UPDATE Protobase..MpesaC2Bpayments  SET UsageBalance = (@OriginalAmount - @Amount), status = 0 WHERE TransID = @TransId;       
-			//	END";
-			//_context.Database.ExecuteSqlRaw(query, new SqlParameter("@TransId", transId));
+			var mpesaTransaction = await _context.MpesaTransactions.FirstOrDefaultAsync(mt => mt.TransID == transId);
+
+			// Nothing to reconcile if there's no matching M-Pesa transaction record.
+			if (mpesaTransaction == null)
+				return;
+
+			var amount = await _context.PaymentTransactions.Where(x => x.PaymentRefrence == transId).SumAsync(x => x.TransactionAmount - x.TransactionAmountDebit);
+
+			var originalAmount = mpesaTransaction.TransAmount;
+			var remaining = originalAmount - amount;
+
+			if (remaining <= 0)
+			{
+				mpesaTransaction.UsageBalance = 0;
+				mpesaTransaction.Status = 1;
+			}
+			else
+			{
+				mpesaTransaction.UsageBalance = remaining;
+				mpesaTransaction.Status = 0;
+			}
+
+			await _context.SaveChangesAsync();
 		}
 
 
 	}
 }
+
+
