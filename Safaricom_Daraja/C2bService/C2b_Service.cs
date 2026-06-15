@@ -134,33 +134,61 @@ public sealed class C2BService(
 
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		logger.LogInformation("[C2B][Validate] ▶ TransID={ID} Amount={Amount} BillRefNumber={Ref}", request.TransactionId, request.TransAmount, request.BillRefNumber);
+		logger.LogInformation(
+			"[C2B][Validate] ▶ TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",
+			request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
 
-		if (string.IsNullOrWhiteSpace(request.BillRefNumber))
+		// For Buy Goods (Till) payments, BillRefNumber is optional and is frequently
+		// empty or set to the till number itself — it is NOT a reliable account
+		// reference the way it is for Paybill (CustomerPayBillOnline) transactions.
+		// The authoritative field for "which till was paid into" is BusinessShortCode.
+		//
+		// Primary check: does BusinessShortCode match one of our configured tills?
+		var tillMatch = _cfg.Tills.FirstOrDefault(t =>
+			string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
+
+		if (tillMatch is not null)
 		{
-			logger.LogWarning("[C2B][Validate] REJECTED — BillRefNumber is null/empty. TransID={ID}", request.TransactionId);
-			return Rejected("C2B00011", "Rejected — missing account reference");
+			logger.LogInformation(
+				"[C2B][Validate] ACCEPTED — TransID={ID} matched Till={Till} ({Name})",
+				request.TransactionId, tillMatch.TillNumber, tillMatch.Name);
+
+			return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
 		}
 
-		var knownRefs = _cfg.Tills
-			.Select(t => t.AccountReference)
-			.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-		if (!knownRefs.Contains(request.BillRefNumber.Trim()))
+		// Fallback: some integrations (paybill-style or aggregator setups) still rely
+		// on BillRefNumber as an account reference. Honor that if present.
+		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{
-			logger.LogWarning("[C2B][Validate] REJECTED — BillRefNumber='{Ref}' mismatch. TransID={ID}", request.BillRefNumber, request.TransactionId);
-			return Rejected("C2B00011", "Rejected — unknown account reference");
+			var knownRefs = _cfg.Tills
+				.Select(t => t.AccountReference)
+				.Where(r => !string.IsNullOrWhiteSpace(r))
+				.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+			if (knownRefs.Contains(request.BillRefNumber.Trim()))
+			{
+				logger.LogInformation(
+					"[C2B][Validate] ACCEPTED — TransID={ID} matched BillRefNumber='{Ref}'",
+					request.TransactionId, request.BillRefNumber);
+
+				return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+			}
 		}
 
-		logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID}", request.TransactionId);
-		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+		logger.LogWarning(
+			"[C2B][Validate] REJECTED — TransID={ID} BusinessShortCode='{BSC}' did not match any configured till, and BillRefNumber='{Ref}' did not match any configured account reference.",
+			request.TransactionId, request.BusinessShortCode, request.BillRefNumber);
+
+		return Rejected("C2B00011", "Rejected — unrecognized till or account reference");
 	}
 
 	// ── Confirmation ──────────────────────────────────────────────────────────
 
 	public async Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default)
 	{
-		logger.LogInformation("[C2B][Confirm] ▶ TransID={ID} Amount={Amount} BillRefNumber={Ref}", request.TransactionId, request.TransAmount, request.BillRefNumber);
+		logger.LogInformation(
+			"[C2B][Confirm] ▶ TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",
+			request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
 
 		// 1. Double check within memory context to save explicit DB query overhead
 		var exists = await context.MpesaTransactions.AnyAsync(x => x.TransID == request.TransactionId, ct);
@@ -215,21 +243,52 @@ public sealed class C2BService(
 
 	private TillConfig? ResolveTill(C2BConfirmationRequest request)
 	{
-		if (string.IsNullOrWhiteSpace(request.BillRefNumber))
+		// Primary: the till that actually received the payment is reported in
+		// BusinessShortCode for Buy Goods (CustomerBuyGoodsOnline) transactions.
+		if (!string.IsNullOrWhiteSpace(request.BusinessShortCode))
 		{
-			logger.LogWarning("[C2B][ResolveTill] BillRefNumber missing from request.");
-			return null;
+			var byShortCode = _cfg.Tills.FirstOrDefault(t =>
+				string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
+
+			if (byShortCode is not null)
+			{
+				logger.LogInformation(
+					"[C2B][ResolveTill] Matched via BusinessShortCode='{BSC}' → Till={Till} ({Name})",
+					request.BusinessShortCode, byShortCode.TillNumber, byShortCode.Name);
+
+				return byShortCode;
+			}
+
+			logger.LogWarning(
+				"[C2B][ResolveTill] BusinessShortCode='{BSC}' did not match any configured till.",
+				request.BusinessShortCode);
+		}
+		else
+		{
+			logger.LogWarning("[C2B][ResolveTill] BusinessShortCode missing from request.");
 		}
 
-		var targetRef = request.BillRefNumber.Trim();
-		var byRef = _cfg.Tills.FirstOrDefault(t => string.Equals(t.AccountReference, targetRef, StringComparison.OrdinalIgnoreCase));
-
-		if (byRef is not null)
+		// Fallback: paybill-style account reference matching.
+		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{
-			return byRef;
+			var targetRef = request.BillRefNumber.Trim();
+			var byRef = _cfg.Tills.FirstOrDefault(t =>
+				string.Equals(t.AccountReference, targetRef, StringComparison.OrdinalIgnoreCase));
+
+			if (byRef is not null)
+			{
+				logger.LogInformation(
+					"[C2B][ResolveTill] Matched via BillRefNumber='{Ref}' → Till={Till} ({Name})",
+					targetRef, byRef.TillNumber, byRef.Name);
+
+				return byRef;
+			}
+
+			logger.LogWarning(
+				"[C2B][ResolveTill] No configuration matched BusinessShortCode='{BSC}' or BillRefNumber='{Ref}'",
+				request.BusinessShortCode, targetRef);
 		}
 
-		logger.LogWarning("[C2B][ResolveTill] No configurations matched BillRefNumber='{Ref}'", request.BillRefNumber);
 		return null;
 	}
 
