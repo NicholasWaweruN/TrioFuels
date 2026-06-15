@@ -63,7 +63,6 @@ namespace DataAccessLayer.Context
 				new Codegenerator { Length = 4, NextNumber = 0, Prefix = "PD", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "pdadevice", UserCode = "00001", Id = 14 },
 				new Codegenerator { Length = 2, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "productCode", UserCode = "00001", Id = 15 },
 				new Codegenerator { Length = 5, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "WalkInCustomer", UserCode = "00001", Id = 16 },
-				new Codegenerator { Length = 5, NextNumber = 1, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "VehicleCode", UserCode = "00001", Id = 17 },
 				new Codegenerator { Length = 5, NextNumber = 1, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "VehicleCode", UserCode = "00001", Id = 17 }
 
 			);
