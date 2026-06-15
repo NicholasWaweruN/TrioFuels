@@ -1,5 +1,6 @@
 ﻿using BusinessLogic.Payments.PaymentSetups;
 using BussinessLogic.Authentication.CommonTasks;
+using ClosedXML.Excel;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Payments;
@@ -377,6 +378,209 @@ namespace BussinessLogic.Payments.PaymentSetups
 			}
 		}
 		//update MpesaTransactions status to 3 for blocked
+
+
+
+		public async Task<ServiceResponse<byte[]>> ExportMpesaTransactions(string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct = default)
+		{
+			// ─────────────────────────────────────────────────────────────────────────
+			// Input validation
+			// ─────────────────────────────────────────────────────────────────────────
+			const int MaxRows = 100_000;
+
+			DateTime? fromDate = null;
+			DateTime? toDate = null;
+
+			if (!string.IsNullOrWhiteSpace(dateFrom))
+			{
+				if (!DateTime.TryParse(dateFrom, out var parsedFrom))
+					return ServiceResponse<byte[]>.Information("Invalid 'dateFrom' format.", null);
+				fromDate = parsedFrom.Date;
+			}
+
+			if (!string.IsNullOrWhiteSpace(dateTo))
+			{
+				if (!DateTime.TryParse(dateTo, out var parsedTo))
+					return ServiceResponse<byte[]>.Information("Invalid 'dateTo' format.", null);
+				toDate = parsedTo.Date.AddDays(1).AddTicks(-1); // inclusive end of day
+			}
+
+			var originalTimeout = _context.Database.GetCommandTimeout();
+
+			try
+			{
+				_context.Database.SetCommandTimeout(120);
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Data fetch
+				// ─────────────────────────────────────────────────────────────────────
+				var query = from mt in _context.MpesaTransactions
+							join t in _context.Tills on mt.TillNumber equals t.TillNumber
+							select new
+							{
+								mt.TransID,
+								Name = string.Join(' ', new object[] {mt.FirstName,mt.MiddName,mt.LastName}),
+								mt.TillNumber,
+								t.TillName,
+								mt.BusinessShortCode,
+								BillRefNumber = mt.MpesaReceiptNumber,
+								mt.TransactionType,
+								mt.UsageBalance,
+								mt.TransAmount,
+								mt.DateTimeStamp,
+								mt.Status,
+							};
+
+				if (!string.IsNullOrWhiteSpace(transId))
+				{
+					query = query.Where(t => t.TransID == transId.Trim());
+				}
+				else
+				{
+					if (!string.IsNullOrWhiteSpace(tillNumber))
+						query = query.Where(t => t.TillNumber == tillNumber);
+
+					if (fromDate.HasValue)
+						query = query.Where(t => t.DateTimeStamp >= fromDate.Value);
+
+					if (toDate.HasValue)
+						query = query.Where(t => t.DateTimeStamp <= toDate.Value);
+				}
+
+				var transactions = await query
+					.OrderByDescending(t => t.DateTimeStamp)
+					.ToListAsync(ct);
+
+				_logger.LogInformation(
+					"ExportMpesaTransactions: {Count} rows fetched (till={Till}, from={From}, to={To}, transId={TransId}).",
+					transactions.Count, tillNumber, dateFrom, dateTo, transId);
+
+				if (transactions.Count == 0)
+					return ServiceResponse<byte[]>.Information("No M-Pesa Transactions Found", null);
+
+				if (transactions.Count > MaxRows)
+				{
+					_logger.LogWarning(
+						"ExportMpesaTransactions: {Count} rows exceeds safety cap of {Max}.",
+						transactions.Count, MaxRows);
+
+					return ServiceResponse<byte[]>.Information(
+						$"Report contains {transactions.Count:N0} rows which exceeds the export limit of {MaxRows:N0}. " +
+						"Please narrow your date range.", null);
+				}
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Excel generation
+				// ─────────────────────────────────────────────────────────────────────
+				using var workbook = new XLWorkbook();
+				var worksheet = workbook.Worksheets.Add("Mpesa Transactions");
+
+				var headers = new[]
+				{
+			"Trans ID", "Name", "Till", "Business Short Code", "Bill Ref Number",
+			"Transaction Type", "Usage Balance", "Amount", "Date Time", "Status"
+		};
+
+				for (int i = 0; i < headers.Length; i++)
+					worksheet.Cell(1, i + 1).Value = headers[i];
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Row population
+				// ─────────────────────────────────────────────────────────────────────
+				for (int i = 0; i < transactions.Count; i++)
+				{
+					var row = i + 2;
+					var tx = transactions[i];
+
+					worksheet.Cell(row, 1).Value = tx.TransID ?? string.Empty;
+					worksheet.Cell(row, 2).Value = tx.Name ?? string.Empty;
+					worksheet.Cell(row, 3).Value = tx.TillName ?? tx.TillNumber ?? string.Empty;
+					worksheet.Cell(row, 4).Value = tx.BusinessShortCode ?? string.Empty;
+					worksheet.Cell(row, 5).Value = tx.BillRefNumber ?? string.Empty;
+					worksheet.Cell(row, 6).Value = tx.TransactionType ?? string.Empty;
+					worksheet.Cell(row, 7).Value = tx.UsageBalance;
+					worksheet.Cell(row, 8).Value = tx.TransAmount;
+					worksheet.Cell(row, 9).Value = tx.DateTimeStamp;
+					worksheet.Cell(row, 10).Value = tx.Status switch
+					{
+						0 => "Fully Used",
+						1 => "Has Usage Balance",
+						2 => "Blocked",
+						_ => "Unknown"
+					};
+				}
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Post-loop column formatting
+				// ─────────────────────────────────────────────────────────────────────
+				var dataRowCount = transactions.Count;
+
+				// Date column
+				worksheet.Range(2, 9, dataRowCount + 1, 9)
+						 .Style.NumberFormat.Format = "yyyy-MM-dd HH:mm:ss";
+
+				// Numeric columns — Usage Balance, Amount
+				var numericCols = new[] { 7, 8 };
+				foreach (var col in numericCols)
+					worksheet.Range(2, col, dataRowCount + 1, col)
+							 .Style.NumberFormat.Format = "#,##0.00";
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Table styling
+				// ─────────────────────────────────────────────────────────────────────
+				var range = worksheet.Range(1, 1, dataRowCount + 1, headers.Length);
+				var table = range.CreateTable();
+				table.Theme = XLTableTheme.TableStyleLight16;
+				table.SetAutoFilter();
+
+				var columnWidths = new double[]
+				{
+			18, 22, 18, 18, 18, 18, 16, 14, 20, 16
+				};
+
+				for (int i = 0; i < columnWidths.Length; i++)
+					worksheet.Column(i + 1).Width = columnWidths[i];
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Serialize to bytes
+				// ─────────────────────────────────────────────────────────────────────
+				byte[] reportBytes;
+				using (var stream = new MemoryStream())
+				{
+					workbook.SaveAs(stream);
+					reportBytes = stream.ToArray();
+				}
+
+				// ─────────────────────────────────────────────────────────────────────
+				// Audit trail
+				// ─────────────────────────────────────────────────────────────────────
+				var message = $"Mpesa Transactions Report exported successfully " +
+							   $"by {_authentication.Name()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC " +
+							   $"(till={tillNumber}, from={dateFrom}, to={dateTo}, transId={transId})";
+
+				await _authentication.AddUserTrail(
+					message, MethodBase.GetCurrentMethod()?.Name ?? "ExportMpesaTransactions");
+
+				return ServiceResponse<byte[]>.Success("Mpesa Transactions Report Exported Successfully", reportBytes);
+			}
+			catch (OperationCanceledException)
+			{
+				_logger.LogInformation("ExportMpesaTransactions cancelled.");
+				return ServiceResponse<byte[]>.Information("Report generation was cancelled.", null);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "ExportMpesaTransactions failed.");
+				return ServiceResponse<byte[]>.Error(
+					$"An error occurred while generating the M-Pesa transactions report. Please try again or contact support. {ex.Message}", null);
+			}
+			finally
+			{
+				_context.Database.SetCommandTimeout(originalTimeout);
+			}
+		}
+
+
 		public async Task<ServiceResponse<object>> BlockMpesa(string transId)
 		{
 			if (string.IsNullOrEmpty(transId))

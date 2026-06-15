@@ -744,10 +744,7 @@ namespace BussinessLogic.Stock.Stock
 				{
 					var nozzleCodes = adjust.Readings.Select(x => x.NozzleCode).ToList();
 
-					var stockTakes = await _context.StockTakeSummaries
-						.Where(x => x.ShiftNumber == adjust.ShiftNumber
-								 && nozzleCodes.Contains(x.NozzleCode))
-						.ToListAsync();
+					var stockTakes = await _context.StockTakeSummaries.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode)).ToListAsync();
 
 					if (!stockTakes.Any())
 					{
@@ -769,8 +766,7 @@ namespace BussinessLogic.Stock.Stock
 
 					await ReconcileStockSummaries(adjust.ShiftNumber);
 
-					var messages =
-						$"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} for shift {adjust.ShiftNumber}";
+					var messages = $"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} for shift {adjust.ShiftNumber}";
 
 					await _authentication.AddUserTrail(messages, MethodBase.GetCurrentMethod()?.Name ?? "");
 
@@ -785,10 +781,7 @@ namespace BussinessLogic.Stock.Stock
 				{
 					await transaction.RollbackAsync();
 
-					return ServiceResponse<object>.Error(
-						"Something went wrong",
-						ex.Message
-					);
+					return ServiceResponse<object>.Error("Something went wrong",ex.Message);
 				}
 			});
 		}

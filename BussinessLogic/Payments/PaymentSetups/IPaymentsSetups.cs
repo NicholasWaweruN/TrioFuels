@@ -12,9 +12,7 @@ namespace BusinessLogic.Payments.PaymentSetups
 		Task<ServiceResponse<object>> BlockMpesa(string transId);
 		Task<ServiceResponse<object>> ConfirmPayment(string transId, string dispenserCode);
 		Task<ServiceResponse<object>> ConfirmGaragePayment(string transId);
-
-
-		
+		Task<ServiceResponse<byte[]>> ExportMpesaTransactions(string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct = default);
 		Task<ServiceResponse<object>> GetMpesaCodeUsage(string transId);
 		Task<ServiceResponse<object>> GetTills();
 		Task<ServiceResponse<object>> MpesaTransactions(string? tillNumber, DateTime? dateFrom, DateTime? dateTo, string? transId);

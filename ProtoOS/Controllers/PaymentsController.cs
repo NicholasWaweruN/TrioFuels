@@ -3,6 +3,7 @@ using DataAccessLayer.DTOs.Payments;
 using DataAccessLayer.EntityModels.ProtoBase;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 using System.Threading.Tasks;
 using static BussinessLogic.Payments.PaymentSetups.PaymentsSetups;
 
@@ -72,6 +73,22 @@ namespace FuelFlow.Controllers
 		{
 			var response = await _payments.ConfirmGaragePayment(transId);
 			return CreateResponse(response);
+		}
+
+
+
+		[HttpGet("ExportMpesaTransactions")]
+		[Authorize("Can download Mpesa Statement")]
+		public async Task<IActionResult> ExportMpesaTransactions(
+			string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct)
+		{
+			var result = await _payments.ExportMpesaTransactions(tillNumber, dateFrom, dateTo, transId, ct);
+
+			if (result is null)
+				return NotFound(result!.ResponseMessage);
+
+			return File(result.ResponseObject!, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				$"mpesa_transactions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
 		}
 
 		[HttpGet]
