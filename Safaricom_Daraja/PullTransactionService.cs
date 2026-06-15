@@ -133,8 +133,7 @@ public sealed class PullTransactionService(
 
 		foreach (var till in _cfg.Tills)
 		{
-			logger.LogInformation("Pulling transactions for till: {Name} ({Number})",
-				till.Name, till.TillNumber);
+			logger.LogInformation("Pulling transactions for till: {Name} ({Number})",till.Name, till.TillNumber);
 
 			results[till.TillNumber] = await PullAllPagesAsync(till.TillNumber, from, to, ct);
 

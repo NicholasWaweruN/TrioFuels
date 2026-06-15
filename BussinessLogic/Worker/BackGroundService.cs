@@ -4,8 +4,6 @@ using BussinessLogic.Messaging;
 using BussinessLogic.Sales.Sales_ForeCast;
 using BussinessLogic.Sales.Wallet;
 using BussinessLogic.Stock.VarianceReport;
-using BussinessLogic.Worker.OtherReports;
-using BussinessLogic.Worker.RecordedTotalizer_Readings;
 using BussinessLogic.Worker.SalesReport;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
@@ -232,7 +230,6 @@ public class EmailBackgroundService : BackgroundService
 	{
 		var dbContext = scope.ServiceProvider.GetRequiredService<OTOContext>();
 		var varianceReport = scope.ServiceProvider.GetRequiredService<VarianceReport>();
-		var auditReport = scope.ServiceProvider.GetRequiredService<FraudAuditReport>();
 		var getEmailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
 		var shiftsales = scope.ServiceProvider.GetRequiredService<ShiftsSales>();
 
@@ -255,22 +252,9 @@ public class EmailBackgroundService : BackgroundService
 			dbContext.Update(variance);
 			await dbContext.SaveChangesAsync();
 
-			var emails = await getEmailRecipients.GetRecipients("011");
-			if (emails is not null)
-			{
-				await auditReport.ShiftAuditReport(emails, variance.ShiftNumber);
-			}
-			var email = await getEmailRecipients.GetRecipients("014");
-			if (email is not null)
-			{
-				await auditReport.UngaPromoReport(email, variance.ShiftNumber);
-			}
+			
 		}
 
 	}
-	private static void PromotionalData(IServiceScope scope, DateTime currentTime)
-	{
-		var salesReportService = scope.ServiceProvider.GetRequiredService<PromotionReport>();
-		salesReportService.GeneratePromotionReport(new DateTime(2025, 01, 08), new DateTime(2025, 01, 31), new DateTime(2025, 01, 01), new DateTime(2025, 01, 07));
-	}
+	
 }

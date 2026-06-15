@@ -57,7 +57,6 @@ using BussinessLogic.Stock.Stock;
 using BussinessLogic.Stock.Totalizers;
 using BussinessLogic.Stock.VarianceReport;
 using BussinessLogic.Worker.OtherReports;
-using BussinessLogic.Worker.RecordedTotalizer_Readings;
 using BussinessLogic.Worker.SalesReport;
 using BussinessLogic.Worker.StockReports;
 
@@ -109,7 +108,6 @@ public static class BusinessServicesExtensions
 		services.AddScoped<VarianceReport>();
 		services.AddScoped<StockTakeSummaryReport>();
 		services.AddScoped<ReadingsTotalizers>();
-		services.AddScoped<ITotalizerDailyReport, TotalizerDailyReport>();
 		services.AddScoped<IShiftClosingReport, ShiftClosingReportService>();
 
 		// ── Sales ───────────────────────────────────────────────────────────
@@ -137,11 +135,9 @@ public static class BusinessServicesExtensions
 		services.AddScoped<IMainData, MainData>();
 		services.AddScoped<SalesReportService>();
 		services.AddScoped<SalesReport_Summary>();
-		services.AddScoped<PromotionReport>();
 		services.AddScoped<TransactionsSummaries>();
 		services.AddScoped<Statements>();
-		services.AddScoped<FraudAuditReport>();
-		services.AddScoped<RecordTotalizerReadingReport>();
+
 
 		// ── Microsoft Graph ─────────────────────────────────────────────────
 		// Required by EmailWorkflow. Reads ClientId, TenantId, ClientSecret

@@ -1,6 +1,5 @@
 ﻿using BusinessLogic.Worker.SalesReport;
 using BussinessLogic.Worker.OtherReports;
-using BussinessLogic.Worker.RecordedTotalizer_Readings;
 using BussinessLogic.Worker.StockReports;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -42,24 +41,9 @@ namespace BussinessLogic.Worker
 						_lastRunDailySummary = now;
 					}
 
-					// 01:00 - Above100 + InstallationCost + TotalizerReadings + Telematic
-					if (now.Hour == 1 && now.Minute <= 3 && _lastRunAbove100.Date != now.Date)
-					{
-						_logger.LogInformation("Running Above100, InstallationCost, TotalizerReadings, TelematicReport at {Time}", now);
-						await Above100(scope, now);
-						await InstallationCost(scope, now);
-						await DailyTotalizerReadings(scope, now);
-						await TelematicReport(scope, now);
-						_lastRunAbove100 = now;
-					}
+			
 
-					// 05:00 - Totalizer Recordings
-					if (now.Hour == 5 && now.Minute <= 5 && _lastRunTotalizerRecordings.Date != now.Date)
-					{
-						_logger.LogInformation("Running DailyTotalizerRecordings at {Time}", now);
-						await DailyTotalizerRecordings(scope, now);
-						_lastRunTotalizerRecordings = now;
-					}
+
 
 				
 				}
@@ -108,27 +92,9 @@ namespace BussinessLogic.Worker
 			}
 		}
 
-		private static async Task DailyTotalizerReadings(IServiceScope scope, DateTime currentTime)
-		{
-			try
-			{
-				var salesReportService = scope.ServiceProvider.GetRequiredService<TotalizerDailyReport>();
-				await salesReportService.GenerateStyledTotalizerExcelWithAllDaysAsync();
-			}
-			catch (Exception ex)
-			{
-				ErrorLogger.WriteLogs(ex.Message);
-			}
-		}
 
-		private static async Task DailyTotalizerRecordings(IServiceScope scope, DateTime currentTime)
-		{
-			var salesReportService = scope.ServiceProvider.GetRequiredService<RecordTotalizerReadingReport>();
-			var emailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
-			var emails = await emailRecipients.GetRecipients("006");
-			ErrorLogger.WriteLogs("Above100 report started");
-			await salesReportService.DailyTotalizerRecordings(emails ?? new Mails());
-		}
+
+	
 
 		private static async Task TelematicReport(IServiceScope scope, DateTime currentTime)
 		{
