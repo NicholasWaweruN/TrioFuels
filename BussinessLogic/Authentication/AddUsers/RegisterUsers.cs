@@ -1,4 +1,5 @@
-﻿using BusinessLogic.EmailService;
+﻿using AfricasTalkingCS;
+using BusinessLogic.EmailService;
 using BusinessLogic.Messaging;
 using BussinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Setup;
@@ -47,75 +48,131 @@ namespace BusinessLogic.Authentication.AddUsers
 		/// <returns>A ServiceResponse indicating success or failure of the operation.</returns>
 		public async Task<ServiceResponse<object>> RegisterUserAsync(RegisterModel register)
 		{
-			// Get the execution strategy
-			var strategy = _context.Database.CreateExecutionStrategy();
-
-			return await strategy.ExecuteAsync(async () =>
+			try
 			{
-				using var transaction = await _context.Database.BeginTransactionAsync();
+				// ─────────────────────────────────────────────
+				// 1. Normalize input ONCE (performance + consistency)
+				// ─────────────────────────────────────────────
+				var email = register.Email.Trim().ToLowerInvariant();
+				var phone = _messagingService.NormalizePhoneNumber(register.PhoneNumber);
+				var payroll = register.PayrollNumber?.Trim().ToUpperInvariant();
 
-				try
+				register.Email = email;
+				register.PhoneNumber = phone;
+				register.PayrollNumber = payroll!;
+
+				// ─────────────────────────────────────────────
+				// 2. Fast indexed validations (NO OR queries)
+				// ─────────────────────────────────────────────
+
+				if (await _context.Users.AnyAsync(x => x.Email == email))
+					return ServiceResponse<object>.Information("Email already exists", null);
+
+				if (await _context.Users.AnyAsync(x => x.PhoneNumber == phone))
+					return ServiceResponse<object>.Information("Phone number already exists", null);
+
+				if (!string.IsNullOrWhiteSpace(payroll) &&
+					await _context.Users.AnyAsync(x => x.PayrollNumber == payroll))
+					return ServiceResponse<object>.Information("Payroll number already exists", null);
+
+				// ─────────────────────────────────────────────
+				// 3. Generate user code (external service)
+				// ─────────────────────────────────────────────
+				var userCode = await _setups.GetCodeGenerator("Usercode");
+
+				if (string.IsNullOrEmpty(userCode))
+					return ServiceResponse<object>.Error("Failed to generate user code", null);
+
+				// ─────────────────────────────────────────────
+				// 4. Generate secure OTP (NO hardcoded values)
+				// ─────────────────────────────────────────────
+				var otp = Random.Shared.Next(100000, 999999).ToString();
+
+				// ─────────────────────────────────────────────
+				// 5. Build user entity (clean + consistent)
+				// ─────────────────────────────────────────────
+				var user = new ApplicationUser
 				{
-					// Validate user input
-					var validationResponse = await ValidateUserInputAsync(register);
-					if (!validationResponse.ResponseObject)
-					{
-						return ServiceResponse<object>.Information(validationResponse.ResponseMessage ?? "Something went wrong", null);
-					}
+					Id = Guid.NewGuid().ToString(),
+					UserCode = userCode,
+					FirstName = _setups.SentenceCase(register.FirstName),
+					LastName = _setups.SentenceCase(register.LastName),
+					MiddName = _setups.SentenceCase(register.MiddName),
+					Email = email,
+					UserName = email,
+					NormalizedEmail = email.ToUpperInvariant(),
+					NormalizedUserName = email.ToUpperInvariant(),
+					PhoneNumber = phone,
+					PayrollNumber = payroll!,
+					AccessApps = string.Join(",", register.AccessApps ?? []),
+					DateCreated = DateTime.UtcNow,
+					DateModified = DateTime.UtcNow,
+					IsActive = true,
+					EmailConfirmed = true,
+					PhoneNumberConfirmed = true,
+					UserType = 1,
+					SecurityStamp = Guid.NewGuid().ToString(),
+					ConcurrencyStamp = Guid.NewGuid().ToString()
+				};
 
-					// Generate user code
-					var userCode = await _setups.GetCodeGenerator("Usercode");
-					if (userCode == null)
-					{
-						_logger.LogError("Error generating user code for {newUser} by {username}", register.FirstName, _authentication.Username());
-						return ServiceResponse<object>.Error("Error generating user code", null);
-					}
+				// ─────────────────────────────────────────────
+				// 6. Create user (Identity handles transaction internally)
+				// ─────────────────────────────────────────────
+				var result = await _userManager.CreateAsync(user, otp);
 
-					// Generate OTP and save the user
-					var otp = "M!ngat@123456";
-					var saveUserResponse = await SaveUserAsync(register, otp, userCode);
-					if (!saveUserResponse.ResponseCode.Equals(Response.Success))
-					{
-						_logger.LogError("Failed to create user {newUser} by {username}, error: {errors}", register.FirstName, _authentication.Username(), saveUserResponse.ResponseObject);
-						await transaction.RollbackAsync();
-						return ServiceResponse<object>.Information($"{saveUserResponse.ResponseMessage}",saveUserResponse.ResponseObject);
-					}
-
-					// Save OTP to the database
-					var otpSaveResponse = await _messagingService.SaveOtpAsync(register.PhoneNumber, otp);
-					if (otpSaveResponse.ResponseCode != Response.Success)
-					{
-						_logger.LogError("Failed to save OTP for {newUser} by {username}, error: {errors}", register.FirstName, _authentication.Username(), otpSaveResponse.ResponseMessage);
-						await transaction.RollbackAsync();
-						return ServiceResponse<object>.Information("Failed to save OTP", null);
-					}
-
-					
-
-					var body = Body(string.Join(' ', register.FirstName, register.MiddName, register.LastName), otp);
-
-					// Send confirmation email
-					_emailService.SendEmail(register.Email, null, "Otopay account", body);
-
-					// Commit the transaction
-					await transaction.CommitAsync();
-
-					// Log user creation in the user trail
-					await _authentication.AddUserTrail($"Account {register.FirstName} {register.MiddName} {register.LastName} with phone number {register.PhoneNumber} was registered by {_authentication.Name()} on {DateTime.UtcNow}", "User Registration");
-
-					return ServiceResponse<object>.Success($"{register.FirstName} account created successfully", null);
-				}
-				catch (Exception ex)
+				if (!result.Succeeded)
 				{
-					// Rollback the transaction in case of an error
-					await transaction.RollbackAsync();
-					_logger.LogError("User creation failed for {newUser} by {username}, error: {errors}", register.FirstName, _authentication.Username(), ex.Message);
-					return ServiceResponse<object>.Error("Something went wrong", null);
+					var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+
+					_logger.LogError(
+						"User creation failed for {Email}, errors: {Errors}",
+						email,
+						errors);
+
+					return ServiceResponse<object>.Error("User creation failed", errors);
 				}
-			});
+
+				// ─────────────────────────────────────────────
+				// 7. Save OTP + Audit in ONE DB CALL
+				// ─────────────────────────────────────────────
+				var otpEntity = new Otp
+				{
+					PhoneNumber = phone,
+					OTPCode = otp,
+					OTPStatus = true,
+					DateCreated = DateTime.UtcNow
+				};
+
+				var audit = new UserTrail
+				{
+					UserCode = userCode,
+					ActionType = "UserRegistration",
+					Message = $"User {email} created by {_authentication.Name()}",
+					UserName = _authentication.Name(),
+					DateCreated = DateTime.UtcNow
+				};
+
+				_context.AddRange(otpEntity, audit);
+				await _context.SaveChangesAsync();
+
+				// ─────────────────────────────────────────────
+				// 8. Email (non-blocking)
+				// ─────────────────────────────────────────────
+				var body = BuildEmailBody(
+					$"{register.FirstName} {register.LastName}",
+					otp);
+
+				_emailService.SendEmail(email, null, "Otopay Account", body);
+
+				return ServiceResponse<object>.Success("User created successfully", null);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error creating user {Email}", register.Email);
+				return ServiceResponse<object>.Error("Unexpected error occurred", null);
+			}
 		}
-
-		static string Body(string userName, string Otp)
+		static string BuildEmailBody(string userName, string Otp)
 		{
 			var body = @"<!DOCTYPE html>
 				<html>
@@ -586,5 +643,13 @@ namespace BusinessLogic.Authentication.AddUsers
 		}
 
 		#endregion
+	}
+
+	internal class Otp 
+	{
+		public string PhoneNumber { get; set; } = string.Empty;
+		public string OTPCode { get; set; } = string.Empty;
+		public bool OTPStatus { get; set; }
+		public DateTime DateCreated { get; set; }
 	}
 }
