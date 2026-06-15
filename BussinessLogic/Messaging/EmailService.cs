@@ -82,31 +82,6 @@ public class EmailService : IEmailService
 		}
 	}
 
-	// Method to fetch data from the database using stored procedure
-	private static async Task<DataTable> GetSalesReportDataAsync(DateTime reportDate)
-	{
-		//string connectionString = ConfigurationManager.ConnectionStrings["OtogasDb"].ConnectionString;
-		string storedProcedure = "OTOGASSALESREPORTS";
-		DataTable dt = new DataTable();
-		var connectionString = "";//.ConnectionStrings["OtogasDb"].ConnectionString;
-		using (NpgsqlConnection connection = new(connectionString))
-		{
-			using (NpgsqlCommand command = new(storedProcedure, connection))
-			{
-				command.CommandType = CommandType.StoredProcedure;
-				// You can pass parameters for report date or other criteria here if necessary
-				command.Parameters.Add(new NpgsqlParameter("@ReportDate", reportDate));
-
-				await connection.OpenAsync();
-				using (NpgsqlDataReader reader = await command.ExecuteReaderAsync())
-				{
-					dt.Load(reader);
-				}
-			}
-		}
-
-		return dt;
-	}
 
 	// Method to convert a DataTable to a MemoryStream containing CSV data
 	private static MemoryStream ConvertDataTableToCsvStream(DataTable dataTable)

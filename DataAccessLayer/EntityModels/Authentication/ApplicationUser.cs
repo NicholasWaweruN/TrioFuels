@@ -29,7 +29,7 @@ namespace DataAccessLayer.Authentication.Entity
 		[StringLength(50), Unicode(false)]
 		public string ModifiedBy { get; set; } = string.Empty;
 		public DateTime? PasswordLastUpdated { get; set; }
-		[Required, StringLength(4), Unicode(false), EmailAddress]
+		[Required, StringLength(20), Unicode(false), EmailAddress]
 		public string AccessApps { get; set; } = string.Empty;
 		[StringLength(15), Unicode(false)]
 		public override string? PhoneNumber { get; set; } = string.Empty;

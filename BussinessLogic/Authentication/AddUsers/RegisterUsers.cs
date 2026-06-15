@@ -159,7 +159,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					$"{register.FirstName} {register.LastName}",
 					otp);
 
-				_emailService.SendEmail(email, null, "Otopay Account", body);
+				 //_emailService.SendEmail(email, null, "Otopay Account", body);
 
 				return ServiceResponse<object>.Success("User created successfully", null);
 			}
