@@ -60,16 +60,12 @@ namespace DataAccessLayer.Context
 				new Codegenerator { Length = 2, NextNumber = 0, Prefix = "N", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "Nozzlecode", UserCode = "00001", Id = 3 },
 				new Codegenerator { Length = 3, NextNumber = 0, Prefix = "S", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "StationCode", UserCode = "00001", Id = 4 },
 				new Codegenerator { Length = 5, NextNumber = 10000, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "CustomerCode", UserCode = "00001", Id = 5 },
-				new Codegenerator { Length = 5, NextNumber = 10000, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "BULCUST", UserCode = "00001", Id = 6 },
-				new Codegenerator { Length = 7, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "PLANID", UserCode = "00001", Id = 7 },
-				new Codegenerator { Length = 2, NextNumber = 0, Prefix = "T", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "TANKID", UserCode = "00001", Id = 8 },
-				new Codegenerator { Length = 5, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "TILLID", UserCode = "00001", Id = 9 },
-				new Codegenerator { Length = 4, NextNumber = 0, Prefix = "P", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "PDAID", UserCode = "00001", Id = 10 },
-				new Codegenerator { Length = 7, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "VEHICLEID", UserCode = "00001", Id = 11 },
 				new Codegenerator { Length = 4, NextNumber = 0, Prefix = "PD", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "pdadevice", UserCode = "00001", Id = 14 },
 				new Codegenerator { Length = 2, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "productCode", UserCode = "00001", Id = 15 },
 				new Codegenerator { Length = 5, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "WalkInCustomer", UserCode = "00001", Id = 16 },
+				new Codegenerator { Length = 5, NextNumber = 1, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "VehicleCode", UserCode = "00001", Id = 17 },
 				new Codegenerator { Length = 5, NextNumber = 1, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "VehicleCode", UserCode = "00001", Id = 17 }
+
 			);
 		}
 

@@ -78,7 +78,7 @@ namespace BusinessLogic.Authentication.AddUsers
 				// ─────────────────────────────────────────────
 				// 3. Generate user code (external service)
 				// ─────────────────────────────────────────────
-				var userCode = await _setups.GetCodeGenerator("Usercode");
+				var userCode = await _setups.GetCodeGenerator("UserCode");
 
 				if (string.IsNullOrEmpty(userCode))
 					return ServiceResponse<object>.Error("Failed to generate user code", null);
