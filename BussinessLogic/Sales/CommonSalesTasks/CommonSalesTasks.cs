@@ -33,54 +33,63 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 
 		public async Task<ServiceResponse<object>> ReconcileStockSummariesAsync(string shiftNumber)
 		{
-			const decimal VarianceTolerance = 0.001m;
-
-			using var transaction = await _context.Database.BeginTransactionAsync();
 			try
 			{
-				var stockSummaries = await _context.StockTakeSummaries
-					.Where(s => s.ShiftNumber == shiftNumber)
-					.ToListAsync();
+				// 1. Update Stock Summaries (ALL IN SQL)
+				await _context.Database.ExecuteSqlRawAsync(@"
+				UPDATE ""StockTakeSummaries"" s
+				SET
+					""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
 
-				if (stockSummaries.Count == 0)
-					return ServiceResponse<object>.Information("No stocktake summary found", null);
+					""ExpectedClosingReading"" =
+						s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
 
-				// ───────────────────────────────────────────────
-				// Aggregate sales per nozzle in a single query
-				// ───────────────────────────────────────────────
-				var salesByNozzle = await _context.QuantityTransactions
-					.Where(t => t.ShiftNumber == shiftNumber)
-					.GroupBy(t => t.NozzleCode)
-					.Select(g => new { g.Key, Total = g.Sum(x => x.QuantityCredit - x.QuantityDebit) })
-					.ToDictionaryAsync(x => x.Key, x => x.Total);
+					""ClosingVariance"" =
+						s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
 
-				foreach (var stock in stockSummaries)
-				{
-					var totalSales = salesByNozzle.GetValueOrDefault(stock.NozzleCode);
+					""VarianceStatus"" =
+						CASE
+							WHEN ABS(
+								s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0))
+							) = 0
+							THEN 0   -- Closed
+							ELSE 2   -- Variance
+						END
+				FROM (
+					SELECT
+						""NozzleCode"",
+						SUM(""QuantityCredit"" - ""QuantityDebit"") AS ""TotalSales""
+					FROM ""QuantityTransactions""
+					WHERE ""ShiftNumber"" = {0}
+					GROUP BY ""NozzleCode""
+				) q
+				WHERE s.""ShiftNumber"" = {0}
+				  AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
 
-					stock.QuantitySold = totalSales;
-					stock.ExpectedClosingReading = stock.OpeningReading + totalSales;
-					stock.ClosingVariance = stock.ClosingReading - stock.ExpectedClosingReading;
-					stock.VarianceStatus = Math.Abs(stock.ClosingVariance) <= VarianceTolerance
-														? ShiftStatus.Closed
-														: ShiftStatus.Variance;
-				}
+				// 2. Update Shift based on updated stock
+				await _context.Database.ExecuteSqlRawAsync(@"
+			UPDATE ""Shifts""
+			SET ""ShiftStatus"" =
+				CASE
+					WHEN NOT EXISTS (
+						SELECT 1
+						FROM ""StockTakeSummaries""
+						WHERE ""ShiftNumber"" = {0}
+						  AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
+					)
+					THEN 0   -- Closed
+					ELSE 2   -- Variance
+				END
+			WHERE ""ShiftNumber"" = {0};", shiftNumber);
 
-				var shift = await _context.Shifts.FirstOrDefaultAsync(s => s.ShiftNumber == shiftNumber);
-				shift?.ShiftStatus = stockSummaries.All(x => x.VarianceStatus == ShiftStatus.Closed)
-						? ShiftStatus.Closed
-						: ShiftStatus.Variance;
-
-				await _context.SaveChangesAsync();
-				await transaction.CommitAsync();
-
-				return ServiceResponse<object>.Success("Stock reconciled successfully", null);
+				return ServiceResponse<object>.Success("Stock reconciled successfully",null);
 			}
 			catch (Exception ex)
 			{
-				await transaction.RollbackAsync();
-				_logger.LogError(ex, "Failed to reconcile stock summaries for shift {ShiftNumber}", shiftNumber);
-				return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary", null);
+				_logger.LogError(ex,"Failed to reconcile stock summaries for shift {ShiftNumber}",shiftNumber);
+
+				return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary",null
+				);
 			}
 		}
 

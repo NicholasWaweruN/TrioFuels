@@ -291,7 +291,7 @@ namespace BussinessLogic.Sales.MissingSales
 			// Left as-is pending confirmation of whether operational-loss entries should
 			// always be priced/audited against product "02" regardless of the vehicle's
 			// own product/price.
-			//_unitPrice = await GetSpecificProductPriceAsync("02") ?? _unitPrice;
+			_unitPrice = await GetSpecificProductPriceAsync("02") ?? _unitPrice;
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
 			await SaveTransactionDataAsync(sales);
@@ -605,7 +605,7 @@ namespace BussinessLogic.Sales.MissingSales
 		// Math.Floor(sales.Quantity * _unitPrice) for AmountCredit/saleTotal. Removing the
 		// dead parameter avoids the false impression that the caller's computed total
 		// influences what gets persisted here.
-		private async Task SaveTransactionDataAsync(MisingSaleDto sales)
+		private async Task  SaveTransactionDataAsync(MisingSaleDto sales)
 		{
 			var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
 

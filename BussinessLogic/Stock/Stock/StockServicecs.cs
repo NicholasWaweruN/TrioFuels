@@ -561,7 +561,8 @@ namespace BussinessLogic.Stock.Stock
 							join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
 							join s in _context.Stations on d.StationCode equals s.StationCode
 							join u in _context.Users on ss.UserCode equals u.UserCode
-							where ss.VarianceStatus == ShiftStatus.Variance || ss.VarianceStatus == ShiftStatus.Pending
+							where ss.VarianceStatus == ShiftStatus.Variance
+							   || ss.VarianceStatus == ShiftStatus.Pending
 							select new
 							{
 								ss.Id,
@@ -572,21 +573,33 @@ namespace BussinessLogic.Stock.Stock
 								ss.OpeningReading,
 								ss.ClosingReading,
 								ss.ExpectedClosingReading,
-								Variance = ss.ClosingVariance + ss.OpeningVariance,
+
+								Variance = ss.ClosingVariance, // keep clean single source
+
 								ss.QuantitySold,
 								Status = ss.VarianceStatus,
 								ss.DateCreated,
+
 								n.NozzleName,
 								d.DispenserName,
 								s.StationName,
 								s.StationCode,
-								payrollNumber = u.PayrollNumber,
-								Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
+
+								u.PayrollNumber,
+
+								FirstName = u.FirstName,
+								MiddleName = u.MiddName,
+								LastName = u.LastName
 							};
 
-				// Apply filters
+				// ✅ FIX: PostgreSQL-safe date filtering (no .Date)
 				if (date.HasValue)
-					query = query.Where(x => x.DateCreated.Date == date.Value.Date);
+				{
+					var start = date.Value.Date;
+					var end = start.AddDays(1);
+
+					query = query.Where(x => x.DateCreated >= start && x.DateCreated < end);
+				}
 
 				if (!string.IsNullOrEmpty(shiftNumber))
 					query = query.Where(x => x.ShiftNumber == shiftNumber);
@@ -601,9 +614,33 @@ namespace BussinessLogic.Stock.Stock
 					.AsNoTracking()
 					.ToListAsync();
 
-				if (variances.Count == 0)
+				// ✅ FIX: build full name AFTER query (client-side safe)
+				var result = variances.Select(x => new
+				{
+					x.Id,
+					x.DispenserCode,
+					x.ShiftNumber,
+					x.UserCode,
+					x.NozzleCode,
+					x.OpeningReading,
+					x.ClosingReading,
+					x.ExpectedClosingReading,
+					x.Variance,
+					x.QuantitySold,
+					x.Status,
+					x.DateCreated,
+					x.NozzleName,
+					x.DispenserName,
+					x.StationName,
+					x.StationCode,
+					x.PayrollNumber,
+					Name = $"{x.FirstName} {x.MiddleName} {x.LastName}"
+				}).ToList();
+
+				if (result.Count == 0)
 					return ServiceResponse<object>.Information("No variances found", null);
-				return ServiceResponse<object>.Success("Variance List", variances);
+
+				return ServiceResponse<object>.Success("Variance List", result);
 			}
 			catch (Exception ex)
 			{
@@ -697,56 +734,58 @@ namespace BussinessLogic.Stock.Stock
 
 		public async Task<ServiceResponse<object>> AdjustStockTakes(AdjustStockTakeSummaryDto adjust)
 		{
-			using var transaction = await _context.Database.BeginTransactionAsync();
+			await using var transaction = await _context.Database.BeginTransactionAsync();
 
 			try
 			{
-				var stockTakesToUpdate = new List<StockTakeSummary>();
+				var nozzleCodes = adjust.Readings.Select(x => x.NozzleCode).ToList();
 
-				foreach (var item in adjust.Readings)
+				var stockTakes = await _context.StockTakeSummaries
+					.Where(x => x.ShiftNumber == adjust.ShiftNumber
+							 && nozzleCodes.Contains(x.NozzleCode))
+					.ToListAsync();
+
+				if (!stockTakes.Any())
 				{
-					var stockTake = await _context.StockTakeSummaries
-									   .AsNoTracking() // Ensure no tracking to avoid conflicts
-									   .FirstOrDefaultAsync(ss => ss.NozzleCode == item.NozzleCode && ss.ShiftNumber == adjust.ShiftNumber);
+					await transaction.RollbackAsync();
+					return ServiceResponse<object>.Information("Stock take summary not found", null);
+				}
 
-					if (stockTake == null)
-					{
-						await transaction.RollbackAsync();
-						return ServiceResponse<object>.Information("Stock take summary not found", null);
-					}
+				foreach (var stockTake in stockTakes)
+				{
+					var item = adjust.Readings
+						.First(x => x.NozzleCode == stockTake.NozzleCode);
 
-					// Modify the entity properties
 					stockTake.ClosingReading = item.ClosingReading;
 					stockTake.OpeningReading = item.OpeningReading;
 					stockTake.OpeningVariance = 0;
-
-					// Attach and add to the list for batch update later
-					_context.StockTakeSummaries.Attach(stockTake);
-					stockTakesToUpdate.Add(stockTake);
 				}
-
-				if (stockTakesToUpdate.Count != 0)
-				{
-					_context.StockTakeSummaries.UpdateRange(stockTakesToUpdate);
-				}
-
-				// Log user trail after processing all stock takes
-				var messages = $@"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} for shift number {adjust.ShiftNumber}";
 
 				await _context.SaveChangesAsync();
+
 				await ReconcileStockSummaries(adjust.ShiftNumber);
+
+				var messages = $"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} for shift {adjust.ShiftNumber}";
+
 				await _authentication.AddUserTrail(messages, MethodBase.GetCurrentMethod()?.Name ?? "");
 
 				await transaction.CommitAsync();
 
-				return ServiceResponse<object>.Success("Stock take summary adjusted successfully", null);
+				return ServiceResponse<object>.Success(
+					"Stock take summary adjusted successfully",
+					null
+				);
 			}
 			catch (Exception ex)
 			{
-				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
+				await transaction.RollbackAsync();
+
+				return ServiceResponse<object>.Error(
+					"Something went wrong",
+					ex.Message
+				);
 			}
 		}
-
 		//export all variances
 		public async Task<ServiceResponse<byte[]>> ExportAllVariances()
 		{
