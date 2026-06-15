@@ -17,7 +17,6 @@ namespace BussinessLogic.Stock.Stock
 		Task<ServiceResponse<object>> GetTotalizerReadings(DateTime date);
 		Task<ServiceResponse<object>> InitialStockTake(StockTakeDto initialStockTakeDto);
 		Task<ServiceResponse<object>> ListVariance(DateTime? date, string? shiftNumber, string? stationName);
-		void MovedTransactions(MovedTransactions transactions);
 		Task<ServiceResponse> NozzleQuantityTransfer(string shiftNumber);
 		Task<ServiceResponse> ReconcileStockSummaries(string shiftNumber);
 		Task<ServiceResponse> ResetShift(string shiftNumber);

@@ -403,14 +403,6 @@ namespace BussinessLogic.Stock.Stock
 				totalVariance = await (from q in _context.StockTakeSummaries
 									   where q.ShiftNumber == shiftNumber
 									   select q).SumAsync(x => x.ClosingVariance);
-
-
-
-
-				totalVariance = await (from q in _context.StockTakeSummaries
-									   where q.ShiftNumber == shiftNumber
-									   select q).SumAsync(x => x.ClosingVariance);
-
 			}
 
 			await UpdateShiftStatusAsync(shiftNumber, totalVariance, isOpeningReading, shift);
@@ -765,7 +757,7 @@ namespace BussinessLogic.Stock.Stock
 									   join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
 									   join s in _context.Stations on d.StationCode equals s.StationCode
 									   join u in _context.Users on ss.UserCode equals u.UserCode
-									   where ss.VarianceStatus == ShiftStatus.Variance && ss.VarianceStatus == ShiftStatus.Pending
+									   where ss.VarianceStatus == ShiftStatus.Variance || ss.VarianceStatus == ShiftStatus.Pending
 									   select new
 									   {
 										   d.DispenserCode,
@@ -918,7 +910,7 @@ namespace BussinessLogic.Stock.Stock
 					transactionToMove.StationCode = stationCode;
 
 					//Save to moved
-					MovedTransactions(new MovedTransactions
+					await SaveMovedTransactionAsync(new MovedTransactions
 					{
 						AmountCredit = transactionToMove.AmountCredit,
 						NozzleCode = transactionToMove.NozzleCode,
@@ -962,9 +954,14 @@ namespace BussinessLogic.Stock.Stock
 								 .ToListAsync();
 		}
 
-		public async void MovedTransactions(MovedTransactions transactions)
+		// ─────────────────────────────────────────────────────────────
+		// Persists a moved transaction record. Renamed from the original
+		// "MovedTransactions" (same name as the entity type, and async void,
+		// which swallows exceptions) to "SaveMovedTransactionAsync" returning
+		// a proper awaitable Task so callers can observe failures.
+		// ─────────────────────────────────────────────────────────────
+		private async Task SaveMovedTransactionAsync(MovedTransactions transactions)
 		{
-
 			var moved = new MovedTransactions()
 			{
 				AmountCredit = transactions.AmountCredit,
@@ -984,7 +981,7 @@ namespace BussinessLogic.Stock.Stock
 				VehicleCode = transactions.VehicleCode,
 			};
 
-			_ = await _context.AddAsync(moved);
+			await _context.AddAsync(moved);
 			await _context.SaveChangesAsync();
 		}
 
@@ -1028,7 +1025,7 @@ namespace BussinessLogic.Stock.Stock
 
 				if (shift != null)
 				{
-					shift.ShiftStatus = 1;
+					shift.ShiftStatus = ShiftStatus.Open;
 					shift.ShiftEndTime = null;
 					_context.Shifts.Update(shift);
 				}
@@ -1039,7 +1036,7 @@ namespace BussinessLogic.Stock.Stock
 				{
 					reading.ClosingReading = 0;
 					reading.ClosingVariance = 0;
-					reading.VarianceStatus = 1;
+					reading.VarianceStatus = ShiftStatus.Open;
 					reading.ExpectedClosingReading = 0;
 					_context.StockTakeSummaries.Update(reading);
 				}

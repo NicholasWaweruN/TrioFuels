@@ -67,6 +67,7 @@ namespace BussinessLogic.Sales.MissingSales
 					vehicle = await GetVehicleAsync(sales.VehicleCode);
 					if (vehicle == null || string.IsNullOrWhiteSpace(vehicle.VehicleRegistration))
 						return ServiceResponse<object>.Information("Vehicle not found", null);
+
 					if (string.IsNullOrWhiteSpace(vehicle.ProductCode))
 						return ServiceResponse<object>.Information("Vehicle has no associated product", null);
 				}
@@ -86,8 +87,6 @@ namespace BussinessLogic.Sales.MissingSales
 		}
 
 		// ====== CENTRALIZED PRICE LOGIC ======
-
-
 
 
 		private async Task<ServiceResponse<object>> ResolveUnitPriceAsync(MisingSaleDto sales, Vehicle vehicle)
