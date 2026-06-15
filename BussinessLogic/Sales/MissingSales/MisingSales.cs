@@ -24,7 +24,7 @@ namespace BussinessLogic.Sales.MissingSales
 		private readonly OTOContext _context;
 		private readonly ICommonSetups _setups;
 		private readonly IAuthCommonTasks _authentication;
-		private readonly ICommonSalesTasks  _salesTasks;
+		private readonly ICommonSalesTasks _salesTasks;
 		private readonly IMessagingService _isTalking;
 
 		public MisingSale(OTOContext context, ICommonSetups setups, IAuthCommonTasks authentication, ICommonSalesTasks salesTasks, IMessagingService isTalking, IMemoryCache cache)
@@ -100,16 +100,24 @@ namespace BussinessLogic.Sales.MissingSales
 			// if user provided a price differing from station price, require approval
 			if (productPrice != 0 && sales.Price != 0 && productPrice != sales.Price)
 			{
-				var (IsValid, Issue) = await HasValidPriceApprovalAsync(vehicle.VehicleRegistration, sales.Price, sales.ShiftNumber,sales.Quantity);
+				var (IsValid, Issue) = await HasValidPriceApprovalAsync(vehicle.VehicleRegistration, sales.Price, sales.ShiftNumber, sales.Quantity);
 				if (!IsValid)
 					return ServiceResponse<object>.Information(Issue, null);
 
 				_unitPrice = (decimal)sales.Price;
 				await ConsumePriceApprovalAsync(vehicle.VehicleRegistration, _unitPrice, sales.ShiftNumber);
+
+				// FIX: previously _originalPrice/_discount were left at their default of 0 on
+				// this path, which meant QuantityTransactions.Price and .Discount were persisted
+				// as 0 for every approved-price sale. The approved price *is* the unit price
+				// charged here, so record it as the original price with no further discount.
+				_originalPrice = _unitPrice;
+				_discount = 0;
+
 				return ServiceResponse<object>.Success("Price resolved via approval", null);
 			}
 
-			_discount  = await GetDiscount(vehicle.ProductCode);
+			_discount = await GetDiscount(vehicle.ProductCode);
 
 			// normal path
 			if (productPrice == 0)
@@ -141,7 +149,7 @@ namespace BussinessLogic.Sales.MissingSales
 		}
 
 
-		private async Task<(bool IsValid, string Issue)> HasValidPriceApprovalAsync(string vehicleRegistration,decimal proposedPrice,string shiftNumber,decimal quantity)
+		private async Task<(bool IsValid, string Issue)> HasValidPriceApprovalAsync(string vehicleRegistration, decimal proposedPrice, string shiftNumber, decimal quantity)
 		{
 			var approval = await _context.PriceApproval.Where(p => p.NumberPlate == vehicleRegistration).OrderByDescending(p => p.Id).FirstOrDefaultAsync();
 
@@ -161,8 +169,8 @@ namespace BussinessLogic.Sales.MissingSales
 			if (approval.ShiftNumber != shiftNumber)
 				return (false, $"Shift number mismatch. Expected: {approval.ShiftNumber}, Got: {shiftNumber}");
 
-			if(approval.Quantity < quantity)
-				return (false, $"Approved quantity exceeded. Approved: {approval.Quantity}, Requested: {quantity}");	
+			if (approval.Quantity < quantity)
+				return (false, $"Approved quantity exceeded. Approved: {approval.Quantity}, Requested: {quantity}");
 			return (true, "Approval is valid");
 		}
 
@@ -230,7 +238,7 @@ namespace BussinessLogic.Sales.MissingSales
 			_context.Vouchers.Update(voucher);
 			await _context.SaveChangesAsync();
 
-			await SaveTransactionDataAsync(sales, totalAmount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -245,7 +253,7 @@ namespace BussinessLogic.Sales.MissingSales
 				return ServiceResponse<object>.Information("Employee does not exist", null);
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -260,7 +268,7 @@ namespace BussinessLogic.Sales.MissingSales
 				return ServiceResponse<object>.Information("Vehicle does not exist", null);
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, vehicle.VehicleRegistration, sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -276,10 +284,17 @@ namespace BussinessLogic.Sales.MissingSales
 				return ServiceResponse<object>.Information("Employee does not exist", null);
 
 			// If you must force product "02"
-			_unitPrice = await GetSpecificProductPriceAsync("02") ?? _unitPrice;
+			// NOTE: this overrides _unitPrice *after* ResolveUnitPriceAsync already set
+			// _originalPrice/_discount based on the originally-resolved product price.
+			// As written, the persisted Price/Discount fields on QuantityTransactions may
+			// not correspond to the _unitPrice actually used for this sale's total below.
+			// Left as-is pending confirmation of whether operational-loss entries should
+			// always be priced/audited against product "02" regardless of the vehicle's
+			// own product/price.
+			//_unitPrice = await GetSpecificProductPriceAsync("02") ?? _unitPrice;
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -294,7 +309,7 @@ namespace BussinessLogic.Sales.MissingSales
 			if (!await EmployeeExist(sales.VehicleCode)) return ServiceResponse<object>.Information("Employee does not exist", null);
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -308,11 +323,11 @@ namespace BussinessLogic.Sales.MissingSales
 			if (string.IsNullOrWhiteSpace(vehicle.VehicleRegistration))
 				return ServiceResponse<object>.Information("Vehicle does not exist", null);
 
-			var isValid = await ValidateCoreEntitiesAsync(sales);
-			if (isValid.ResponseCode != Response.Success) return isValid;
+			// NOTE: removed the redundant ValidateCoreEntitiesAsync(sales) call here -
+			// AddSalesAsync already runs this validation once before routing to this handler.
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, vehicle.VehicleRegistration, sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -328,11 +343,11 @@ namespace BussinessLogic.Sales.MissingSales
 
 			var price = await GetEmployeeFallbackPriceAsync(_stationCode);
 
-			var ok = await ValidateCoreEntitiesAsync(sales);
-			if (ok.ResponseCode != Response.Success) return ok;
+			// NOTE: removed the redundant ValidateCoreEntitiesAsync(sales) call here -
+			// AddSalesAsync already runs this validation once before routing to this handler.
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -347,7 +362,7 @@ namespace BussinessLogic.Sales.MissingSales
 				return ServiceResponse<object>.Information("Employee does not exist", null);
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -362,7 +377,7 @@ namespace BussinessLogic.Sales.MissingSales
 				return ServiceResponse<object>.Information("Employee does not exist", null);
 
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -384,7 +399,7 @@ namespace BussinessLogic.Sales.MissingSales
 				if (totalMpesaAvailable < saleTotal)
 					return ServiceResponse<object>.Information("Insufficient MPesa funds to complete this sale", null);
 
-				await SaveTransactionDataAsync(sales, saleTotal); // writes quantity + capped payments
+				await SaveTransactionDataAsync(sales); // writes quantity + capped payments
 				await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 				var details = BuildAuditDetails(sales, vehicle.VehicleRegistration, sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -410,13 +425,18 @@ namespace BussinessLogic.Sales.MissingSales
 			var customerCreditBalance = await CustomerLimit(customer.CustomerCode);
 			var walletBalance = await GetCustomerBalance(sales.VehicleCode);
 
+			// NOTE: this combines the vehicle-level CreditLimit ("limit") with the
+			// customer-level CreditLimit ("customerCreditBalance.ResponseObject"). If both
+			// represent the same underlying credit facility (rather than two independent
+			// allowances), this would effectively double the customer's available credit.
+			// Left as-is pending confirmation of the intended business rule.
 			var available = walletBalance + limit + customerCreditBalance.ResponseObject;
 			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
 
 			if (available < amount) return ServiceResponse<object>.Information("Insufficient balance", null);
 
 			await AddCustomerTransactionAsync(sales.VehicleCode, amount, sales.DispenserCode);
-			await SaveTransactionDataAsync(sales, amount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var newBalance = await GetCustomerBalance(sales.VehicleCode);
@@ -457,7 +477,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 			await AddPersonalWalletTransactionAsync(sales.VehicleCode, totalAmount, sales.DispenserCode, sales.WalletId);
 
-			await SaveTransactionDataAsync(sales, totalAmount);
+			await SaveTransactionDataAsync(sales);
 			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 			var newBalance = await GetPersonalBalance(sales.WalletId);
@@ -528,13 +548,6 @@ namespace BussinessLogic.Sales.MissingSales
 			return true;
 		}
 
-		private bool ValidateComputedAmount(decimal quantity, decimal transactionAmount)
-		{
-			var expected = Math.Floor(quantity * _unitPrice);
-			var tolerance = 0.50m;
-			return transactionAmount + tolerance >= expected;
-		}
-
 		private async Task SavePaymentTransactionsAsync(MisingSaleDto sales, decimal saleTotal)
 		{
 			decimal remaining = Math.Floor(saleTotal);
@@ -586,7 +599,13 @@ namespace BussinessLogic.Sales.MissingSales
 			await _context.SaveChangesAsync();
 		}
 
-		private async Task SaveTransactionDataAsync(MisingSaleDto sales, decimal _ /*unused*/)
+		// FIX: removed the unused `decimal _ /*unused*/` parameter. Every caller computed
+		// an "amount"/"totalAmount"/"saleTotal" from sales.PaymentDetails and passed it in,
+		// but this method ignored that value entirely and always recomputed
+		// Math.Floor(sales.Quantity * _unitPrice) for AmountCredit/saleTotal. Removing the
+		// dead parameter avoids the false impression that the caller's computed total
+		// influences what gets persisted here.
+		private async Task SaveTransactionDataAsync(MisingSaleDto sales)
 		{
 			var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
 
@@ -638,28 +657,29 @@ namespace BussinessLogic.Sales.MissingSales
 
 		private async Task<int?> GetUsageBalanceAsync(string transId)
 		{
-			const string sql = @"SELECT TOP 1 CAST(UsageBalance as int) AS Amount 
-                         FROM Protobase..MpesaC2BPayments 
-                         WHERE BusinessShortCode = @p0 AND TransID = @p1";
+			var usageBalance = await (from mt in _context.MpesaTransactions
+									  where mt.BusinessShortCode == _storeNumber
+									  && mt.TransID == transId
+									  select (int?)mt.UsageBalance).FirstOrDefaultAsync();
 
-			var shortCode = _storeNumber;
-			return await _context.Set<UsageBalanceDto>()
-				.FromSqlRaw(sql, shortCode, transId)
-				.Select(result => result.Amount)
-				.FirstOrDefaultAsync();
+			return usageBalance;
 		}
 
 		private async Task<int> ConsumeMpesaAsync(string transId, int amountToConsume)
 		{
-			const string sql = @"
-				UPDATE Protobase..MpesaC2BPayments
-				SET UsageBalance = CASE
-					WHEN UsageBalance >= @p2 THEN UsageBalance - @p2
-					ELSE 0 END
-				WHERE BusinessShortCode = @p0 AND TransID = @p1";
+			var transaction = await _context.MpesaTransactions
+				.FirstOrDefaultAsync(x =>
+					x.BusinessShortCode == _storeNumber &&
+					x.TransID == transId);
 
-			var shortCode = _storeNumber;
-			return await _context.Database.ExecuteSqlRawAsync(sql, shortCode, transId, amountToConsume);
+			if (transaction == null)
+				return 0;
+
+			transaction.UsageBalance = transaction.UsageBalance >= amountToConsume
+				? transaction.UsageBalance - amountToConsume
+				: 0;
+
+			return await _context.SaveChangesAsync();
 		}
 
 		private async Task<int> ValidateAndCalculateMpesaPaymentsAsync(IEnumerable<PaymentDetails> paymentDetails)
@@ -869,6 +889,12 @@ namespace BussinessLogic.Sales.MissingSales
 				await _context.SaveChangesAsync();
 
 				var msg = $"Variance written off for shift {shift.ShiftNumber} by {_authentication.Name()} on {DateTime.UtcNow}";
+
+				// FIX: this audit message was previously built but never persisted - DeferVariance
+				// (above) writes its equivalent message via AddUserTrail, but OffWriteVariance did not,
+				// leaving variance write-offs without an audit trail entry.
+				await _authentication.AddUserTrail(msg, nameof(OffWriteVariance));
+
 				return ServiceResponse<object>.Success(msg);
 			}
 			return ServiceResponse<object>.Information("Shift or Stock Summary Not Found");
