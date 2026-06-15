@@ -118,7 +118,7 @@ namespace BusinessLogic.Authentication.AddUsers
 				// ─────────────────────────────────────────────
 				// 6. Create user (Identity handles transaction internally)
 				// ─────────────────────────────────────────────
-				var result = await _userManager.CreateAsync(user, otp);
+				var result = await _userManager.CreateAsync(user);
 
 				if (!result.Succeeded)
 				{
