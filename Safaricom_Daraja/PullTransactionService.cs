@@ -45,7 +45,9 @@ public sealed class PullTransactionService(
 	ILogger<PullTransactionService> logger) : IPullTransactionService
 {
 	private readonly DarajaConfig _cfg = options.Value;
-	private const string DateFormat = "yyyyMMddHHmmss";
+
+	// Daraja Pull Transactions API expects "yyyy-MM-dd HH:mm:ss", not "yyyyMMddHHmmss".
+	private const string DateFormat = "yyyy-MM-dd HH:mm:ss";
 	private const int PageSize = 100;
 
 	public async Task<DarajaResult<PullTransactionResponse>> PullAsync(
@@ -64,11 +66,13 @@ public sealed class PullTransactionService(
 				ShortCode = tillNumber,
 				StartDate = from.ToString(DateFormat),
 				EndDate = to.ToString(DateFormat),
-				Offset = offset
+				OffSetValue = offset
 			};
 
 			var client = GetBasicAuthClient();
-			var response = await client.PostAsJsonAsync("/pullpayments/v1/query", payload, ct);
+
+			// Correct endpoint is "/pulltransactions/v1/query", not "/pullpayments/v1/query".
+			var response = await client.PostAsJsonAsync("/pulltransactions/v1/query", payload, ct);
 
 			if (!response.IsSuccessStatusCode)
 			{
@@ -81,7 +85,7 @@ public sealed class PullTransactionService(
 			var raw = await response.Content.ReadAsStringAsync(ct);
 			var result = JsonSerializer.Deserialize<PullTransactionResponse>(raw);
 
-			logger.LogInformation("Pulled {Count} transactions for {Till} | offset={Offset}",result?.Transactions.Count ?? 0, tillNumber, offset);
+			logger.LogInformation("Pulled {Count} transactions for {Till} | offset={Offset}", result?.Transactions.Count ?? 0, tillNumber, offset);
 
 			return DarajaResult<PullTransactionResponse>.Ok(result!);
 		}

@@ -287,15 +287,17 @@ public class PullTransactionRequest
 	public string ShortCode { get; set; } = string.Empty;
 
 	[JsonPropertyName("StartDate")]
-	public string StartDate { get; set; } = string.Empty;   // yyyyMMddHHmmss
+	public string StartDate { get; set; } = string.Empty;   // yyyy-MM-dd HH:mm:ss
 
 	[JsonPropertyName("EndDate")]
-	public string EndDate { get; set; } = string.Empty;
+	public string EndDate { get; set; } = string.Empty;     // yyyy-MM-dd HH:mm:ss
 
-	[JsonPropertyName("Offset")]
-	public int Offset { get; set; } = 0;
+	// Daraja's Pull Transactions API expects "OffSetValue", not "Offset".
+	// With the wrong name, Safaricom ignores it and pagination silently
+	// keeps requesting offset 0 forever.
+	[JsonPropertyName("OffSetValue")]
+	public int OffSetValue { get; set; } = 0;
 }
-
 public class PullTransactionResponse
 {
 	[JsonPropertyName("ResponseCode")]
