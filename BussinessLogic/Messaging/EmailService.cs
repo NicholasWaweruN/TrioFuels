@@ -19,11 +19,7 @@ public class EmailService : IEmailService
 
 	// ── Simple send ────────────────────────────────────────────
 
-	public void SendEmail(
-		string toEmail,
-		string? ccEmail,
-		string subject,
-		string body)
+	public void SendEmail(string toEmail,string? ccEmail,string subject,string body)
 	{
 		if (string.IsNullOrWhiteSpace(toEmail) ||
 			string.IsNullOrWhiteSpace(subject) ||

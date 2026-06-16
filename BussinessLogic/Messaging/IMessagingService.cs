@@ -1,4 +1,5 @@
 ﻿using DataAccessLayer.Common;
+using System.ComponentModel.DataAnnotations;
 
 namespace BusinessLogic.EmailService
 {
@@ -12,5 +13,6 @@ namespace BusinessLogic.EmailService
 		Task<ServiceResponse<object>> SendOTPAsync(string phoneNumber);
 		Task<bool> SendSms(string recepient, string otp);
 		Task<bool> SendSmsAsync(string recipient, string otp);
+		Task<ServiceResponse<bool>> SaveEmailOtpAsync([EmailAddress] string email, string otp);
 	}
 }

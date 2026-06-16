@@ -15,7 +15,10 @@ namespace DataAccessLayer.EntityModels.Messaging
         public bool OTPStatus { get; set; }
         [Required, StringLength(20)]
         public string PhoneNumber { get; set; } = string.Empty;
-        public DateTime ExpiryDate { get; set; } = DateTime.UtcNow.AddMinutes(30);
+
+		[Required, StringLength(150)]
+		public string EmailAddress { get; set; } = string.Empty;
+		public DateTime ExpiryDate { get; set; } = DateTime.UtcNow.AddMinutes(30);
     }
     public class OtpTypes : BaseEntity
     {

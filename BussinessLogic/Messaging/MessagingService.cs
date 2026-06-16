@@ -190,6 +190,33 @@ namespace BusinessLogic.EmailService
 				return ServiceResponse<bool>.Error("An error occurred while saving OTP", false);
 			}
 		}
+
+		public async Task<ServiceResponse<bool>> SaveEmailOtpAsync([EmailAddress] string email, string otp)
+		{
+			try
+			{
+				var otps = new Otps
+				{
+					OTPType = 1,
+					UserCode = string.Empty,
+					ExpiryDate = DateTime.UtcNow,
+					OTPCode = otp,
+					OTPStatus = true,
+					EmailAddress = email,
+
+				};
+				await _context.AddAsync(otps);
+				await _context.SaveChangesAsync();
+				return ServiceResponse<bool>.Success("OTP saved successfully", true);
+			}
+			catch (Exception)
+			{
+				return ServiceResponse<bool>.Error("An error occurred while saving OTP", false);
+			}
+		}
+
+
+	
 		public async Task<ServiceResponse<object>> SendOTPAsync(string phoneNumber)
 		{
 			try
