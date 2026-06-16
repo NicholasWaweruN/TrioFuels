@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -5,9 +10,7 @@ using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Context;
 using Safaricom_Daraja;
 
-namespace BussinessLogic.Services.Daraja;
-
-
+namespace FuelFlow.Services.Daraja;
 
 public interface IPullTransactionImportService
 {
@@ -15,32 +18,15 @@ public interface IPullTransactionImportService
 	/// Pulls transactions for a specific till and upserts them into MpesaTransactions.
 	/// </summary>
 	Task<PullImportResult> ImportForTillAsync(
-		string tillNumber,
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default);
+		string tillNumber, DateTime from, DateTime to, CancellationToken ct = default);
 
 	/// <summary>
-	/// Pulls and upserts transactions for ALL configured tills.
+	/// Pulls and upserts transactions for ALL configured tills sequentially.
 	/// </summary>
 	Task<Dictionary<string, PullImportResult>> ImportAllTillsAsync(
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default);
+		DateTime from, DateTime to, CancellationToken ct = default);
 }
 
-/// <summary>
-/// Result of a pull import operation for a single till.
-/// </summary>
-public record PullImportResult(
-	string TillNumber,
-	int Inserted,
-	int Updated,
-	int Skipped,
-	string? Error)
-{
-	public bool Success => Error is null;
-}
 public sealed class PullTransactionImportService(
 	IPullTransactionService pullService,
 	OTOContext db,
@@ -52,26 +38,25 @@ public sealed class PullTransactionImportService(
 	public async Task<PullImportResult> ImportForTillAsync(
 		string tillNumber, DateTime from, DateTime to, CancellationToken ct = default)
 	{
-		// 1. Returns DarajaResult<List<PullTransaction>> instead of the raw page object
+		// FIX: Consumes flat decoupled lists natively via automatic page loop tracking
 		var pullResult = await pullService.PullAllPagesAsync(tillNumber, from, to, ct);
 
 		if (!pullResult.Success)
 		{
-			logger.LogError("Pull failed for {Till}: {Error}", tillNumber, pullResult.ErrorMessage);
+			logger.LogError("Data ingestion sequence halted for Till {Till}: {Error}", tillNumber, pullResult.ErrorMessage);
 			return new PullImportResult(tillNumber, 0, 0, 0, pullResult.ErrorMessage);
 		}
 
-		// 2. transactions is safely evaluated as List<PullTransaction>
 		var transactions = pullResult.Data!;
 		if (transactions.Count == 0)
 		{
-			logger.LogInformation("No transactions pulled for {Till}", tillNumber);
+			logger.LogInformation("No records discovered inside current ledger ledger slot for Till {Till}", tillNumber);
 			return new PullImportResult(tillNumber, 0, 0, 0, null);
 		}
 
 		var tillConfig = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
 
-		// Batch verification optimization to prevent N+1 DB calls
+		// OPTIMIZATION: Resolves Entity Framework warning and N+1 lookup lag by executing 1 single batch lookup
 		var receiptNos = transactions.Select(tx => tx.ReceiptNo).ToList();
 		var existingTxMap = await db.MpesaTransactions
 			.Where(m => receiptNos.Contains(m.TransID))
@@ -120,7 +105,7 @@ public sealed class PullTransactionImportService(
 			}
 			catch (Exception ex)
 			{
-				logger.LogWarning(ex, "Skipped transaction {ReceiptNo}", tx.ReceiptNo);
+				logger.LogWarning(ex, "Failed mapping values for record transaction reference identifier: {ReceiptNo}", tx.ReceiptNo);
 				skipped++;
 			}
 		}
@@ -128,7 +113,7 @@ public sealed class PullTransactionImportService(
 		await db.SaveChangesAsync(ct);
 
 		logger.LogInformation(
-			"Import complete for {Till}: {Inserted} inserted, {Updated} updated, {Skipped} skipped",
+			"Sync batch complete for Till {Till}: {Inserted} added, {Updated} matched/modified, {Skipped} failures",
 			tillNumber, inserted, updated, skipped);
 
 		return new PullImportResult(tillNumber, inserted, updated, skipped, null);
@@ -157,4 +142,17 @@ public sealed class PullTransactionImportService(
 			? dt
 			: DateTime.UtcNow;
 	}
+}
+
+/// <summary>
+/// Result data contract mapping transaction actions safely across project layers.
+/// </summary>
+public record PullImportResult(
+	string TillNumber,
+	int Inserted,
+	int Updated,
+	int Skipped,
+	string? Error)
+{
+	public bool Success => Error is null;
 }

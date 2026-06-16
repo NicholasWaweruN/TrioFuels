@@ -297,6 +297,8 @@ public class PullTransactionRequest
 	// keeps requesting offset 0 forever.
 	[JsonPropertyName("OffSetValue")]
 	public int OffSetValue { get; set; } = 0;
+	[JsonPropertyName("StoreNumber")]
+	public string StoreNumber { get; set; } = string.Empty;
 }
 public class PullTransactionResponse
 {
