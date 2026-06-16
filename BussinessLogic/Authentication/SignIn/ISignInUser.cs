@@ -1,5 +1,6 @@
 ﻿using DataAccessLayer.Common;
 using DataAccessLayer.DTOs.Authentication;
+using System.ComponentModel.DataAnnotations;
 
 namespace BussinessLogic.Authentication.SignIn
 {
@@ -10,7 +11,7 @@ namespace BussinessLogic.Authentication.SignIn
 		Task<ServiceResponse<object>> ForgotPassword(ResetPasswordModelEmail reset);
 		Task<Dictionary<string, decimal>> GetPriceList(string stationCode);
 		Task<ServiceResponse<object>> ResetPasswordAsync(string newPassword, string confirmPassword);
-		Task<ServiceResponse<object>> SendOTPAsync(string phoneNumber);
+		Task<ServiceResponse<object>> SendOTPAsync([EmailAddress] string email);
 		Task<ServiceResponse<object>> SignInUserAsync(EmailLoginModel signIn);
 	}
 }
