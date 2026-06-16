@@ -15,6 +15,7 @@ using BusinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Setup;
 using DataAccessLayer.Authentication.Entity;
 using BussinessLogic.Authentication.AddUsers;
+using PhoneNumbers;
 
 namespace BussinessLogic.Authentication.SignIn
 {
@@ -586,17 +587,17 @@ namespace BussinessLogic.Authentication.SignIn
 		/// <summary>
 		/// Resets the user's password using OTP validation.
 		/// </summary>
-		public async Task<ServiceResponse<object>> ForgotPassword(ResetPasswordModel reset)
+		public async Task<ServiceResponse<object>> ForgotPassword(ResetPasswordModelEmail reset)
 		{
 			try
 			{
-				reset.PhoneNumber = _messagingService.NormalizePhoneNumber(reset.PhoneNumber);
-				if (!_messagingService.IsValidPhoneNumber(reset.PhoneNumber))
-					return ServiceResponse<object>.Information("Invalid phone number", null);
+				
+		
+				var user = await _context.Users.FirstOrDefaultAsync(x => x.Email!.ToLower() == reset.Email.ToLower());
 
 				// Fetch an active OTP and consume it to prevent replay
 				var otpEntity = await _context.Otps
-					.Where(o => o.OTPCode == reset.OTP && o.PhoneNumber == reset.PhoneNumber && o.OTPStatus == true)
+					.Where(o => o.OTPCode == reset.OTP && o.EmailAddress.ToLower() == reset.Email.ToLower() && o.OTPStatus == true)
 					.OrderByDescending(o => o.DateCreated) // if you have timestamp
 					.FirstOrDefaultAsync();
 
@@ -608,7 +609,6 @@ namespace BussinessLogic.Authentication.SignIn
 				if (!string.Equals(reset.NewPassword, reset.ConfirmPassword))
 					return ServiceResponse<object>.Information("Passwords do not match", null);
 
-				var user = await _context.Users.FirstOrDefaultAsync(x => x.PhoneNumber == reset.PhoneNumber);
 				if (user == null)
 					return ServiceResponse<object>.Information("Phone number does not exist", null);
 
@@ -648,7 +648,7 @@ namespace BussinessLogic.Authentication.SignIn
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error resetting password for phone number {phoneNumber}", reset.PhoneNumber);
+				_logger.LogError(ex, "Error resetting password for phone number {phoneNumber}", reset.Email);
 				return ServiceResponse<object>.Error("An error occurred while resetting password", ex);
 			}
 		}
@@ -775,6 +775,25 @@ namespace BussinessLogic.Authentication.SignIn
 		[Required]
 		[StringLength(100, MinimumLength = 8)]
 		[RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",ErrorMessage = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.")]
+		public string NewPassword { get; set; } = string.Empty;
+
+		[Required]
+		[Compare("NewPassword", ErrorMessage = "Passwords do not match.")]
+		public string ConfirmPassword { get; set; } = string.Empty;
+	}
+
+	public class ResetPasswordModelEmail
+	{
+		[Required]
+		[EmailAddress(ErrorMessage = "Invalid email address.")]
+		public string Email { get; set; } = string.Empty;
+
+		[Required]
+		public string OTP { get; set; } = string.Empty;
+
+		[Required]
+		[StringLength(100, MinimumLength = 8)]
+		[RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", ErrorMessage = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.")]
 		public string NewPassword { get; set; } = string.Empty;
 
 		[Required]

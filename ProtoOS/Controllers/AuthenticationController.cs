@@ -182,7 +182,7 @@
 		[HttpPost]
 		[Route("ChangePassword")]
 		[AllowAnonymous]
-		public async Task<IActionResult> ForgotPassword(ResetPasswordModel reset)
+		public async Task<IActionResult> ForgotPassword(ResetPasswordModelEmail reset)
 		{
 			var response = await _signIn.ForgotPassword(reset);
 			return Ok(response);
