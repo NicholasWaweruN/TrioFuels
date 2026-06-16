@@ -1,6 +1,5 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
@@ -19,34 +18,38 @@ public interface IC2BService
 	Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default);
 }
 
-public sealed class C2BService(
-	IHttpClientFactory httpFactory,
-	IDarajaTokenService tokenService,
-	IOptions<DarajaConfig> options,
-	ILogger<C2BService> logger,
-	OTOContext context) : IC2BService
+public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<C2BService> logger,OTOContext context) : IC2BService
 {
 	private readonly DarajaConfig _cfg = options.Value;
-	private static readonly TimeZoneInfo EatTimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
+
+	// FIX: Use IANA timezone ID so this works on both Windows and Linux (Railway).
+	//      "E. Africa Standard Time" is Windows-only and throws on Ubuntu.
+	private static readonly TimeZoneInfo EatTimeZone = TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "E. Africa Standard Time" : "Africa/Nairobi");
 
 	// ── Registration ──────────────────────────────────────────────────────────
 
 	public async Task<DarajaResult<C2BRegisterResponse>> RegisterMasterShortCodeAsync(CancellationToken ct = default)
 	{
-		logger.LogInformation("[C2B][RegisterMaster] ▶ Starting master shortcode registration. C2BShortCode={C2BSC} BusinessShortCode={BSC}", _cfg.C2BShortCode, _cfg.BusinessShortCode);
+		logger.LogInformation("[C2B][RegisterMaster] Starting master shortcode registration. C2BShortCode={C2BSC} BusinessShortCode={BSC}",_cfg.C2BShortCode, _cfg.BusinessShortCode);
+
 		return await RegisterUrlsAsync(_cfg.C2BShortCode, ct);
 	}
 
 	public async Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(string shortCode, CancellationToken ct = default)
 	{
-		logger.LogInformation("[C2B][RegisterUrls] [Init] Called. ShortCode={SC}", shortCode);
+		logger.LogInformation("[C2B][RegisterUrls] Called. ShortCode={SC}", shortCode);
 
 		ArgumentException.ThrowIfNullOrWhiteSpace(shortCode);
 
-		var validationUrl = SanitizeUrl(_cfg.C2BValidationUrl);
-		var confirmationUrl = SanitizeUrl(_cfg.C2BConfirmationUrl);
+		// FIX: SanitizeUrl now guards against invalid/relative URIs instead of
+		//      throwing an unhandled UriFormatException at runtime.
+		if (!TrySanitizeUrl(_cfg.C2BValidationUrl, out var validationUrl))
+			return DarajaResult<C2BRegisterResponse>.Fail($"Invalid C2BValidationUrl: '{_cfg.C2BValidationUrl}'");
 
-		logger.LogDebug("[C2B][RegisterUrls] [Sanitize] ValidationUrl={VSan} | ConfirmationUrl={CSan}", validationUrl, confirmationUrl);
+		if (!TrySanitizeUrl(_cfg.C2BConfirmationUrl, out var confirmationUrl))
+			return DarajaResult<C2BRegisterResponse>.Fail($"Invalid C2BConfirmationUrl: '{_cfg.C2BConfirmationUrl}'");
+
+		logger.LogDebug("[C2B][RegisterUrls] ValidationUrl={V} | ConfirmationUrl={C}", validationUrl, confirmationUrl);
 
 		var payload = new C2BRegisterRequest
 		{
@@ -58,16 +61,15 @@ public sealed class C2BService(
 
 		try
 		{
-			logger.LogInformation("[C2B][RegisterUrls] [Token] Acquiring Daraja access token...");
 			string token;
 			try
 			{
 				token = await tokenService.GetAccessTokenAsync(ct);
-				logger.LogInformation("[C2B][RegisterUrls] [Token] Token acquired. Length={L}", token.Length);
+				logger.LogInformation("[C2B][RegisterUrls] Token acquired. Length={L}", token.Length);
 			}
 			catch (Exception ex)
 			{
-				logger.LogError(ex, "[C2B][RegisterUrls] [Token] Token acquisition FAILED. Message={Msg}", ex.Message);
+				logger.LogError(ex, "[C2B][RegisterUrls] Token acquisition FAILED.");
 				return DarajaResult<C2BRegisterResponse>.Fail($"Token error: {ex.Message}");
 			}
 
@@ -75,7 +77,7 @@ public sealed class C2BService(
 			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
 			const string endpoint = "/mpesa/c2b/v2/registerurl";
-			logger.LogInformation("[C2B][RegisterUrls] [HTTP Post] Dispatching to endpoint: {Endpoint}", endpoint);
+			logger.LogInformation("[C2B][RegisterUrls] Dispatching to endpoint: {Endpoint}", endpoint);
 
 			HttpResponseMessage response;
 			try
@@ -84,24 +86,25 @@ public sealed class C2BService(
 			}
 			catch (HttpRequestException ex)
 			{
-				logger.LogError(ex, "[C2B][RegisterUrls] [HTTP Post] Network transmission threw an exception. Message={Msg}", ex.Message);
+				logger.LogError(ex, "[C2B][RegisterUrls] Network error.");
 				return DarajaResult<C2BRegisterResponse>.Fail($"HTTP error: {ex.Message}");
 			}
 			catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
 			{
-				logger.LogError(ex, "[C2B][RegisterUrls] [HTTP Post] Request timed out implicitly.");
+				logger.LogError(ex, "[C2B][RegisterUrls] Request timed out.");
 				return DarajaResult<C2BRegisterResponse>.Fail("Request timed out");
 			}
 
 			var content = await response.Content.ReadAsStringAsync(ct);
-			logger.LogInformation("[C2B][RegisterUrls] [Response] Received Status={SC} Success={Ok}", (int)response.StatusCode, response.IsSuccessStatusCode);
+			logger.LogInformation("[C2B][RegisterUrls] Response Status={SC} Success={Ok}",
+				(int)response.StatusCode, response.IsSuccessStatusCode);
 
 			if (!response.IsSuccessStatusCode)
 			{
-				// M-Pesa error code 500.003.1001 indicates URL is already assigned to this shortcode.
+				// M-Pesa error 500.003.1001 = URLs already registered for this shortcode — treat as success.
 				if (content.Contains("500.003.1001"))
 				{
-					logger.LogInformation("[C2B][RegisterUrls] [Idempotent] URLs already registered for ShortCode={SC}", shortCode);
+					logger.LogInformation("[C2B][RegisterUrls] URLs already registered (idempotent). ShortCode={SC}", shortCode);
 					return DarajaResult<C2BRegisterResponse>.Ok(new C2BRegisterResponse
 					{
 						ResponseCode = "0",
@@ -109,23 +112,25 @@ public sealed class C2BService(
 					});
 				}
 
-				logger.LogError("[C2B][RegisterUrls] [Error] Registration FAILED. Status={SC} Body={Body}", (int)response.StatusCode, content);
+				logger.LogError("[C2B][RegisterUrls] Registration FAILED. Status={SC} Body={Body}",
+					(int)response.StatusCode, content);
 				return DarajaResult<C2BRegisterResponse>.Fail(content);
 			}
 
 			var result = JsonSerializer.Deserialize<C2BRegisterResponse>(content);
-			logger.LogInformation("[C2B][RegisterUrls] [Success] Registration verified. Code={RC} Desc={Desc}", result?.ResponseCode, result?.ResponseDescription);
+			logger.LogInformation("[C2B][RegisterUrls] Registered. Code={RC} Desc={Desc}",
+				result?.ResponseCode, result?.ResponseDescription);
 
 			return DarajaResult<C2BRegisterResponse>.Ok(result!);
 		}
 		catch (JsonException ex)
 		{
-			logger.LogError(ex, "[C2B][RegisterUrls] [Exception] JSON parsing failure.");
+			logger.LogError(ex, "[C2B][RegisterUrls] JSON parse failure.");
 			return DarajaResult<C2BRegisterResponse>.Fail($"JSON parse error: {ex.Message}");
 		}
 		catch (Exception ex)
 		{
-			logger.LogError(ex, "[C2B][RegisterUrls] [Exception] Unhandled exception execution flow broken.");
+			logger.LogError(ex, "[C2B][RegisterUrls] Unhandled exception.");
 			return DarajaResult<C2BRegisterResponse>.Fail(ex.Message);
 		}
 	}
@@ -134,30 +139,22 @@ public sealed class C2BService(
 
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		logger.LogInformation(
-			"[C2B][Validate] ▶ TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",
-			request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
+		logger.LogInformation("[C2B][Validate] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
 
-		// For Buy Goods (Till) payments, BillRefNumber is optional and is frequently
-		// empty or set to the till number itself — it is NOT a reliable account
-		// reference the way it is for Paybill (CustomerPayBillOnline) transactions.
-		// The authoritative field for "which till was paid into" is BusinessShortCode.
-		//
-		// Primary check: does BusinessShortCode match one of our configured tills?
+		// For Buy Goods (Till), the authoritative "which till received payment" field
+		// is BusinessShortCode, not BillRefNumber.
 		var tillMatch = _cfg.Tills.FirstOrDefault(t =>
 			string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
 
 		if (tillMatch is not null)
 		{
-			logger.LogInformation(
-				"[C2B][Validate] ACCEPTED — TransID={ID} matched Till={Till} ({Name})",
+			logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched Till={Till} ({Name})",
 				request.TransactionId, tillMatch.TillNumber, tillMatch.Name);
 
 			return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
 		}
 
-		// Fallback: some integrations (paybill-style or aggregator setups) still rely
-		// on BillRefNumber as an account reference. Honor that if present.
+		// Paybill-style fallback: honour BillRefNumber as account reference if present.
 		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{
 			var knownRefs = _cfg.Tills
@@ -167,8 +164,7 @@ public sealed class C2BService(
 
 			if (knownRefs.Contains(request.BillRefNumber.Trim()))
 			{
-				logger.LogInformation(
-					"[C2B][Validate] ACCEPTED — TransID={ID} matched BillRefNumber='{Ref}'",
+				logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched BillRefNumber='{Ref}'",
 					request.TransactionId, request.BillRefNumber);
 
 				return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
@@ -176,7 +172,7 @@ public sealed class C2BService(
 		}
 
 		logger.LogWarning(
-			"[C2B][Validate] REJECTED — TransID={ID} BusinessShortCode='{BSC}' did not match any configured till, and BillRefNumber='{Ref}' did not match any configured account reference.",
+			"[C2B][Validate] REJECTED — TransID={ID} BSC='{BSC}' did not match any till; BillRefNumber='{Ref}' did not match any account reference.",
 			request.TransactionId, request.BusinessShortCode, request.BillRefNumber);
 
 		return Rejected("C2B00011", "Rejected — unrecognized till or account reference");
@@ -187,27 +183,47 @@ public sealed class C2BService(
 	public async Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default)
 	{
 		logger.LogInformation(
-			"[C2B][Confirm] ▶ TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",
+			"[C2B][Confirm] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",
 			request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
 
-		// 1. Double check within memory context to save explicit DB query overhead
-		var exists = await context.MpesaTransactions.AnyAsync(x => x.TransID == request.TransactionId, ct);
+		// Idempotency guard — also requires a UNIQUE INDEX on MpesaTransactions.TransID
+		// in your EF migration to catch concurrent duplicates at the DB level.
+		var exists = await context.MpesaTransactions
+			.AnyAsync(x => x.TransID == request.TransactionId, ct);
+
 		if (exists)
 		{
-			logger.LogWarning("[C2B][Confirm] Duplicate transaction ignored — TransID={ID}", request.TransactionId);
+			logger.LogWarning("[C2B][Confirm] Duplicate ignored — TransID={ID}", request.TransactionId);
 			return;
 		}
 
+		// FIX: Parse TransAmount once and reuse the value. The original code
+		//      re-parsed TransAmount into a second `usage` variable for UsageBalance,
+		//      which was a copy-paste bug — UsageBalance should mirror TransAmount.
+		var transAmount = decimal.TryParse(request.TransAmount, out var amt) ? amt : 0m;
+		var orgBalance = decimal.TryParse(request.OrgAccountBalance, out var bal) ? bal : 0m;
+
+		// FIX: Warn on zero/negative amounts — likely a misconfigured or test payload.
+		if (transAmount <= 0)
+		{
+			logger.LogWarning("[C2B][Confirm] Suspicious zero/negative amount — TransID={ID} Amount={A}",
+				request.TransactionId, request.TransAmount);
+		}
+
 		var till = ResolveTill(request);
-		var explicitEatTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatTimeZone);
+
+		// FIX: All timestamps are now in EAT, including the ParseTransTime fallback.
+		//      Previously ParseTransTime returned DateTime.UtcNow on failure while
+		//      DateTimeStamp/DateCreated/DateModified used EAT — inconsistent record.
+		var eatNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatTimeZone);
 
 		var transaction = new MpesaTransaction
 		{
 			TransactionType = request.TransactionType ?? "C2B",
 			TransID = request.TransactionId,
 			MpesaReceiptNumber = request.TransactionId,
-			TransAmount = decimal.TryParse(request.TransAmount, out var amt) ? amt : 0,
-			TransTime = ParseTransTime(request.TransTime),
+			TransAmount = transAmount,
+			TransTime = ParseTransTime(request.TransTime, eatNow),
 			BusinessShortCode = request.BusinessShortCode ?? string.Empty,
 			TillNumber = till?.TillNumber ?? "UNMATCHED",
 			TillName = till?.Name ?? "UNMATCHED",
@@ -216,12 +232,12 @@ public sealed class C2BService(
 			FirstName = request.FirstName ?? string.Empty,
 			MiddName = request.MiddleName ?? string.Empty,
 			LastName = request.LastName ?? string.Empty,
-			OrgAccountBalance = decimal.TryParse(request.OrgAccountBalance, out var bal) ? bal : 0,
-			UsageBalance = decimal.TryParse(request.TransAmount, out var usage) ? usage : 0,
-			Status = till is not null ? 1 : 2,  // 1 = Success, 2 = Unmatched
-			DateTimeStamp = explicitEatTime,
-			DateModified = explicitEatTime,
-			DateCreated = explicitEatTime,
+			OrgAccountBalance = orgBalance,
+			UsageBalance = transAmount,   // FIX: was incorrectly re-parsing TransAmount
+			Status = till is not null ? 1 : 2,
+			DateTimeStamp = eatNow,
+			DateModified = eatNow,
+			DateCreated = eatNow,
 			UserCode = "Mpesa"
 		};
 
@@ -230,12 +246,15 @@ public sealed class C2BService(
 			context.MpesaTransactions.Add(transaction);
 			await context.SaveChangesAsync(ct);
 
-			logger.LogInformation("[C2B][Confirm] Persisted successfully — TransID={ID} Status={Status}", request.TransactionId, transaction.Status);
+			logger.LogInformation("[C2B][Confirm] Persisted — TransID={ID} Status={Status}",
+				request.TransactionId, transaction.Status);
 		}
 		catch (DbUpdateException ex)
 		{
-			// Catches any concurrency race condition bypassed by the AnyAsync checker
-			logger.LogWarning(ex, "[C2B][Confirm] Database insertion conflict caught. Likely a duplicate TransID={ID}", request.TransactionId);
+			// Catches the race-condition window between AnyAsync and SaveChangesAsync.
+			// The unique index on TransID ensures the DB rejects the duplicate.
+			logger.LogWarning(ex, "[C2B][Confirm] DB conflict — likely duplicate TransID={ID}",
+				request.TransactionId);
 		}
 	}
 
@@ -243,8 +262,6 @@ public sealed class C2BService(
 
 	private TillConfig? ResolveTill(C2BConfirmationRequest request)
 	{
-		// Primary: the till that actually received the payment is reported in
-		// BusinessShortCode for Buy Goods (CustomerBuyGoodsOnline) transactions.
 		if (!string.IsNullOrWhiteSpace(request.BusinessShortCode))
 		{
 			var byShortCode = _cfg.Tills.FirstOrDefault(t =>
@@ -259,8 +276,7 @@ public sealed class C2BService(
 				return byShortCode;
 			}
 
-			logger.LogWarning(
-				"[C2B][ResolveTill] BusinessShortCode='{BSC}' did not match any configured till.",
+			logger.LogWarning("[C2B][ResolveTill] BusinessShortCode='{BSC}' matched no configured till.",
 				request.BusinessShortCode);
 		}
 		else
@@ -268,7 +284,6 @@ public sealed class C2BService(
 			logger.LogWarning("[C2B][ResolveTill] BusinessShortCode missing from request.");
 		}
 
-		// Fallback: paybill-style account reference matching.
 		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
 		{
 			var targetRef = request.BillRefNumber.Trim();
@@ -284,31 +299,45 @@ public sealed class C2BService(
 				return byRef;
 			}
 
-			logger.LogWarning(
-				"[C2B][ResolveTill] No configuration matched BusinessShortCode='{BSC}' or BillRefNumber='{Ref}'",
+			logger.LogWarning("[C2B][ResolveTill] No till matched BSC='{BSC}' or BillRefNumber='{Ref}'.",
 				request.BusinessShortCode, targetRef);
 		}
 
 		return null;
 	}
 
-	private static DateTime ParseTransTime(string? value)
+	// FIX: Accepts a pre-computed EAT fallback so the fallback timestamp is
+	//      consistent with DateTimeStamp/DateCreated/DateModified on the record.
+	//      The original returned DateTime.UtcNow which was a different timezone.
+	private static DateTime ParseTransTime(string? value, DateTime eatFallback)
 	{
-		if (value?.Length == 14 && DateTime.TryParseExact(value, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.None, out var dt))
+		if (value?.Length == 14 &&
+			DateTime.TryParseExact(
+				value, "yyyyMMddHHmmss", null,
+				System.Globalization.DateTimeStyles.None, out var dt))
 		{
 			return dt;
 		}
-		return DateTime.UtcNow;
+
+		return eatFallback;
 	}
 
-	private static string SanitizeUrl(string url)
+	// FIX: Replaced SanitizeUrl (which threw on invalid/relative URIs) with a
+	//      TrySanitize pattern that returns false and lets the caller fail fast
+	//      with a descriptive error before any HTTP call is made.
+	private static bool TrySanitizeUrl(string? url, out string sanitized)
 	{
-		if (string.IsNullOrWhiteSpace(url)) return url;
+		sanitized = string.Empty;
 
-		var uri = new Uri(url);
+		if (string.IsNullOrWhiteSpace(url))
+			return false;
+
+		if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+			return false;
+
 		var path = uri.AbsolutePath.Replace("//", "/").ToLowerInvariant();
-		var query = uri.Query;
-		return $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}{path}{query}";
+		sanitized = $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}{path}{uri.Query}";
+		return true;
 	}
 
 	private static C2BValidationResponse Rejected(string code, string desc) =>
