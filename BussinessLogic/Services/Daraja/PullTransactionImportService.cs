@@ -5,7 +5,9 @@ using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Context;
 using Safaricom_Daraja;
 
-namespace FuelFlow.Services.Daraja; 
+namespace BussinessLogic.Services.Daraja;
+
+
 
 public interface IPullTransactionImportService
 {
@@ -27,6 +29,18 @@ public interface IPullTransactionImportService
 		CancellationToken ct = default);
 }
 
+/// <summary>
+/// Result of a pull import operation for a single till.
+/// </summary>
+public record PullImportResult(
+	string TillNumber,
+	int Inserted,
+	int Updated,
+	int Skipped,
+	string? Error)
+{
+	public bool Success => Error is null;
+}
 public sealed class PullTransactionImportService(
 	IPullTransactionService pullService,
 	OTOContext db,
@@ -36,11 +50,9 @@ public sealed class PullTransactionImportService(
 	private readonly DarajaConfig _cfg = options.Value;
 
 	public async Task<PullImportResult> ImportForTillAsync(
-		string tillNumber,
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default)
+		string tillNumber, DateTime from, DateTime to, CancellationToken ct = default)
 	{
+		// 1. Returns DarajaResult<List<PullTransaction>> instead of the raw page object
 		var pullResult = await pullService.PullAllPagesAsync(tillNumber, from, to, ct);
 
 		if (!pullResult.Success)
@@ -49,6 +61,7 @@ public sealed class PullTransactionImportService(
 			return new PullImportResult(tillNumber, 0, 0, 0, pullResult.ErrorMessage);
 		}
 
+		// 2. transactions is safely evaluated as List<PullTransaction>
 		var transactions = pullResult.Data!;
 		if (transactions.Count == 0)
 		{
@@ -58,6 +71,12 @@ public sealed class PullTransactionImportService(
 
 		var tillConfig = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
 
+		// Batch verification optimization to prevent N+1 DB calls
+		var receiptNos = transactions.Select(tx => tx.ReceiptNo).ToList();
+		var existingTxMap = await db.MpesaTransactions
+			.Where(m => receiptNos.Contains(m.TransID))
+			.ToDictionaryAsync(m => m.TransID, m => m, ct);
+
 		var inserted = 0;
 		var updated = 0;
 		var skipped = 0;
@@ -66,11 +85,7 @@ public sealed class PullTransactionImportService(
 		{
 			try
 			{
-				// ReceiptNo is the unique transaction identifier from Safaricom
-				var existing = await db.MpesaTransactions
-					.FirstOrDefaultAsync(m => m.TransID == tx.ReceiptNo, ct);
-
-				if (existing is null)
+				if (!existingTxMap.TryGetValue(tx.ReceiptNo, out var existing))
 				{
 					db.MpesaTransactions.Add(new MpesaTransaction
 					{
@@ -84,23 +99,21 @@ public sealed class PullTransactionImportService(
 						PaymentMethod = "C2B",
 						MpesaReceiptNumber = tx.ReceiptNo,
 						MSISDN = tx.SenderPhone,
-						FirstName = string.Empty,   // Pull API doesn't return name
+						FirstName = string.Empty,
 						MiddName = string.Empty,
 						LastName = string.Empty,
-						OrgAccountBalance = 0,              // Pull API doesn't return balance
-						Status = 1,              // Completed
+						OrgAccountBalance = 0,
+						Status = 1,
 						DateTimeStamp = DateTime.UtcNow,
 						DateModified = DateTime.UtcNow,
 						DateCreated = DateTime.UtcNow,
 						UsageBalance = tx.Amount,
 						UserCode = tx.SenderPhone,
-
 					});
 					inserted++;
 				}
 				else
 				{
-					// Already exists — just touch the modified timestamp
 					existing.DateModified = DateTime.UtcNow;
 					updated++;
 				}
@@ -122,9 +135,7 @@ public sealed class PullTransactionImportService(
 	}
 
 	public async Task<Dictionary<string, PullImportResult>> ImportAllTillsAsync(
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default)
+		DateTime from, DateTime to, CancellationToken ct = default)
 	{
 		var results = new Dictionary<string, PullImportResult>();
 
@@ -137,11 +148,6 @@ public sealed class PullTransactionImportService(
 		return results;
 	}
 
-	// ─── Helpers ──────────────────────────────────────────────────────────────
-
-	/// <summary>
-	/// Parses Safaricom completion_time format: "yyyyMMddHHmmss"
-	/// </summary>
 	private static DateTime ParseTime(string? value)
 	{
 		if (string.IsNullOrWhiteSpace(value)) return DateTime.UtcNow;
@@ -151,17 +157,4 @@ public sealed class PullTransactionImportService(
 			? dt
 			: DateTime.UtcNow;
 	}
-}
-
-/// <summary>
-/// Result of a pull import operation for a single till.
-/// </summary>
-public record PullImportResult(
-	string TillNumber,
-	int Inserted,
-	int Updated,
-	int Skipped,
-	string? Error)
-{
-	public bool Success => Error is null;
 }
