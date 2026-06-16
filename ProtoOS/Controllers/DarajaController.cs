@@ -118,7 +118,7 @@ public class DarajaController(
 	/// One-time call to register validation/confirmation URLs with Safaricom.
 	/// Safe to call again — 500.003.1001 (already registered) is handled as success.
 	/// </summary>
-	[HttpPost("c2b/register")]
+	[HttpPost("daraja/c2b/register")]
 	public async Task<IActionResult> RegisterC2BUrls(CancellationToken ct)
 	{
 		logger.LogInformation("[C2B][Register] ▶ Triggered. C2BShortCode={SC} " + "ValidationUrl={VUrl} ConfirmationUrl={CUrl}", _cfg.C2BShortCode, _cfg.C2BValidationUrl, _cfg.C2BConfirmationUrl);
@@ -145,7 +145,7 @@ public class DarajaController(
 		PropertyNamingPolicy = null // Forces output to preserve property names exactly as written in the C# model (PascalCase)
 	};
 
-	[HttpPost("c2b/register-store/{storeNumber}")]
+	[HttpPost("daraja/c2b/register-store/{storeNumber}")]
 	public async Task<IActionResult> RegisterC2BStoreNumber(
 		string storeNumber,
 		CancellationToken ct)
@@ -157,16 +157,14 @@ public class DarajaController(
 		return result.Success ? Ok(result.Data) : BadRequest(result.ErrorMessage);
 	}
 
-	[HttpPost("c2b/validate")]
+	[HttpPost("daraja/c2b/validate")]
 	public IActionResult C2BValidate([FromBody] C2BValidationRequest? req)
 	{
 		// ... validation logic and logging ...
 
 		var response = c2bService.Validate(req);
 
-		logger.LogInformation(
-			"[C2B][Validate] Response → ResultCode={RC} ResultDesc={RD}",
-			response.ResultCode, response.ResultDesc);
+		logger.LogInformation("[C2B][Validate] Response → ResultCode={RC} ResultDesc={RD}",response.ResultCode, response.ResultDesc);
 
 		// Serialize explicitly to PascalCase string and return as JSON content
 		var jsonString = JsonSerializer.Serialize(response, PascalCaseOptions);
@@ -177,7 +175,7 @@ public class DarajaController(
 	// C2B — CONFIRM
 	// ─────────────────────────────────────────────
 
-	[HttpPost("c2b/confirm")]
+	[HttpPost("daraaj/c2b/confirm")]
 	public async Task<IActionResult> C2BConfirm(
 		[FromBody] C2BConfirmationRequest? req,
 		CancellationToken ct)
@@ -188,10 +186,7 @@ public class DarajaController(
 			return Ok(); // Still return 200 to prevent Daraja retry floods
 		}
 
-		logger.LogInformation(
-			"[C2B][Confirm] ▶ Raw request — TransID={ID} TransType={TT} Amount={Amount} BSC={BSC} BillRefNumber={Ref} Phone={Phone} Name={LN}, {FN}",
-			req.TransactionId, req.TransactionType, req.TransAmount, req.BusinessShortCode, req.BillRefNumber,
-			MaskPhoneNumber(req.PhoneNumber), req.LastName?.FirstOrDefault(), req.FirstName?.FirstOrDefault());
+		logger.LogInformation("[C2B][Confirm] ▶ Raw request — TransID={ID} TransType={TT} Amount={Amount} BSC={BSC} BillRefNumber={Ref} Phone={Phone} Name={LN}, {FN}",req.TransactionId, req.TransactionType, req.TransAmount, req.BusinessShortCode, req.BillRefNumber,MaskPhoneNumber(req.PhoneNumber), req.LastName?.FirstOrDefault(), req.FirstName?.FirstOrDefault());
 
 		await c2bService.HandleConfirmationAsync(req, ct);
 

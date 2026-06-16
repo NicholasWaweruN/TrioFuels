@@ -78,7 +78,7 @@ namespace BussinessLogic.Stock.VarianceReport
 				var dataTable = new DataTable("VarianceReport");
 				dataTable.Columns.AddRange(
 				[
-					new("ShiftId", typeof(int)),
+			new("ShiftId", typeof(int)),
 			new("DispenserCode", typeof(string)),
 			new("ShiftNumber", typeof(string)),
 			new("UserCode", typeof(string)),
@@ -161,7 +161,7 @@ namespace BussinessLogic.Stock.VarianceReport
 				//	await _context.SaveChangesAsync();
 				//}
 
-			    await _emails.SendEmailWithExcelAttachmentAsync(emailsTo, emailsToCC, DateTime.UtcNow, subject, body, dataTable);
+			    //await _emails.SendEmailWithExcelAttachmentAsync(emailsTo, emailsToCC, DateTime.UtcNow, subject, body, dataTable);
 				return ServiceResponse<object>.Success("Variance report generated successfully", null);
 			}
 			catch (Exception ex)

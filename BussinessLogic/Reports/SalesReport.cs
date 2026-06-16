@@ -331,20 +331,20 @@ ORDER BY t.StationName, t.DispenserName, t.NozzleName";
 				htmlTable.Append("</body></html>");
 			}
 
-			using (var excelStream = GenerateExcelFromDataTable(dataTable))
-			{
-				var fileName = $"Totalizer_Recording_Report_{DateTime.UtcNow:yyyyMMdd}.xlsx";
-				var emailSubject = $"{DateTime.UtcNow:dd-MMM-yyyy} Totalizer Recordings Report";
+			//using (var excelStream = GenerateExcelFromDataTable(dataTable))
+			//{
+			//	var fileName = $"Totalizer_Recording_Report_{DateTime.UtcNow:yyyyMMdd}.xlsx";
+			//	var emailSubject = $"{DateTime.UtcNow:dd-MMM-yyyy} Totalizer Recordings Report";
 
-				await _EmailService.SendEmailWithExcelAttachmentAsync(
-					mails.ToEmails?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>(),
-					mails.CcEmails?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>(),
-					DateTime.UtcNow,
-					emailSubject,
-					htmlTable.ToString(),
-					dataTable
-				);
-			}
+			//	await _EmailService.SendEmailWithExcelAttachmentAsync(
+			//		mails.ToEmails?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>(),
+			//		mails.CcEmails?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>(),
+			//		DateTime.UtcNow,
+			//		emailSubject,
+			//		htmlTable.ToString(),
+			//		dataTable
+			//	);
+			//}
 		}
 		catch (Exception ex)
 		{

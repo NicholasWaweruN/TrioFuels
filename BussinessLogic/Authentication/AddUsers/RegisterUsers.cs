@@ -128,10 +128,7 @@ namespace BussinessLogic.Authentication.AddUsers
 				{
 					var errors = string.Join(", ", result.Errors.Select(e => e.Description));
 
-					_logger.LogError(
-						"User creation failed for {Email}, errors: {Errors}",
-						email,
-						errors);
+					_logger.LogError("User creation failed for {Email}, errors: {Errors}",email,errors);
 
 					return ServiceResponse<object>.Error("User creation failed", errors);
 				}
@@ -160,7 +157,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					$"{register.FirstName} {register.LastName}",
 					otp);
 
-				 _emailService.SendEmail(email, null, "Otopay Account", body);
+				await _emailService.SendEmail(email, null, "Otopay Account", body);
 
 				return ServiceResponse<object>.Success("User created successfully", null);
 			}

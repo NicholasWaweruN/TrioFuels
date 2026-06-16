@@ -1,9 +1,11 @@
 ﻿
+using BussinessLogic.Messaging;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Messaging;
 using FuelFlow.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +56,24 @@ builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
 builder.Services.Configure<SmtpSettings>(
 builder.Configuration.GetSection("SmtpSettings"));
+
+
+builder.Services.Configure<SmtpSettings>(
+	builder.Configuration.GetSection("SmtpSettings"));
+
+
+builder.Services.Configure<ResendClientOptions>(
+	builder.Configuration.GetSection("Resend"));
+
+builder.Services.AddHttpClient<IResend, ResendClient>((sp, client) =>
+{
+	var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ResendClientOptions>>().Value;
+
+	client.BaseAddress = new Uri("https://api.resend.com");
+	client.DefaultRequestHeaders.Authorization =
+		new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiToken);
+});
+
 // ── Build ───────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
@@ -95,6 +115,8 @@ var app = builder.Build();
 //}
 
 // Program.cs / Startup.cs
+
+
 
 app.ConfigureMiddleware();
 
