@@ -5,7 +5,7 @@ using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Context;
 using Safaricom_Daraja;
 
-namespace FuelFlow.Services.Daraja;
+namespace FuelFlow.Services.Daraja; 
 
 public interface IPullTransactionImportService
 {
