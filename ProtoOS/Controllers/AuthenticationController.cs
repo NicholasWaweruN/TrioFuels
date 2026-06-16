@@ -158,7 +158,7 @@
 		{
 			var response = await _registerUsers.ActivateUserAsync(userCode);
 			return Ok(response);
-		}
+		}//
 
 		/// <summary>
 		/// The SendOTP
@@ -168,9 +168,9 @@
 		[HttpGet]
 		[Route("SendOTP")]
 		[AllowAnonymous]
-		public async Task<IActionResult> SendOTP([EmailAddress] string email)
+		public async Task<IActionResult> SendOTP([FromQuery] string phoneNumber)
 		{
-			var response = await _signIn.SendOTPAsync(email);
+			var response = await _signIn.SendOTPAsync(phoneNumber);
 			return Ok(response);
 		}
 
