@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Safaricom_Daraja.DarajaTokenService;
 
@@ -110,8 +111,13 @@ public sealed class DarajaTokenService : IDarajaTokenService
 	}
 }
 
+
+
 public sealed class DarajaTokenResponse
 {
+	[JsonPropertyName("access_token")]
 	public string AccessToken { get; set; } = string.Empty;
+
+	[JsonPropertyName("expires_in")]
 	public string ExpiresIn { get; set; } = string.Empty;
 }
