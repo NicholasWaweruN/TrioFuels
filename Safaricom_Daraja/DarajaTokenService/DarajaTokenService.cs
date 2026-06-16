@@ -1,80 +1,117 @@
-﻿using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
+﻿using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 namespace Safaricom_Daraja.DarajaTokenService;
 
-/// <summary>
-/// Fetches and caches the Daraja OAuth token.
-/// Token lifetime is 1 hour; we refresh 60 s early to be safe.
-/// </summary>
 public interface IDarajaTokenService
 {
 	Task<string> GetAccessTokenAsync(CancellationToken ct = default);
 }
 
-public sealed class DarajaTokenService(
-	IHttpClientFactory httpFactory,
-	IOptions<DarajaConfig> options,
-	ILogger<DarajaTokenService> logger) : IDarajaTokenService
+public sealed class DarajaTokenService : IDarajaTokenService
 {
-	private readonly DarajaConfig _cfg = options.Value;
+	private readonly IHttpClientFactory _factory;
+	private readonly IMemoryCache _cache;
+	private readonly DarajaConfig _config;
+	private readonly ILogger<DarajaTokenService> _logger;
 
-	private string _cachedToken = string.Empty;
-	private DateTime _expiresAt = DateTime.MinValue;
-	private readonly SemaphoreSlim _lock = new(1, 1);
+	private const string CacheKey = "daraja-token";
+
+	public DarajaTokenService(
+		IHttpClientFactory factory,
+		IMemoryCache cache,
+		IOptions<DarajaConfig> options,
+		ILogger<DarajaTokenService> logger)
+	{
+		_factory = factory;
+		_cache = cache;
+		_config = options.Value;
+		_logger = logger;
+	}
 
 	public async Task<string> GetAccessTokenAsync(CancellationToken ct = default)
 	{
-		if (!string.IsNullOrEmpty(_cachedToken) && DateTime.UtcNow < _expiresAt)
-			return _cachedToken;
-
-		await _lock.WaitAsync(ct);
-		try
+		if (_cache.TryGetValue(CacheKey, out string? token))
 		{
-			// Double-check after acquiring lock
-			if (!string.IsNullOrEmpty(_cachedToken) && DateTime.UtcNow < _expiresAt)
-				return _cachedToken;
-
-			var token = await FetchTokenAsync(ct);
-			_cachedToken = token.AccessToken;
-			_expiresAt = DateTime.UtcNow.AddSeconds(int.Parse(token.ExpiresIn) - 60);
-
-			logger.LogInformation("Daraja token refreshed. Expires at {ExpiresAt} UTC", _expiresAt);
-			return _cachedToken;
+			return token!;
 		}
-		finally
-		{
-			_lock.Release();
-		}
-	}
 
-	private async Task<DarajaTokenResponse> FetchTokenAsync(CancellationToken ct)
-	{
-		// ← was "FuelFlow", must match the name in AddDaraja
-		var client = httpFactory.CreateClient("Daraja");
+		var client = _factory.CreateClient("Daraja");
 
 		var credentials = Convert.ToBase64String(
-			Encoding.UTF8.GetBytes($"{_cfg.ConsumerKey}:{_cfg.ConsumerSecret}"));
+			Encoding.UTF8.GetBytes(
+				$"{_config.ConsumerKey}:{_config.ConsumerSecret}"));
 
 		client.DefaultRequestHeaders.Authorization =
 			new AuthenticationHeaderValue("Basic", credentials);
 
-		var response = await client.GetAsync(
-			"/oauth/v1/generate?grant_type=client_credentials", ct);
+		HttpResponseMessage response;
+
+		try
+		{
+			response = await client.GetAsync(
+				"/oauth/v1/generate?grant_type=client_credentials",
+				ct);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Daraja token request failed (network error)");
+			throw;
+		}
+
+		var body = await response.Content.ReadAsStringAsync(ct);
 
 		if (!response.IsSuccessStatusCode)
 		{
-			var error = await response.Content.ReadAsStringAsync(ct);
-			logger.LogError("Daraja token fetch failed [{Status}]: {Error}",
-				response.StatusCode, error);
-			throw new InvalidOperationException($"Daraja token fetch failed: {error}");
+			_logger.LogError(
+				"Daraja token failed. Status:{Status} Body:{Body}",
+				response.StatusCode,
+				body);
+
+			throw new Exception("Failed to obtain Daraja access token.");
 		}
 
-		var content = await response.Content.ReadAsStringAsync(ct);
-		return JsonSerializer.Deserialize<DarajaTokenResponse>(content)
-			   ?? throw new InvalidOperationException("Empty token response from Daraja.");
+		DarajaTokenResponse? result;
+
+		try
+		{
+			result = JsonSerializer.Deserialize<DarajaTokenResponse>(
+				body,
+				new JsonSerializerOptions
+				{
+					PropertyNameCaseInsensitive = true
+				});
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Invalid token JSON: {Body}", body);
+			throw;
+		}
+
+		if (string.IsNullOrWhiteSpace(result?.AccessToken))
+		{
+			_logger.LogError("Daraja returned empty access token: {Body}", body);
+			throw new Exception("Invalid Daraja token response.");
+		}
+
+		// Cache with safety buffer (55 min instead of 60)
+		_cache.Set(
+			CacheKey,
+			result.AccessToken,
+			TimeSpan.FromMinutes(55));
+
+		_logger.LogInformation("Daraja access token generated successfully.");
+
+		return result.AccessToken;
 	}
+}
+
+public sealed class DarajaTokenResponse
+{
+	public string AccessToken { get; set; } = string.Empty;
+	public string ExpiresIn { get; set; } = string.Empty;
 }
