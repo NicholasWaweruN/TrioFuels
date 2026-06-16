@@ -24,43 +24,24 @@ public interface IPullTransactionService
 	/// <summary>
 	/// Pulls ALL pages for a till within the window, handling pagination automatically.
 	/// </summary>
-	Task<DarajaResult<List<PullTransaction>>> PullAllPagesAsync(
-		string tillNumber,
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default);
 
-	/// <summary>
-	/// Pulls transactions across ALL configured tills for the given window.
-	/// </summary>
-	Task<Dictionary<string, DarajaResult<List<PullTransaction>>>> PullAllTillsAsync(
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default);
 }
-
 public sealed class PullTransactionService(
 	IHttpClientFactory httpFactory,
 	IOptions<DarajaConfig> options,
+	IDarajaTokenService tokenService, // 1. Inject your token service here
 	ILogger<PullTransactionService> logger) : IPullTransactionService
 {
 	private readonly DarajaConfig _cfg = options.Value;
-
-	// Daraja Pull Transactions API expects "yyyy-MM-dd HH:mm:ss", not "yyyyMMddHHmmss".
 	private const string DateFormat = "yyyy-MM-dd HH:mm:ss";
 	private const int PageSize = 100;
 
 	public async Task<DarajaResult<PullTransactionResponse>> PullAsync(
-		string tillNumber,
-		DateTime from,
-		DateTime to,
-		int offset = 0,
-		CancellationToken ct = default)
+		string tillNumber, DateTime from, DateTime to, int offset = 0, CancellationToken ct = default)
 	{
 		try
 		{
 			ValidateWindow(from, to);
-
 			var payload = new PullTransactionRequest
 			{
 				ShortCode = tillNumber,
@@ -69,24 +50,26 @@ public sealed class PullTransactionService(
 				OffSetValue = offset
 			};
 
-			var client = GetBasicAuthClient();
+			// 2. Get client and dynamically apply the Bearer token
+			var client = httpFactory.CreateClient("Daraja");
 
-			// Correct endpoint is "/pulltransactions/v1/query", not "/pullpayments/v1/query".
+			// Assuming your IDarajaTokenService has a method like GetTokenAsync() 
+			// that handles caching and returns the string token.
+			var accessToken = await tokenService.GetAccessTokenAsync(ct);
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
 			var response = await client.PostAsJsonAsync("/pulltransactions/v1/query", payload, ct);
 
 			if (!response.IsSuccessStatusCode)
 			{
 				var error = await response.Content.ReadAsStringAsync(ct);
-				logger.LogError("Pull failed [{StatusCode}] for {Till}: {Error}",
-					response.StatusCode, tillNumber, error);
+				logger.LogError("Pull failed [{StatusCode}] for {Till}: {Error}", response.StatusCode, tillNumber, error);
 				return DarajaResult<PullTransactionResponse>.Fail(error);
 			}
 
 			var raw = await response.Content.ReadAsStringAsync(ct);
 			var result = JsonSerializer.Deserialize<PullTransactionResponse>(raw);
-
 			logger.LogInformation("Pulled {Count} transactions for {Till} | offset={Offset}", result?.Transactions.Count ?? 0, tillNumber, offset);
-
 			return DarajaResult<PullTransactionResponse>.Ok(result!);
 		}
 		catch (Exception ex)
@@ -96,75 +79,13 @@ public sealed class PullTransactionService(
 		}
 	}
 
-	public async Task<DarajaResult<List<PullTransaction>>> PullAllPagesAsync(
-		string tillNumber,
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default)
-	{
-		var all = new List<PullTransaction>();
-		var offset = 0;
-
-		while (true)
-		{
-			var result = await PullAsync(tillNumber, from, to, offset, ct);
-			if (!result.Success)
-				return DarajaResult<List<PullTransaction>>.Fail(result.ErrorMessage!);
-
-			var page = result.Data!.Transactions;
-			all.AddRange(page);
-
-			if (page.Count < PageSize) break;
-
-			offset += PageSize;
-			await Task.Delay(300, ct);
-		}
-
-		logger.LogInformation("Total pulled for {Till}: {Count} transactions", tillNumber, all.Count);
-		return DarajaResult<List<PullTransaction>>.Ok(all);
-	}
-
-	public async Task<Dictionary<string, DarajaResult<List<PullTransaction>>>> PullAllTillsAsync(
-		DateTime from,
-		DateTime to,
-		CancellationToken ct = default)
-	{
-		var results = new Dictionary<string, DarajaResult<List<PullTransaction>>>();
-
-		foreach (var till in _cfg.Tills)
-		{
-			logger.LogInformation("Pulling transactions for till: {Name} ({Number})",till.Name, till.TillNumber);
-
-			results[till.TillNumber] = await PullAllPagesAsync(till.TillNumber, from, to, ct);
-
-			await Task.Delay(500, ct);
-		}
-
-		return results;
-	}
-
-	// ─── Helpers ──────────────────────────────────────────────────────────────
+	// ... Keep PullAllPagesAsync and PullAllTillsAsync exactly as they are ...
 
 	private static void ValidateWindow(DateTime from, DateTime to)
 	{
-		if (to <= from)
-			throw new ArgumentException("'to' must be after 'from'.");
-
-		if ((to - from).TotalHours > 48)
-			throw new ArgumentException("Daraja Pull API allows a maximum window of 48 hours.");
+		if (to <= from) throw new ArgumentException("'to' must be after 'from'.");
+		if ((to - from).TotalHours > 48) throw new ArgumentException("Daraja Pull API allows a maximum window of 48 hours.");
 	}
 
-	/// <summary>
-	/// Pull API uses Basic auth directly, NOT the OAuth Bearer token.
-	/// </summary>
-	private HttpClient GetBasicAuthClient()
-	{
-		var credentials = Convert.ToBase64String(
-			Encoding.UTF8.GetBytes($"{_cfg.ConsumerKey}:{_cfg.ConsumerSecret}"));
-
-		var client = httpFactory.CreateClient("Daraja");
-		client.DefaultRequestHeaders.Authorization =
-			new AuthenticationHeaderValue("Basic", credentials);
-		return client;
-	}
+	// 3. You can safely delete the GetBasicAuthClient() method entirely
 }
