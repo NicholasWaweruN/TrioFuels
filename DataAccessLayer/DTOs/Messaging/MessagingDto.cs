@@ -9,15 +9,16 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.DTOs.Messaging
 {
-    public class SmtpSettings
-    {
-        public string Server { get; set; } = string.Empty;
-        public int Port { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public bool EnableSsl { get; set; }
-    }
-    public class AfricaIsTalkingSettings
+	public class SmtpSettings
+	{
+		public string Host { get; set; } = "smtp.gmail.com";
+		public int Port { get; set; } = 587;
+		public bool EnableSsl { get; set; } = true;
+		public string Username { get; set; } = string.Empty;
+		public string Password { get; set; } = string.Empty;
+		public string DisplayName { get; set; } = string.Empty;
+	}
+	public class AfricaIsTalkingSettings
     {
         public string? Username { get; set; } = string.Empty;
         public string ApiKey { get; set; } = string.Empty;

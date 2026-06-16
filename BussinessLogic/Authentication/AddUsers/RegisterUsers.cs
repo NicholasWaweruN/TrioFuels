@@ -159,7 +159,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					$"{register.FirstName} {register.LastName}",
 					otp);
 
-				 //_emailService.SendEmail(email, null, "Otopay Account", body);
+				 _emailService.SendEmail(email, null, "Otopay Account", body);
 
 				return ServiceResponse<object>.Success("User created successfully", null);
 			}
@@ -169,92 +169,93 @@ namespace BussinessLogic.Authentication.AddUsers
 				return ServiceResponse<object>.Error("Unexpected error occurred", null);
 			}
 		}
-		static string BuildEmailBody(string userName, string Otp)
+		 string BuildEmailBody(string userName, string otp)
 		{
-			var body = @"<!DOCTYPE html>
-				<html>
-				<head>
-					<meta charset=""UTF-8"">
-					<title>Welcome to Otopay!</title>
-					<style>
-						body {
-							font-family: Arial, sans-serif;
-							background-color: #f4f4f4;
-							margin: 0;
-							padding: 0;
-						}
-						.container {
-							width: 100%;
-							max-width: 600px;
-							margin: 20px auto;
-							background: #ffffff;
-							padding: 20px;
-							border-radius: 8px;
-							box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-						}
-						.header {
-							text-align: center;
-							padding: 10px 0;
-						}
-						.header h1 {
-							color: #333;
-						}
-						.content {
-							padding: 20px;
-							text-align: center;
-						}
-						.content p {
-							font-size: 16px;
-							color: #555;
-							line-height: 1.5;
-						}
-						.footer {
-							text-align: center;
-							padding: 10px;
-							font-size: 14px;
-							color: #777;
-						}
-						.button {
-							display: inline-block;
-							padding: 10px 20px;
-							margin-top: 15px;
-							font-size: 16px;
-							color: #ffffff;
-							background: #007bff;
-							text-decoration: none;
-							border-radius: 5px;
-						}
-						.button:hover {
-							background: #0056b3;
-						}
-					</style>
-				</head>
-				<body>
-					<div class=""container"">
-						<div class=""header"">
-							<h1>Welcome to Otopay!</h1>
-						</div>
-						<div class=""content"">
-							<p>Dear <strong>{{UserName}}</strong>,</p>
-							<p>Your fuel flow account has been created successfully. You can now enjoy seamless transactions and exclusive benefits.</p>
-							<p>Go to the forgot password button on the login screen and change your password there.</p>
-							<p>Your One Time Password is <strong>{{otp}}</strong></p>
-							<p>To get started, click the button below:</p>
-							<a href=""{{LoginUrl}}"" class=""button"">Login to Your Account</a>
-						</div>
-						<div class=""footer"">
-							<p>&copy; 2025 Otopay. All rights reserved.</p>
-						</div>
-					</div>
-				</body>
-				</html>";
+			var baseUrl = _setups.GetHostUrl();
+			string loginUrl = baseUrl + "/login";
 
-			// Reassign the string after replacement
-			body = body.Replace("{{UserName}}", userName);
-			body = body.Replace("{{otp}}", Otp);
-			body = body.Replace("{{LoginUrl}}", "https://dolphin-app-9w2se.ondigitalocean.app/login");
-
-			return body;
+			return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Welcome to Otopay!</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    margin: 0;
+                    padding: 0;
+                }
+                .container {
+                    width: 100%;
+                    max-width: 600px;
+                    margin: 20px auto;
+                    background: #ffffff;
+                    padding: 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                }
+                .header {
+                    text-align: center;
+                    padding: 10px 0;
+                }
+                .header h1 {
+                    color: #333;
+                }
+                .content {
+                    padding: 20px;
+                    text-align: center;
+                }
+                .content p {
+                    font-size: 16px;
+                    color: #555;
+                    line-height: 1.5;
+                }
+                .footer {
+                    text-align: center;
+                    padding: 10px;
+                    font-size: 14px;
+                    color: #777;
+                }
+                .button {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    margin-top: 15px;
+                    font-size: 16px;
+                    color: #ffffff;
+                    background: #007bff;
+                    text-decoration: none;
+                    border-radius: 5px;
+                }
+                .button:hover {
+                    background: #0056b3;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Welcome to Otopay!</h1>
+                </div>
+                <div class="content">
+                    <p>Dear <strong>{{UserName}}</strong>,</p>
+                    <p>Your fuel flow account has been created successfully. You can now enjoy seamless transactions and exclusive benefits.</p>
+                    <p>Go to the forgot password button on the login screen and change your password there.</p>
+                    <p>Your One Time Password is <strong>{{Otp}}</strong></p>
+                    <p>To get started, click the button below:</p>
+                    <a href="{{LoginUrl}}" class="button">Login to Your Account</a>
+                </div>
+                <div class="footer">
+                    <p>&copy; 2025 Otopay. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+				.Replace("{{UserName}}", userName)
+				.Replace("{{Otp}}", otp)
+				.Replace("{{LoginUrl}}", loginUrl);
 		}
 
 		/// <summary>

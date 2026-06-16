@@ -73,7 +73,7 @@ public class EmailWorkflow : IEmailWorkflow
 					"text/csv"));
 		}
 
-		using var smtpClient = new SmtpClient(_smtp.Server, _smtp.Port)
+		using var smtpClient = new SmtpClient(_smtp.Host, _smtp.Port)
 		{
 			Credentials = new NetworkCredential(
 				_smtp.Username,

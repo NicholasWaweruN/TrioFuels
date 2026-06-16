@@ -1,147 +1,140 @@
 ﻿using DataAccessLayer.DTOs.Messaging;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Data;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
-using Npgsql;
 
 public class EmailService : IEmailService
 {
-	private readonly SmtpSettings _smtpSettings;
+	private readonly SmtpSettings _smtp;
+	private readonly ILogger<EmailService> _logger;
 
-	public EmailService(IOptions<SmtpSettings> smtpSettings)
+	public EmailService(IOptions<SmtpSettings> smtp, ILogger<EmailService> logger)
 	{
-		_smtpSettings = smtpSettings.Value;
+		_smtp = smtp.Value;
+		_logger = logger;
 	}
 
-	public void SendEmail(string toEmail, string? toccEmail, string subject, string body)
+	// ── Simple send ────────────────────────────────────────────
+
+	public void SendEmail(
+		string toEmail,
+		string? ccEmail,
+		string subject,
+		string body)
 	{
+		if (string.IsNullOrWhiteSpace(toEmail) ||
+			string.IsNullOrWhiteSpace(subject) ||
+			string.IsNullOrWhiteSpace(body))
+			throw new ArgumentException("Email, subject, and body are required.");
+
 		try
 		{
-			if (string.IsNullOrWhiteSpace(toEmail) || string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(body))
-			{
-				throw new ArgumentException("Email, subject, and body must be provided.");
-			}
+			using var client = BuildSmtpClient();
+			using var message = BuildMessage(subject, body);
 
-			using (SmtpClient smtpClient = new SmtpClient(_smtpSettings.Server, _smtpSettings.Port))
-			{
-				smtpClient.Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password);
-				smtpClient.EnableSsl = _smtpSettings.EnableSsl;
+			message.To.Add(toEmail);
+			if (!string.IsNullOrWhiteSpace(ccEmail))
+				message.CC.Add(ccEmail);
 
-				using MailMessage mailMessage = new MailMessage();
-				mailMessage.From = new MailAddress(_smtpSettings.Username);
-				mailMessage.To.Add(toEmail);
-				if (!string.IsNullOrWhiteSpace(toccEmail))
-				{
-					mailMessage.CC.Add(toccEmail);
-				}
-				mailMessage.Subject = subject;
-				mailMessage.Body = body;
-				mailMessage.IsBodyHtml = true; // Enable HTML content
-
-				smtpClient.Send(mailMessage);
-			}
-
-			// Use proper logging here instead of Console
-			Console.WriteLine("Email sent successfully to " + toEmail);
+			client.Send(message);
+			_logger.LogInformation("Email sent to {To}", toEmail);
 		}
-		catch (SmtpException smtpEx)
+		catch (SmtpException ex)
 		{
-			// Log specific SMTP errors
-			Console.WriteLine("SMTP error occurred: " + smtpEx.Message);
-		}
-		catch (Exception ex)
-		{
-			// Log general errors
-			Console.WriteLine("An error occurred while sending the email: " + ex.Message);
+			_logger.LogError(ex, "SMTP error sending to {To}", toEmail);
+			throw;
 		}
 	}
+
+	// ── Send with CSV attachment ────────────────────────────────
 
 	public async Task SendEmailWithExcelAttachmentAsync(
 		string[] toEmails,
 		string[] ccEmails,
 		DateTime reportDate,
 		string subject,
-		string body, DataTable data)
+		string body,
+		DataTable data)
 	{
-		try
-		{
+		await using var csvStream = DataTableToCsvStream(data);
+		var filename = $"Report{reportDate:ddMMyyyy}.csv";
 
-			// Convert the data table to a MemoryStream containing CSV format
-			MemoryStream csvStream = ConvertDataTableToCsvStream(data);
-
-			// Send the email with the CSV data attached
-			await SendEmailWithAttachmentAsync(csvStream, $"Report{reportDate:ddMMyyyy}.csv", toEmails, ccEmails, subject, body);
-		}
-		catch (Exception ex)
-		{
-			// Log the error
-			Console.WriteLine($"Error occurred: {ex.Message}");
-		}
+		await SendWithAttachmentAsync(csvStream, filename, toEmails, ccEmails, subject, body);
 	}
 
+	// ── Private helpers ─────────────────────────────────────────
 
-	// Method to convert a DataTable to a MemoryStream containing CSV data
-	private static MemoryStream ConvertDataTableToCsvStream(DataTable dataTable)
-	{
-		var csvContent = new StringBuilder();
-
-		// Header
-		csvContent.AppendLine(string.Join(",", dataTable.Columns.Cast<DataColumn>().Select(c => c.ColumnName)));
-
-		// Rows
-		foreach (DataRow row in dataTable.Rows)
+	private SmtpClient BuildSmtpClient() =>
+		new(_smtp.Host, _smtp.Port)
 		{
-			csvContent.AppendLine(string.Join(",", row.ItemArray.Select(item => item ?? string.Empty.ToString())));
-		}
-
-		// Convert the StringBuilder to a MemoryStream
-		var csvStream = new MemoryStream();
-		var writer = new StreamWriter(csvStream);
-		writer.Write(csvContent.ToString());
-		writer.Flush();
-		csvStream.Position = 0; // Reset the stream position to the beginning
-
-		return csvStream;
-	}
-
-	// Method to send an email with the CSV data attached as a stream
-	private static async Task SendEmailWithAttachmentAsync(MemoryStream csvStream, string filename, string[] toEmails, string[] ccEmails, string subject, string body)
-	{
-		using MailMessage mail = new();
-		mail.From = new MailAddress("Reports@protoenergy.com");
-		mail.IsBodyHtml = true;
-		// Add recipients
-		foreach (var email in toEmails)
-		{
-			mail.To.Add(email);
-		}
-		// Add CC recipients
-		foreach (var ccEmail in ccEmails)
-		{
-			mail.CC.Add(ccEmail);
-		}
-
-		mail.Subject = subject;
-		mail.Body = body;
-
-		// Attach the CSV data as a stream
-		using Attachment attachment = new(csvStream, filename, "text/csv");
-		mail.Attachments.Add(attachment);
-
-		// Set up SMTP client and send the email
-		using SmtpClient smtp = new("smtp.office365.com");
-		smtp.Port = 587;
-		smtp.EnableSsl = true;
-		smtp.Credentials = new NetworkCredential
-		{
-			UserName = "Reports@protoenergy.com",
-			Password = "Tag50274"
+			Credentials = new NetworkCredential(_smtp.Username, _smtp.Password),
+			EnableSsl = _smtp.EnableSsl,
 		};
 
-		await smtp.SendMailAsync(mail);
+	private MailMessage BuildMessage(string subject, string body) =>
+		new()
+		{
+			From = new MailAddress(_smtp.Username, _smtp.DisplayName),
+			Subject = subject,
+			Body = body,
+			IsBodyHtml = true,
+		};
+
+	private async Task SendWithAttachmentAsync(
+		MemoryStream stream,
+		string filename,
+		string[] toEmails,
+		string[] ccEmails,
+		string subject,
+		string body)
+	{
+		using var client = BuildSmtpClient();
+		using var message = BuildMessage(subject, body);
+		using var attach = new Attachment(stream, filename, "text/csv");
+
+		foreach (var to in toEmails) message.To.Add(to);
+		foreach (var cc in ccEmails) message.CC.Add(cc);
+		message.Attachments.Add(attach);
+
+		await client.SendMailAsync(message);
+		_logger.LogInformation("Attachment email sent ({File}) to {Count} recipients", filename, toEmails.Length);
 	}
 
+	private static MemoryStream DataTableToCsvStream(DataTable table)
+	{
+		var sb = new StringBuilder();
+
+		sb.AppendLine(string.Join(",", table.Columns
+			.Cast<DataColumn>()
+			.Select(c => CsvEscape(c.ColumnName))));
+
+		foreach (DataRow row in table.Rows)
+			sb.AppendLine(string.Join(",", row.ItemArray
+				.Select(v => CsvEscape(v?.ToString() ?? ""))));
+
+		var ms = new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
+		// position already 0 — no manual reset needed
+		return ms;
+	}
+
+	// Wrap values that contain commas, quotes, or newlines
+	private static string CsvEscape(string value)
+	{
+		if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+			return $"\"{value.Replace("\"", "\"\"")}\"";
+		return value;
+	}
+}
+
+public class SmtpSettings
+{
+	public string Host { get; set; } = "smtp.gmail.com";
+	public int Port { get; set; } = 587;
+	public bool EnableSsl { get; set; } = true;
+	public string Username { get; set; } = string.Empty;
+	public string Password { get; set; } = string.Empty;
+	public string DisplayName { get; set; } = string.Empty;
 }

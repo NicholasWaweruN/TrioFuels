@@ -78,10 +78,9 @@ namespace BussinessLogic.Sales.ReverseSales
 
 					// --- Stage domain changes (no SaveChanges yet) ------------------------------
 					if (sale.PaymentTypeCode == PaymetMethod.Wallet)
-						AddCustomerTransactionIfVehiclePresent(sale.VehicleCode, sale.AmountDebit, transactionCode);
+					AddCustomerTransactionIfVehiclePresent(sale.VehicleCode, sale.AmountDebit, transactionCode);
 
 					AddReversedQuantityTransactionAndMarkOriginal(sale, transactionCode);
-
 					await AddReversedPaymentTransactionsAsync(sale);
 
 					// Trail entry

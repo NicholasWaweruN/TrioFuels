@@ -51,6 +51,8 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
+builder.Services.Configure<SmtpSettings>(
+builder.Configuration.GetSection("SmtpSettings"));
 // ── Build ───────────────────────────────────────────────────────────────────
 var app = builder.Build();
 

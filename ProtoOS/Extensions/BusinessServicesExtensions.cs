@@ -175,6 +175,12 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ILoyaltyProgramSubscription, LoyaltyProgramSubscription>();
 		services.AddScoped<IVoucherService, VoucherService>();
 
+		// Program.cs
+	
+
+	
+
+
 		return services;
 	}
 }

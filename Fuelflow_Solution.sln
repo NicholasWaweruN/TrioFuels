@@ -16,6 +16,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FuelFlow", "ProtoOS\FuelFlo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Safaricom_Daraja", "Safaricom_Daraja\Safaricom_Daraja.csproj", "{BEE8178C-D400-4F48-A236-11376538E1F0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FuelFlow_Tests", "FuelFlow_Tests\FuelFlow_Tests.csproj", "{5B23913F-AC1C-4A51-A1E0-67056D4FF738}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,10 @@ Global
 		{BEE8178C-D400-4F48-A236-11376538E1F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BEE8178C-D400-4F48-A236-11376538E1F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BEE8178C-D400-4F48-A236-11376538E1F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B23913F-AC1C-4A51-A1E0-67056D4FF738}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B23913F-AC1C-4A51-A1E0-67056D4FF738}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B23913F-AC1C-4A51-A1E0-67056D4FF738}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B23913F-AC1C-4A51-A1E0-67056D4FF738}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
