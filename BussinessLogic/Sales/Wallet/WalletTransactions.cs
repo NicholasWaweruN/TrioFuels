@@ -23,6 +23,7 @@
 	using static DataAccessLayer.EntityModels.Wallet.WalletDto;
 	using ExcelHorizontalAlignment = Syncfusion.XlsIO.ExcelHorizontalAlignment;
 	using BussinessLogic.Setup;
+	using BussinessLogic.Messaging;
 
 	/// <summary>
 	/// Defines the <see cref="WalletTransactions" />

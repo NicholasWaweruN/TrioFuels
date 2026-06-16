@@ -1,6 +1,7 @@
 ﻿using BusinessLogic.EmailService;
 using BusinessLogic.SetupService;
 using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.Messaging;
 using BussinessLogic.PlateDetection;
 using BussinessLogic.Setup;
 using ClosedXML.Excel;

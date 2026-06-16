@@ -15,6 +15,7 @@ using System.Reflection;
 using static BussinessLogic.Sales.MissingSales.MisingSale;
 using BusinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Setup;
+using BussinessLogic.Messaging;
 
 namespace BussinessLogic.Stock.Stock
 {

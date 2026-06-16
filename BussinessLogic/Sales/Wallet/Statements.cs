@@ -15,6 +15,7 @@ using Syncfusion.Drawing;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using BussinessLogic.Setup;
+using BussinessLogic.Messaging;
 
 namespace BusinessLogic.Sales.Wallet
 {

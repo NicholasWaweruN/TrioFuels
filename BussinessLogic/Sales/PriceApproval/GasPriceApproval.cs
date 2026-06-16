@@ -1,5 +1,6 @@
 ﻿
 using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.Messaging;
 using BussinessLogic.Setup;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
@@ -125,7 +126,7 @@ namespace BussinessLogic.Sales.PriceApproval
 				var subject = "New Gas Price Approval Request";
 				_emailService.SendEmail(
 					toEmail: recipients.ToString() ?? string.Empty,
-					toccEmail: initiatorEmail ?? string.Empty,
+					ccEmail: initiatorEmail ?? string.Empty,
 					subject: subject,
 					body: emailBody
 				);

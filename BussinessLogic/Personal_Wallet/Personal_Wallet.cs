@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 using BussinessLogic.Setup;
 using DataAccessLayer.Authentication.Entity;
+using BussinessLogic.Messaging;
 
 namespace BussinessLogic.Personal_Wallet
 {

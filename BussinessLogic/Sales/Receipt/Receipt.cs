@@ -1,6 +1,7 @@
 ﻿namespace BusinessLogic.Sales.Receipts
 {
 	using BussinessLogic.Authentication.CommonTasks;
+	using BussinessLogic.Messaging;
 	using BussinessLogic.Sales.NewSales;
 	using DataAccessLayer.Context;
 	using Syncfusion.Pdf;

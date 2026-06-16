@@ -1,5 +1,6 @@
 ﻿
 using DataAccessLayer.Context;
+using DataAccessLayer.DTOs.Messaging;
 using FuelFlow.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
