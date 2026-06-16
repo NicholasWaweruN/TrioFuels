@@ -168,9 +168,9 @@
 		[HttpGet]
 		[Route("SendOTP")]
 		[AllowAnonymous]
-		public async Task<IActionResult> SendOTP([FromQuery] string phoneNumber)
+		public async Task<IActionResult> SendOTP([FromQuery] string email)
 		{
-			var response = await _signIn.SendOTPAsync(phoneNumber);
+			var response = await _signIn.SendOTPAsync(email);
 			return Ok(response);
 		}
 
