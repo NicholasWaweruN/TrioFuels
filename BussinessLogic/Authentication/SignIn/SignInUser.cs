@@ -781,7 +781,9 @@ namespace BussinessLogic.Authentication.SignIn
 		[Compare("NewPassword", ErrorMessage = "Passwords do not match.")]
 		public string ConfirmPassword { get; set; } = string.Empty;
 	}
-
+	/// <summary>
+	/// 
+	/// </summary>
 	public class ResetPasswordModelEmail
 	{
 		[Required]
