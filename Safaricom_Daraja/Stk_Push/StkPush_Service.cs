@@ -12,12 +12,7 @@ using DataAccessLayer.EntityModels.Transactions;
 
 namespace Safaricom_Daraja.Stk_Push;
 
-public sealed class StkPushService(
-	IHttpClientFactory httpFactory,
-	IDarajaTokenService tokenService,
-	IOptions<DarajaConfig> options,
-	ILogger<StkPushService> logger,
-	OTOContext context) : IStkPushService
+public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<StkPushService> logger,OTOContext context) : IStkPushService
 {
 	private readonly DarajaConfig _cfg = options.Value;
 	private readonly OTOContext _context = context;
@@ -46,9 +41,7 @@ public sealed class StkPushService(
 			return DarajaResult<StkPushResponse>.Fail(ex.Message);
 		}
 
-		var till = await _context.Tills
-			.Where(x => x.TillNumber == tillNumber)
-			.FirstOrDefaultAsync(ct);
+		var till = await _context.Tills.Where(x => x.TillNumber == tillNumber).FirstOrDefaultAsync(ct);
 
 		if (till is null)
 			return DarajaResult<StkPushResponse>.Fail($"Till {tillNumber} is not configured.");
@@ -83,9 +76,7 @@ public sealed class StkPushService(
 
 			if (!response.IsSuccessStatusCode)
 			{
-				logger.LogError("STK Push failed — Till={Till} Status={Status}",
-					tillNumber, (int)response.StatusCode);
-
+				logger.LogError("STK Push failed — Till={Till} Status={Status}",tillNumber, (int)response.StatusCode);
 				return DarajaResult<StkPushResponse>.Fail($"Daraja HTTP {(int)response.StatusCode}");
 			}
 
@@ -141,8 +132,7 @@ public sealed class StkPushService(
 
 	public async Task<MpesaTransaction?> GetMpesaTransaction(string checkoutRequestId, CancellationToken ct = default)
 	{
-		return await _context.MpesaTransactions
-			.FirstOrDefaultAsync(x => x.CheckoutRequestID == checkoutRequestId, ct);
+		return await _context.MpesaTransactions.FirstOrDefaultAsync(x => x.CheckoutRequestID == checkoutRequestId, ct);
 	}
 
 	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
@@ -181,8 +171,7 @@ public sealed class StkPushService(
 				return DarajaResult<StkQueryResponse>.Fail("Null response from Daraja.");
 
 			// ── UPDATE TRANSACTION STATUS ─────────────────────────
-			var transaction = await _context.StkTransactions
-				.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutRequestId, ct);
+			var transaction = await _context.StkTransactions.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutRequestId, ct);
 
 			if (transaction != null)
 			{

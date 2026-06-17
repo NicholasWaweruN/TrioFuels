@@ -10,8 +10,7 @@ namespace FuelFlow.Controllers;
 
 [Route("fuelflow")]
 [ApiController]
-public class DarajaController(
-	IStkPushService stkPushService,
+public class DarajaController(IStkPushService stkPushService,
 	IStkCallbackHandler stkCallbackHandler,
 	IC2BService c2bService,                    // ✅ FIX: injected, not static
 	IOptions<DarajaConfig> options,
@@ -33,21 +32,13 @@ public class DarajaController(
 
 		if (till is null)
 		{
-			logger.LogWarning("[STK][Push] ❌ Unknown till. TillNumber={TN} TillReference={TR} " + "KnownTills=[{Tills}]", req.TillNumber, req.TillReference,
-				string.Join(", ", _cfg.Tills.Select(t => $"{t.TillNumber}/{t.AccountReference}")));
-
+			logger.LogWarning("[STK][Push] ❌ Unknown till. TillNumber={TN} TillReference={TR} " + "KnownTills=[{Tills}]", req.TillNumber, req.TillReference,string.Join(", ", _cfg.Tills.Select(t => $"{t.TillNumber}/{t.AccountReference}")));
 			return BadRequest("Unknown till");
 		}
 
 		logger.LogInformation("[STK][Push] Till resolved → TillName={Name} TillNumber={TN} AccountReference={AR}", till.Name, till.TillNumber, till.AccountReference);
 
-		var result = await stkPushService.InitiateAsync(
-			phone: req.Phone,
-			amount: req.Amount,
-			tillNumber: till.TillNumber,
-			accountReference: till.AccountReference,
-			description: req.Description ?? "Payment",
-			ct: ct);
+		var result = await stkPushService.InitiateAsync(phone: req.Phone,amount: req.Amount,tillNumber: till.TillNumber,accountReference: till.AccountReference,description: req.Description ?? "Payment",ct: ct);
 
 		if (result.Success)
 		{
@@ -146,9 +137,7 @@ public class DarajaController(
 	};
 
 	[HttpPost("daraja/c2b/register-store/{storeNumber}")]
-	public async Task<IActionResult> RegisterC2BStoreNumber(
-		string storeNumber,
-		CancellationToken ct)
+	public async Task<IActionResult> RegisterC2BStoreNumber(string storeNumber,CancellationToken ct)
 	{
 		logger.LogInformation("[C2B][Register] ▶ Registering store number={SN}", storeNumber);
 
@@ -184,11 +173,7 @@ public class DarajaController(
 			return Ok();
 		}
 
-		logger.LogInformation("[C2B][Confirm] Raw request — TransID={ID} TransType={TT} Amount={Amount} BSC={BSC} BillRefNumber={Ref} Phone={Phone} Name={LN}, {FN}",
-			req.TransactionId, req.TransactionType, req.TransAmount, req.BusinessShortCode,
-			req.BillRefNumber, MaskPhoneNumber(req.PhoneNumber),
-			req.LastName?.FirstOrDefault(), req.FirstName?.FirstOrDefault());
-
+		logger.LogInformation("[C2B][Confirm] Raw request — TransID={ID} TransType={TT} Amount={Amount} BSC={BSC} BillRefNumber={Ref} Phone={Phone} Name={LN}, {FN}",req.TransactionId, req.TransactionType, req.TransAmount, req.BusinessShortCode,req.BillRefNumber, MaskPhoneNumber(req.PhoneNumber),req.LastName?.FirstOrDefault(), req.FirstName?.FirstOrDefault());
 		await c2bService.HandleConfirmationAsync(req, ct);
 
 		logger.LogInformation("[C2B][Confirm] Handled. TransID={ID}", req.TransactionId);

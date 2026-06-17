@@ -15,7 +15,7 @@ namespace DataAccessLayer.Migrations
                 table: "AspNetUsers",
                 keyColumn: "Id",
                 keyValue: "f9b3e4d7-5a8c-3f2d-9b6f-4a7e5d8b6f9a",
-                columns: new[] { "ConcurrencyStamp", "DateCreated", "DateModified", "LastLoginDate", "PasswordLastUpdated", "SecurityStamp" },
+                columns: ["ConcurrencyStamp", "DateCreated", "DateModified", "LastLoginDate", "PasswordLastUpdated", "SecurityStamp"],
                 values: new object[] { "ac5b0bba-ab17-47ad-8f3c-ccf82eb251ae", new DateTime(2026, 6, 17, 6, 4, 32, 457, DateTimeKind.Utc).AddTicks(6029), new DateTime(2026, 6, 17, 6, 4, 32, 457, DateTimeKind.Utc).AddTicks(6029), new DateTime(2026, 6, 17, 6, 4, 32, 457, DateTimeKind.Utc).AddTicks(6030), new DateTime(2026, 6, 17, 6, 4, 32, 457, DateTimeKind.Utc).AddTicks(6025), "b442579e-a81d-46c2-bcb0-7a7167925929" });
 
             migrationBuilder.UpdateData(

@@ -2,10 +2,8 @@ using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Emails;
 using DataAccessLayer.EntityModels.Messaging;
-using DataAccessLayer.EntityModels.ProtoBase;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Stations;
-using DataAccessLayer.EntityModels.StockTake;
 using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 
@@ -72,7 +70,7 @@ namespace DataAccessLayer.Context
 		{
 			modelBuilder.Entity<PaymentType>().HasData(
 				new PaymentType { Id = 1, IsAppUsed = true, PaymentTypeId = 0, PaymentTypeName = "Mpesa", DateCreated = DateTime.UtcNow, UserCode = "00001" },
-				new PaymentType { Id = 2, IsAppUsed = true, PaymentTypeId = 1, PaymentTypeName = "Wallet", DateCreated = DateTime.UtcNow, UserCode = "00001" },
+				new PaymentType { Id = 2, IsAppUsed = false, PaymentTypeId = 1, PaymentTypeName = "Wallet", DateCreated = DateTime.UtcNow, UserCode = "00001" },
 				new PaymentType { Id = 4, IsAppUsed = false, PaymentTypeId = 3, PaymentTypeName = "Operational_Loss", DateCreated = DateTime.UtcNow, UserCode = "00001" },
 				new PaymentType { Id = 6, IsAppUsed = false, PaymentTypeId = 5, PaymentTypeName = "Employee_Mpesa_Payments", DateCreated = DateTime.UtcNow, UserCode = "00001" },
 				new PaymentType { Id = 7, IsAppUsed = false, PaymentTypeId = 6, PaymentTypeName = "Insurance", DateCreated = DateTime.UtcNow, UserCode = "00001" },
@@ -82,7 +80,9 @@ namespace DataAccessLayer.Context
 				new PaymentType { Id = 11, IsAppUsed = false, PaymentTypeId = 10, PaymentTypeName = "BatchVoucher", DateCreated = DateTime.UtcNow, UserCode = "00001" },
 				new PaymentType { Id = 13, IsAppUsed = true, PaymentTypeId = 12, PaymentTypeName = "Cash", DateCreated = DateTime.UtcNow, UserCode = "00001" },
 				new PaymentType { Id = 14, IsAppUsed = true, PaymentTypeId = 13, PaymentTypeName = "Credit", DateCreated = DateTime.UtcNow, UserCode = "00001" },
-				new PaymentType { Id = 15, IsAppUsed = true, PaymentTypeId = 14, PaymentTypeName = "Loyalty", DateCreated = DateTime.UtcNow, UserCode = "00001" }
+				new PaymentType { Id = 15, IsAppUsed = true, PaymentTypeId = 14, PaymentTypeName = "Loyalty", DateCreated = DateTime.UtcNow, UserCode = "00001" },
+				new PaymentType { Id = 16, IsAppUsed = true, PaymentTypeId = 15, PaymentTypeName = "PDQ", DateCreated = DateTime.UtcNow, UserCode = "00001" }
+
 			);
 		}
 
