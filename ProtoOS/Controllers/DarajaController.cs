@@ -175,7 +175,7 @@ public class DarajaController(
 	// C2B — CONFIRM
 	// ─────────────────────────────────────────────
 
-	[HttpPost("daraaj/c2b/confirm")]
+	[HttpPost("daraja/c2b/confirm")]
 	public async Task<IActionResult> C2BConfirm(
 		[FromBody] C2BConfirmationRequest? req,
 		CancellationToken ct)
