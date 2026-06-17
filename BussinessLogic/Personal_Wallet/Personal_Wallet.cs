@@ -152,7 +152,7 @@ namespace BussinessLogic.Personal_Wallet
 					{
 						var subject = "Welcome to Otopay - Notifications Enabled";
 						var emailContent = HtmlBody(customer.FirstName, wallet.WalletId ?? string.Empty, customer.Receive_Statements, customer.Receive_Receipts);
-						_emailService.SendEmail(customer.Email, null, subject, emailContent);
+						await _emailService.SendEmail(customer.Email, null, subject, emailContent);
 					}
 
 					return ServiceResponse<object>.Success($"The account {customer.FirstName} has been added successfully! Use reset button to set your password.", null);

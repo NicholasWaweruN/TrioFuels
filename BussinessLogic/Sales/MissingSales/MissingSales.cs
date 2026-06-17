@@ -233,7 +233,7 @@ namespace BusinessLogic.Sales.MissingSales
 			foreach (var mpesa in sales.PaymentDetails)
 			{
 				if (sales.PaymentTypeCode == PaymetMethod.Mpesa)
-					_salesTasks.UpdateMpesaPaymentStatus(mpesa.TransactionReference);
+					await _salesTasks.UpdateMpesaPaymentStatus(mpesa.TransactionReference);
 			}
 
 			var paymentType = await _context.PaymentTypes

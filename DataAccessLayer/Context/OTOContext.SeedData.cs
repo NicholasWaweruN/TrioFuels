@@ -13,7 +13,7 @@ namespace DataAccessLayer.Context
 {
 	public partial class OTOContext
 	{
-		private void ConfigureSeedData(ModelBuilder modelBuilder)
+		private static void ConfigureSeedData(ModelBuilder modelBuilder)
 		{
 			SeedCodegenerators(modelBuilder);
 			SeedPaymentTypes(modelBuilder);
@@ -89,8 +89,6 @@ namespace DataAccessLayer.Context
 		private static void SeedProtoApps(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<ProtoApps>().HasData(
-				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000001"), AppsCode = "01", AppsName = "Bulk DashBoard", DateCreated = new DateTime(2024, 1, 1) },
-				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000002"), AppsCode = "02", AppsName = "Bulk App", DateCreated = new DateTime(2024, 1, 1) },
 				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000003"), AppsCode = "03", AppsName = "Fuel Flow DashBoard", DateCreated = new DateTime(2024, 1, 1) },
 				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000004"), AppsCode = "04", AppsName = "Fuel Flow App", DateCreated = new DateTime(2024, 1, 1) }
 			);
@@ -142,9 +140,7 @@ namespace DataAccessLayer.Context
 		{
 			modelBuilder.Entity<UserApps>().HasData(
 				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000001"), AppsCode = "03", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999", },
-				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000002"), AppsCode = "04", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999" },
-				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000003"), AppsCode = "01", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999" },
-				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000004"), AppsCode = "02", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999" }
+				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000002"), AppsCode = "04", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999" }
 			);
 		}
 

@@ -306,7 +306,7 @@ namespace BussinessLogic.Sales.ReverseSales
 					// try/catch so a failure here logs cleanly without rolling back the reversal.
 					try
 					{
-						 _salesTasks.UpdateMpesaPaymentStatus(p.PaymentRefrence);
+						 await _salesTasks.UpdateMpesaPaymentStatus(p.PaymentRefrence);
 					}
 					catch (Exception mpesaEx)
 					{

@@ -808,7 +808,7 @@ namespace BussinessLogic.Customers.Vehicles
 				CC = string.Join(",", CC, _authentication.Email());
 
 
-				_emailService.SendEmail(To is null ? "reports@protoenergy.com" : To, CC, "Vehicle Uninstalled Notification",
+			await	_emailService.SendEmail(To is null ? "reports@protoenergy.com" : To, CC, "Vehicle Uninstalled Notification",
 					BuildVehicleUninstalledEmail(_authentication.Name(), vehicle.VehicleRegistrationNumber, oldSerial, _authentication.Name()));
 
 				return ServiceResponse<VehicleUninstallDto>.Success("Vehicle marked as uninstalled", responseDto);
@@ -1293,7 +1293,7 @@ namespace BussinessLogic.Customers.Vehicles
 						installationDate: vehicle.TelematicInstallationDate
 					);
 
-					 _emailService.SendEmail(
+					 await _emailService.SendEmail(
 						toList,
 						ccList,
 						$"Telematics Installed - {vehicle.VehicleRegistrationNumber}",

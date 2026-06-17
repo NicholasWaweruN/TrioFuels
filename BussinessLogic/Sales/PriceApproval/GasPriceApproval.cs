@@ -124,7 +124,7 @@ namespace BussinessLogic.Sales.PriceApproval
 											select u.Email).FirstOrDefaultAsync();
 
 				var subject = "New Gas Price Approval Request";
-				_emailService.SendEmail(
+				await _emailService.SendEmail(
 					toEmail: recipients.ToString() ?? string.Empty,
 					ccEmail: initiatorEmail ?? string.Empty,
 					subject: subject,

@@ -511,7 +511,7 @@ namespace BussinessLogic.Authentication.SignIn
 </body>
 </html>";
 
-				  _emailService.SendEmail(
+				  await _emailService.SendEmail(
 					email,
 					null,
 					"OTP Verification Code",
