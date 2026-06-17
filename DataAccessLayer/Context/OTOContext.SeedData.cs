@@ -206,12 +206,12 @@ namespace DataAccessLayer.Context
 		private static void SeedTills(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Tills>().HasData(
-				new Tills { Id = 1, StoreNumber = "5617668", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "Till 1", IsActive = true, OffsetValue = 0, TillNumber = "5617668", UserCode = "99999", },
-				new Tills { Id = 2, StoreNumber = "5617666", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "Till 2", IsActive = true, OffsetValue = 0, TillNumber = "5617666", UserCode = "99999", },
-				new Tills { Id = 3, StoreNumber = "5617664", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),  TillName = "Till 3",IsActive = true,  OffsetValue = 0, TillNumber = "5617664", UserCode = "99999", },
-				new Tills { Id = 4, StoreNumber = "5617662", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "Till 4", IsActive = true, OffsetValue = 0, TillNumber = "5617662", UserCode = "99999", },
-				new Tills { Id = 5, StoreNumber = "5617660", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "Till 5", IsActive = true, OffsetValue = 0, TillNumber = "5617660", UserCode = "99999", }
-				);
+				new Tills { Id = 1, StoreNumber = "5545198", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "TRIO FUELS Till 1", IsActive = true, OffsetValue = 0, TillNumber = "5617668", UserCode = "99999" },
+				new Tills { Id = 2, StoreNumber = "5545196", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "TRIO FUELS Till 2", IsActive = true, OffsetValue = 0, TillNumber = "5617666", UserCode = "99999" },
+				new Tills { Id = 3, StoreNumber = "5545194", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "TRIO FUELS Till 3", IsActive = true, OffsetValue = 0, TillNumber = "5617664", UserCode = "99999" },
+				new Tills { Id = 4, StoreNumber = "5545192", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "TRIO FUELS Till 4", IsActive = true, OffsetValue = 0, TillNumber = "5617662", UserCode = "99999" },
+				new Tills { Id = 5, StoreNumber = "5545190", DateCreated = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), LastFetch = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), TillName = "TRIO FUELS Till 5", IsActive = true, OffsetValue = 0, TillNumber = "5617660", UserCode = "99999" }
+			);
 		}
 
 		private static void SeedQuantityTransactions(ModelBuilder modelBuilder)

@@ -13,7 +13,7 @@ namespace FuelFlow.Extensions;
 public static class DarajaServiceExtensions
 {
 	/// <summary>
-	/// Registers all Daraja services.
+	/// Registers all Daraja services. 
 	/// Call from Program.cs: builder.Services.AddDaraja(builder.Configuration);
 	/// </summary>
 	public static IServiceCollection AddDaraja(
