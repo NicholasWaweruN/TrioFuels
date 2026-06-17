@@ -119,6 +119,22 @@ namespace BussinessLogic.Authentication.AddUsers
 					
 				};
 
+
+				var listApps = register.AccessApps;
+				var userApps = new List<UserApps>();
+
+				foreach (var item in listApps!)
+				{
+					var code = "0" + item;
+					userApps.Add(new UserApps
+					{
+						AppsCode = code,
+						DateCreated = DateTime.Now,
+						UserCode = userCode
+					});
+				}
+				
+
 				// ─────────────────────────────────────────────
 				// 6. Create user (Identity handles transaction internally)
 				// ─────────────────────────────────────────────
@@ -147,7 +163,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					DateCreated = DateTime.UtcNow
 				};
 
-				_context.Add(audit);
+				_context.AddRange(audit, userApps);
 				await _context.SaveChangesAsync();
 
 				// ─────────────────────────────────────────────
