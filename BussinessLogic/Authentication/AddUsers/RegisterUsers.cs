@@ -163,7 +163,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					DateCreated = DateTime.UtcNow
 				};
 
-				_context.AddRange(audit, userApps);
+				_context.AddRange(audit,userApps);
 				await _context.SaveChangesAsync();
 
 				// ─────────────────────────────────────────────

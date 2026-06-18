@@ -5,7 +5,6 @@ using BussinessLogic.Sales.Sales_ForeCast;
 using BussinessLogic.Sales.Wallet;
 using BussinessLogic.Stock.VarianceReport;
 using BussinessLogic.Worker.SalesReport;
-using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
@@ -108,7 +107,9 @@ public class EmailBackgroundService : BackgroundService
 		{
 			// Fetch schedules to apply or revert
 			var schedules = await dbContext.PriceSchedules
-				.Where(ps => (ps.StartTime <= currentTime && ps.EndTime > currentTime && !ps.IsActive && !ps.Processed) ||(ps.EndTime <= currentTime && ps.IsActive))
+				.Where(ps =>
+					(ps.StartTime <= currentTime && ps.EndTime > currentTime && !ps.IsActive && !ps.Processed) ||
+					(ps.EndTime <= currentTime && ps.IsActive))
 				.ToListAsync();
 
 			var applyList = schedules
@@ -236,9 +237,10 @@ public class EmailBackgroundService : BackgroundService
 			.Where(s => s.ShiftStatus == 2 && !s.IsEmailSent)
 			.ToListAsync();
 
-	
+		var twelveHoursAgo = DateTime.UtcNow.AddHours(-14);
+
 		var varianceShift = await dbContext.Shifts
-			.Where(s => s.IsEmailSent  == false && s.ShiftStatus ==  ShiftStatus.Variance )
+			.Where(s => s.ShiftStartTime >= twelveHoursAgo && s.ShiftStatus != 1)
 			.ToListAsync();
 
 

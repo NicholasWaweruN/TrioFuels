@@ -206,7 +206,6 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 			}
 
 			await _context.SaveChangesAsync();
-			await NozzleQuantityTransfer(shiftNumber);
 			await UpdateShiftStatusAsync(shiftNumber, totalVariance, isOpeningReading);
 		}
 
@@ -254,134 +253,6 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 			await _context.SaveChangesAsync();
 		}
 
-
-		// ─── Nozzle Quantity Transfer ──────────────────────────────────────────────────
-		public async Task<ServiceResponse<object>> NozzleQuantityTransfer(string shiftNumber)
-		{
-			await using var transaction = await _context.Database.BeginTransactionAsync();
-			try
-			{
-				// ─── Step 1: Load per-nozzle variances for this shift ──────────────
-				var summaries = await _context.StockTakeSummaries
-					.Where(s => s.ShiftNumber == shiftNumber)
-					.AsNoTracking()
-					.ToListAsync();
-
-				if (summaries.Count < 2)
-					return ServiceResponse<object>.Information("Not enough nozzles to perform transfer.", null);
-
-				// ─── Step 2: Load nozzle → dispenser map ──────────────────────────
-				var nozzleCodes = summaries.Select(s => s.NozzleCode).ToList();
-
-				var nozzleDispensers = await _context.Nozzles
-					.Where(n => nozzleCodes.Contains(n.NozzleCode))
-					.AsNoTracking()
-					.ToDictionaryAsync(n => n.NozzleCode, n => n.DispenserCode);
-
-				// ─── Step 3: Find swap candidate pairs ────────────────────────────
-				// A valid pair: same dispenser, one large positive variance, one large
-				// negative variance whose magnitudes are close to each other (within 5L).
-				var swapPairs = (from over in summaries
-								 join under in summaries
-									 on nozzleDispensers.GetValueOrDefault(over.NozzleCode)
-									 equals nozzleDispensers.GetValueOrDefault(under.NozzleCode)
-								 where over.NozzleCode != under.NozzleCode
-									&& over.ClosingVariance > 1          // surplus nozzle
-									&& under.ClosingVariance < -1        // deficit nozzle
-									&& Math.Abs(over.ClosingVariance + under.ClosingVariance)
-									   < Math.Max(Math.Abs(over.ClosingVariance),
-												  Math.Abs(under.ClosingVariance)) * 0.1m // within 10% net
-								 orderby Math.Abs(over.ClosingVariance) descending
-								 select new SwapCandidate
-								 {
-									 DonorNozzleCode = over.NozzleCode,   // has excess quantity
-									 ReceiverNozzleCode = under.NozzleCode,  // has deficit
-									 DonorVariance = over.ClosingVariance,
-									 ReceiverVariance = under.ClosingVariance,
-								 }).ToList();
-
-				if (swapPairs.Count == 0)
-					return ServiceResponse<object>.Information("No swap candidates found.", null);
-
-				var auditLines = new List<string>();
-				var processedPairs = new HashSet<string>(); // avoid double-processing mirror pairs
-
-				foreach (var pair in swapPairs)
-				{
-					var pairKey = string.Join("|", new[] { pair.DonorNozzleCode, pair.ReceiverNozzleCode }.Order());
-					if (!processedPairs.Add(pairKey)) continue;
-
-					// ─── Step 4: Load donor transactions ──────────────────────────
-					var donorTransactions = await _context.QuantityTransactions
-						.Where(q => q.ShiftNumber == shiftNumber
-								 && q.NozzleCode == pair.DonorNozzleCode
-								 && !q.IsReversed)
-						.OrderByDescending(q => q.QuantityCredit - q.QuantityDebit)
-						.ToListAsync();
-
-					// ─── Step 5: Greedy subset selection ──────────────────────────
-					// Target: move enough quantity to close the receiver's deficit.
-					// Receiver deficit is negative, so target = abs(receiverVariance).
-					var target = Math.Abs(pair.ReceiverVariance);
-					var accumulated = 0m;
-					var toMove = new List<QuantityTransactions>();
-
-					foreach (var tx in donorTransactions)
-					{
-						if (accumulated >= target) break;
-						toMove.Add(tx);
-						accumulated += tx.QuantityCredit - tx.QuantityDebit;
-					}
-
-					if (toMove.Count == 0) continue;
-
-					// ─── Step 6: Reclassify NozzleCode ────────────────────────────
-					var idsToMove = toMove.Select(t => t.Id).ToList();
-
-					await _context.QuantityTransactions
-						.Where(q => idsToMove.Contains(q.Id))
-						.ExecuteUpdateAsync(q => q
-							.SetProperty(x => x.NozzleCode, pair.ReceiverNozzleCode));
-
-					auditLines.Add(
-						$"Moved {toMove.Count} transaction(s) ({accumulated:N3}L) " +
-						$"from nozzle {pair.DonorNozzleCode} → {pair.ReceiverNozzleCode} " +
-						$"(donor variance was {pair.DonorVariance:N3}, " +
-						$"receiver variance was {pair.ReceiverVariance:N3})");
-				}
-
-				if (auditLines.Count == 0)
-				{
-					await transaction.RollbackAsync();
-					return ServiceResponse<object>.Information("No transactions were moved.", null);
-				}
-
-				// ─── Step 7: Reconcile stock summaries after reclassification ─────
-				await ReconcileStockSummariesAsync(shiftNumber);
-
-				await transaction.CommitAsync();
-
-				var auditMessage = $"Nozzle swap correction for shift {shiftNumber}:\n" +
-								   string.Join("\n", auditLines);
-				await _authentication.AddUserTrail(auditMessage, nameof(NozzleQuantityTransfer));
-
-				return ServiceResponse<object>.Success("Nozzle quantity transfer completed.", auditMessage);
-			}
-			catch (Exception ex)
-			{
-				await transaction.RollbackAsync();
-				return ServiceResponse<object>.Error("Nozzle transfer failed.", ex.Message);
-			}
-		}
-
-		// ─── DTO ──────────────────────────────────────────────────────────────────────
-		private sealed class SwapCandidate
-		{
-			public string DonorNozzleCode { get; init; } = string.Empty;
-			public string ReceiverNozzleCode { get; init; } = string.Empty;
-			public decimal DonorVariance { get; init; }
-			public decimal ReceiverVariance { get; init; }
-		}
 		private async Task UpdateShiftStatusAsync(string shiftNumber, decimal totalVariance, bool isOpeningReading)
 		{
 			var shift = await _context.Shifts
@@ -442,66 +313,6 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 			var timePortion = date.ToString("HHmmssfff");
 			var uniqueCode = $"{yearLetter}{monthLetter}{dayLetter}{timePortion}";
 			return uniqueCode.ToUpper();
-		}
-
-
-		private async Task<ServiceResponse<object>> ReconcileStockSummariesAsync(string shiftNumber)
-		{
-			try
-			{
-				// 1. Update Stock Summaries (ALL IN SQL)
-				await _context.Database.ExecuteSqlRawAsync(@"
-				UPDATE ""StockTakeSummaries"" s
-				SET
-					""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
-
-					""ExpectedClosingReading"" =
-						s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
-
-					""ClosingVariance"" =
-						s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
-
-					""VarianceStatus"" =
-						CASE
-							WHEN ABS(
-								s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0))
-							) = 0
-							THEN 0   -- Closed
-							ELSE 2   -- Variance
-						END
-				FROM (
-					SELECT
-						""NozzleCode"",
-						SUM(""QuantityCredit"" - ""QuantityDebit"") AS ""TotalSales""
-					FROM ""QuantityTransactions""
-					WHERE ""ShiftNumber"" = {0}
-					GROUP BY ""NozzleCode""
-				) q
-				WHERE s.""ShiftNumber"" = {0}
-				  AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
-
-				// 2. Update Shift based on updated stock
-				await _context.Database.ExecuteSqlRawAsync(@"
-			UPDATE ""Shifts""
-			SET ""ShiftStatus"" =
-				CASE
-					WHEN NOT EXISTS (
-						SELECT 1
-						FROM ""StockTakeSummaries""
-						WHERE ""ShiftNumber"" = {0}
-						  AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
-					)
-					THEN 0   -- Closed
-					ELSE 2   -- Variance
-				END
-			WHERE ""ShiftNumber"" = {0};", shiftNumber);
-
-				return ServiceResponse<object>.Success("Stock reconciled successfully", null);
-			}
-			catch (Exception ex)
-			{
-				return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary",ex.Message);
-			}
 		}
 
 	}

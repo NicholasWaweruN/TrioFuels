@@ -150,7 +150,7 @@
 					// Send Email with Excel attachment
 					string[] emailto = emailsTo;
 					string[] emailtocc = emailsToCC;
-					//await _emails.SendEmailWithExcelAttachmentAsync(emailto, emailtocc, DateTime.UtcNow, subject, body, dataTable);
+					await _emails.SendEmailWithExcelAttachmentAsync(emailto, emailtocc, DateTime.UtcNow, subject, body, dataTable);
 
 					return ServiceResponse<object>.Success("Variance report generated successfully", null);
 				}
