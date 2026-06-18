@@ -115,6 +115,18 @@ public class DarajaController(IStkPushService stkPushService,
 	/// One-time call to register validation/confirmation URLs with Safaricom.
 	/// Safe to call again — 500.003.1001 (already registered) is handled as success.
 	/// </summary>
+	/// 
+
+
+	[AllowAnonymous]
+	[HttpPost("register-tills")]
+	public async Task<IActionResult> RegisterTills(CancellationToken ct)
+	{
+		var results = await c2bService.RegisterAllTillsAsync(ct);
+		return Ok(results);
+	}
+
+
 	[HttpPost("daraja/c2b/register")]
 	[AllowAnonymous]
 	public async Task<IActionResult> RegisterC2BUrls(CancellationToken ct)

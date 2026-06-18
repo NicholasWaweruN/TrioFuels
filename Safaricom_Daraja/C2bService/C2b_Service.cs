@@ -12,6 +12,7 @@ namespace Safaricom_Daraja.C2bService;
 
 public interface IC2BService
 {
+	Task<IEnumerable<DarajaResult<C2BRegisterResponse>>> RegisterAllTillsAsync(CancellationToken ct = default);
 	Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(string shortCode, CancellationToken ct = default);
 	Task<DarajaResult<C2BRegisterResponse>> RegisterMasterShortCodeAsync(CancellationToken ct = default);
 	C2BValidationResponse Validate(C2BValidationRequest request);
@@ -28,6 +29,22 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 	// ── Registration ──────────────────────────────────────────────────────────
 
+
+	public async Task<IEnumerable<DarajaResult<C2BRegisterResponse>>> RegisterAllTillsAsync(CancellationToken ct = default)
+	{
+		var results = new List<DarajaResult<C2BRegisterResponse>>();
+
+		foreach (var till in _cfg.Tills)
+		{
+			logger.LogInformation("[C2B][RegisterAllTills] Registering Till={TillNumber} ({Name})",till.TillNumber, till.Name);
+
+			var result = await RegisterUrlsAsync(till.TillNumber, ct);
+			results.Add(result);
+		}
+
+		return results;
+	}
+
 	public async Task<DarajaResult<C2BRegisterResponse>> RegisterMasterShortCodeAsync(CancellationToken ct = default)
 	{
 		logger.LogInformation("[C2B][RegisterMaster] Starting master shortcode registration. C2BShortCode={C2BSC} BusinessShortCode={BSC}",_cfg.C2BShortCode, _cfg.BusinessShortCode);
@@ -41,8 +58,6 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 		ArgumentException.ThrowIfNullOrWhiteSpace(shortCode);
 
-		// FIX: SanitizeUrl now guards against invalid/relative URIs instead of
-		//      throwing an unhandled UriFormatException at runtime.
 		if (!TrySanitizeUrl(_cfg.C2BValidationUrl, out var validationUrl))
 			return DarajaResult<C2BRegisterResponse>.Fail($"Invalid C2BValidationUrl: '{_cfg.C2BValidationUrl}'");
 
@@ -55,7 +70,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		{
 			ShortCode = shortCode,
 			ResponseType = "Completed",
-			ValidationURL = validationUrl,
+			//ValidationURL = validationUrl,
 			ConfirmationURL = confirmationUrl
 		};
 
@@ -96,8 +111,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			}
 
 			var content = await response.Content.ReadAsStringAsync(ct);
-			logger.LogInformation("[C2B][RegisterUrls] Response Status={SC} Success={Ok}",
-				(int)response.StatusCode, response.IsSuccessStatusCode);
+			logger.LogInformation("[C2B][RegisterUrls] Response Status={SC} Success={Ok}",(int)response.StatusCode, response.IsSuccessStatusCode);
 
 			if (!response.IsSuccessStatusCode)
 			{
@@ -137,63 +151,52 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 	// ── Validation ────────────────────────────────────────────────────────────
 
+
+
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		logger.LogInformation("[C2B][Validate] TransID={ID} BSC={BSC} BillRef={Ref}",
+		logger.LogInformation("[C2B][Validate] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
+
+		// For Buy Goods (Till), the authoritative "which till received payment" field
+		// is BusinessShortCode, not BillRefNumber.
+		var tillMatch = _cfg.Tills.FirstOrDefault(t =>
+			string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
+
+		if (tillMatch is not null)
+		{
+			logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched Till={Till} ({Name})",
+				request.TransactionId, tillMatch.TillNumber, tillMatch.Name);
+
+			return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+		}
+
+		// Paybill-style fallback: honour BillRefNumber as account reference if present.
+		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
+		{
+			var knownRefs = _cfg.Tills
+				.Select(t => t.AccountReference)
+				.Where(r => !string.IsNullOrWhiteSpace(r))
+				.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+			if (knownRefs.Contains(request.BillRefNumber.Trim()))
+			{
+				logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched BillRefNumber='{Ref}'",request.TransactionId, request.BillRefNumber);
+				return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+			}
+		}
+
+		logger.LogWarning(
+			"[C2B][Validate] REJECTED — TransID={ID} BSC='{BSC}' did not match any till; BillRefNumber='{Ref}' did not match any account reference.",
 			request.TransactionId, request.BusinessShortCode, request.BillRefNumber);
 
-		// TEMP: Accept everything to confirm callbacks are flowing
-		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+		return Rejected("C2B00011", "Rejected — unrecognized till or account reference");
 	}
-
-	//public C2BValidationResponse Validate(C2BValidationRequest request)
-	//{
-	//	logger.LogInformation("[C2B][Validate] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
-
-	//	// For Buy Goods (Till), the authoritative "which till received payment" field
-	//	// is BusinessShortCode, not BillRefNumber.
-	//	var tillMatch = _cfg.Tills.FirstOrDefault(t =>
-	//		string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
-
-	//	if (tillMatch is not null)
-	//	{
-	//		logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched Till={Till} ({Name})",
-	//			request.TransactionId, tillMatch.TillNumber, tillMatch.Name);
-
-	//		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
-	//	}
-
-	//	// Paybill-style fallback: honour BillRefNumber as account reference if present.
-	//	if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
-	//	{
-	//		var knownRefs = _cfg.Tills
-	//			.Select(t => t.AccountReference)
-	//			.Where(r => !string.IsNullOrWhiteSpace(r))
-	//			.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-	//		if (knownRefs.Contains(request.BillRefNumber.Trim()))
-	//		{
-	//			logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched BillRefNumber='{Ref}'",
-	//				request.TransactionId, request.BillRefNumber);
-
-	//			return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
-	//		}
-	//	}
-
-	//	logger.LogWarning(
-	//		"[C2B][Validate] REJECTED — TransID={ID} BSC='{BSC}' did not match any till; BillRefNumber='{Ref}' did not match any account reference.",
-	//		request.TransactionId, request.BusinessShortCode, request.BillRefNumber);
-
-	//	return Rejected("C2B00011", "Rejected — unrecognized till or account reference");
-	//}
 
 	// ── Confirmation ──────────────────────────────────────────────────────────
 
 	public async Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default)
 	{
-		logger.LogInformation(
-			"[C2B][Confirm] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",
-			request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
+		logger.LogInformation("[C2B][Confirm] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
 
 		// Idempotency guard — also requires a UNIQUE INDEX on MpesaTransactions.TransID
 		// in your EF migration to catch concurrent duplicates at the DB level.

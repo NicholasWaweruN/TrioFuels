@@ -37,8 +37,7 @@ public sealed class PullTransactionService(
 	private const string DateFormat = "yyyy-MM-dd HH:mm:ss";
 	private const int PageSize = 100;
 
-	public async Task<DarajaResult<PullTransactionResponse>> PullAsync(
-		string tillNumber, DateTime from, DateTime to, int offset = 0, CancellationToken ct = default)
+	public async Task<DarajaResult<PullTransactionResponse>> PullAsync(string tillNumber, DateTime from, DateTime to, int offset = 0, CancellationToken ct = default)
 	{
 		try
 		{
