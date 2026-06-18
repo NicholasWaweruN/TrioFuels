@@ -160,7 +160,7 @@ public class DarajaController(IStkPushService stkPushService,
 	{
 		// ... validation logic and logging ...
 
-		var response = c2bService.Validate(req);
+		var response = c2bService.Validate(req!);
 
 		logger.LogInformation("[C2B][Validate] Response → ResultCode={RC} ResultDesc={RD}",response.ResultCode, response.ResultDesc);
 
