@@ -425,8 +425,8 @@ namespace BussinessLogic.Customers.Vehicles
 
 		public async Task<ServiceResponse<object>> AddProvisionalCustomers(
 			string phoneNumber,
-			string numberPlate,
-			string name)
+			string name,
+			string numberPlate)
 		{
 			try
 			{
