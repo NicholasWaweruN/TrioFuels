@@ -139,44 +139,53 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 	public C2BValidationResponse Validate(C2BValidationRequest request)
 	{
-		logger.LogInformation("[C2B][Validate] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
-
-		// For Buy Goods (Till), the authoritative "which till received payment" field
-		// is BusinessShortCode, not BillRefNumber.
-		var tillMatch = _cfg.Tills.FirstOrDefault(t =>
-			string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
-
-		if (tillMatch is not null)
-		{
-			logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched Till={Till} ({Name})",
-				request.TransactionId, tillMatch.TillNumber, tillMatch.Name);
-
-			return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
-		}
-
-		// Paybill-style fallback: honour BillRefNumber as account reference if present.
-		if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
-		{
-			var knownRefs = _cfg.Tills
-				.Select(t => t.AccountReference)
-				.Where(r => !string.IsNullOrWhiteSpace(r))
-				.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-			if (knownRefs.Contains(request.BillRefNumber.Trim()))
-			{
-				logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched BillRefNumber='{Ref}'",
-					request.TransactionId, request.BillRefNumber);
-
-				return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
-			}
-		}
-
-		logger.LogWarning(
-			"[C2B][Validate] REJECTED — TransID={ID} BSC='{BSC}' did not match any till; BillRefNumber='{Ref}' did not match any account reference.",
+		logger.LogInformation("[C2B][Validate] TransID={ID} BSC={BSC} BillRef={Ref}",
 			request.TransactionId, request.BusinessShortCode, request.BillRefNumber);
 
-		return Rejected("C2B00011", "Rejected — unrecognized till or account reference");
+		// TEMP: Accept everything to confirm callbacks are flowing
+		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
 	}
+
+	//public C2BValidationResponse Validate(C2BValidationRequest request)
+	//{
+	//	logger.LogInformation("[C2B][Validate] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
+
+	//	// For Buy Goods (Till), the authoritative "which till received payment" field
+	//	// is BusinessShortCode, not BillRefNumber.
+	//	var tillMatch = _cfg.Tills.FirstOrDefault(t =>
+	//		string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
+
+	//	if (tillMatch is not null)
+	//	{
+	//		logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched Till={Till} ({Name})",
+	//			request.TransactionId, tillMatch.TillNumber, tillMatch.Name);
+
+	//		return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+	//	}
+
+	//	// Paybill-style fallback: honour BillRefNumber as account reference if present.
+	//	if (!string.IsNullOrWhiteSpace(request.BillRefNumber))
+	//	{
+	//		var knownRefs = _cfg.Tills
+	//			.Select(t => t.AccountReference)
+	//			.Where(r => !string.IsNullOrWhiteSpace(r))
+	//			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+	//		if (knownRefs.Contains(request.BillRefNumber.Trim()))
+	//		{
+	//			logger.LogInformation("[C2B][Validate] ACCEPTED — TransID={ID} matched BillRefNumber='{Ref}'",
+	//				request.TransactionId, request.BillRefNumber);
+
+	//			return new C2BValidationResponse { ResultCode = "0", ResultDesc = "Accepted" };
+	//		}
+	//	}
+
+	//	logger.LogWarning(
+	//		"[C2B][Validate] REJECTED — TransID={ID} BSC='{BSC}' did not match any till; BillRefNumber='{Ref}' did not match any account reference.",
+	//		request.TransactionId, request.BusinessShortCode, request.BillRefNumber);
+
+	//	return Rejected("C2B00011", "Rejected — unrecognized till or account reference");
+	//}
 
 	// ── Confirmation ──────────────────────────────────────────────────────────
 
