@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja;
@@ -24,6 +25,7 @@ public class DarajaController(IStkPushService stkPushService,
 	// ─────────────────────────────────────────────
 
 	[HttpPost("stk/push")]
+	[AllowAnonymous]
 	public async Task<IActionResult> StkPush([FromBody] StkPushApiRequest req, CancellationToken ct)
 	{
 		logger.LogInformation("[STK][Push] ▶ Phone={Phone} Amount={Amount} TillNumber={TN} TillReference={TR} Desc={D}", req.Phone, req.Amount, req.TillNumber, req.TillReference, req.Description);
@@ -55,6 +57,7 @@ public class DarajaController(IStkPushService stkPushService,
 	// ─────────────────────────────────────────────
 
 	[HttpGet("stk/query/{checkoutRequestId}")]
+	[AllowAnonymous]
 	public async Task<IActionResult> StkQuery(string checkoutRequestId, CancellationToken ct)
 	{
 		logger.LogInformation("[STK][Query] ▶ CheckoutRequestID={CID}", checkoutRequestId);
@@ -72,6 +75,7 @@ public class DarajaController(IStkPushService stkPushService,
 	}
 
 	[HttpGet("stk/result/{checkoutRequestId}")]
+	[AllowAnonymous]
 	public async Task<IActionResult> StkResult(string checkoutRequestId, CancellationToken ct)
 	{
 		var tx = await stkPushService.GetMpesaTransaction(checkoutRequestId, ct); ;
@@ -91,6 +95,7 @@ public class DarajaController(IStkPushService stkPushService,
 	// ─────────────────────────────────────────────
 
 	[HttpPost("stk/callback")]
+	[AllowAnonymous]
 	public async Task<IActionResult> StkCallback([FromBody] StkCallback callback)
 	{
 		logger.LogInformation("[STK][Callback] ▶ MerchantRequestID={MID} CheckoutRequestID={CID} " + "ResultCode={RC} ResultDesc={RD}", callback.Body?.StkCallback?.MerchantRequestId, callback.Body?.StkCallback?.CheckoutRequestId, callback.Body?.StkCallback?.ResultCode, callback.Body?.StkCallback?.ResultDesc);
@@ -110,6 +115,7 @@ public class DarajaController(IStkPushService stkPushService,
 	/// Safe to call again — 500.003.1001 (already registered) is handled as success.
 	/// </summary>
 	[HttpPost("daraja/c2b/register")]
+	[AllowAnonymous]
 	public async Task<IActionResult> RegisterC2BUrls(CancellationToken ct)
 	{
 		logger.LogInformation("[C2B][Register] ▶ Triggered. C2BShortCode={SC} " + "ValidationUrl={VUrl} ConfirmationUrl={CUrl}", _cfg.C2BShortCode, _cfg.C2BValidationUrl, _cfg.C2BConfirmationUrl);
@@ -137,6 +143,7 @@ public class DarajaController(IStkPushService stkPushService,
 	};
 
 	[HttpPost("daraja/c2b/register-store/{storeNumber}")]
+	[AllowAnonymous]
 	public async Task<IActionResult> RegisterC2BStoreNumber(string storeNumber,CancellationToken ct)
 	{
 		logger.LogInformation("[C2B][Register] ▶ Registering store number={SN}", storeNumber);
@@ -147,6 +154,7 @@ public class DarajaController(IStkPushService stkPushService,
 	}
 
 	[HttpPost("daraja/c2b/validate")]
+	[AllowAnonymous]
 	public IActionResult C2BValidate([FromBody] C2BValidationRequest? req)
 	{
 		// ... validation logic and logging ...
@@ -165,6 +173,7 @@ public class DarajaController(IStkPushService stkPushService,
 	// ─────────────────────────────────────────────
 
 	[HttpPost("daraja/c2b/confirm")]  // was "daraaj/c2b/confirm"
+	[AllowAnonymous]
 	public async Task<IActionResult> C2BConfirm([FromBody] C2BConfirmationRequest? req,CancellationToken ct)
 	{
 		if (req is null)
