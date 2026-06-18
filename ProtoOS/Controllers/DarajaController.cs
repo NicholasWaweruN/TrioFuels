@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Safaricom_Daraja;
 using Safaricom_Daraja.C2bService;
 using Safaricom_Daraja.Stk_Push;
+using System.Text;
 using System.Text.Json;
 
 namespace FuelFlow.Controllers;
@@ -172,20 +173,22 @@ public class DarajaController(IStkPushService stkPushService,
 	// C2B — CONFIRM
 	// ─────────────────────────────────────────────
 
-	[HttpPost("daraja/c2b/confirm")]  // was "daraaj/c2b/confirm"
 	[AllowAnonymous]
-	public async Task<IActionResult> C2BConfirm([FromBody] C2BConfirmationRequest? req,CancellationToken ct)
+	[HttpPost("daraja/c2b/confirm")]
+	public async Task<IActionResult> C2BConfirm(CancellationToken ct)
 	{
-		if (req is null)
-		{
-			logger.LogError("[C2B][Confirm] Received an empty or unparseable confirmation body.");
-			return Ok();
-		}
+		Request.EnableBuffering();
 
-		logger.LogInformation("[C2B][Confirm] Raw request — TransID={ID} TransType={TT} Amount={Amount} BSC={BSC} BillRefNumber={Ref} Phone={Phone} Name={LN}, {FN}",req.TransactionId, req.TransactionType, req.TransAmount, req.BusinessShortCode,req.BillRefNumber, MaskPhoneNumber(req.PhoneNumber),req.LastName?.FirstOrDefault(), req.FirstName?.FirstOrDefault());
-		await c2bService.HandleConfirmationAsync(req, ct);
+		using var reader = new StreamReader(
+			Request.Body,
+			Encoding.UTF8,
+			leaveOpen: true);
 
-		logger.LogInformation("[C2B][Confirm] Handled. TransID={ID}", req.TransactionId);
+		var body = await reader.ReadToEndAsync();
+
+		Request.Body.Position = 0;
+
+		logger.LogInformation("[C2B][Confirm] RAW BODY => {Body}",body);
 
 		return Ok();
 	}
