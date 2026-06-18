@@ -13,25 +13,22 @@ public static class ApplicationBuilderExtensions
 			app.UseDeveloperExceptionPage();
 		}
 
-		// CORS must be before authentication / authorisation.
 		app.UseCors("AllowAll");
 
-		
-
-		//app.UseHttpsRedirection();
+		// app.UseHttpsRedirection(); // optional but recommended
 
 		app.UseStaticFiles();
 
 		app.UseAuthentication();
 		app.UseAuthorization();
 
-		// ── Endpoints ───────────────────────────────────────────────────────
-		app.MapHealthChecks("/health");
+		// ONLY middleware here
 
-		// Scalar: mount only when the OpenAPI document is available
-		// (always in dev; guard with an env-check if you want to hide it in prod).
+		// ── UI middleware (safe BEFORE endpoints OR after grouping carefully)
 		app.UseScalarUi();
 
+		// ── Endpoints LAST (IMPORTANT)
+		app.MapHealthChecks("/health");
 		app.MapControllers();
 
 		return app;
