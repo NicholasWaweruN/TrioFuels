@@ -5,6 +5,7 @@ using BussinessLogic.Setup;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Customer;
+using DataAccessLayer.EntityModels.Template_Register;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
@@ -421,6 +422,48 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 		}
 
+
+		public async Task<ServiceResponse<object>> AddProvisionalCustomers(
+			string phoneNumber,
+			string numberPlate,
+			string name)
+		{
+			try
+			{
+				if (string.IsNullOrWhiteSpace(phoneNumber) ||
+					string.IsNullOrWhiteSpace(numberPlate) ||
+					string.IsNullOrWhiteSpace(name))
+				{
+					return ServiceResponse<object>.Information(
+						"Fill all the fields",
+						null);
+				}
+
+				var customer = new ProvisionalCustomers
+				{
+					Name = name.Trim(),
+					PhoneNumber = phoneNumber.Trim(),
+					NumberPlate = numberPlate.Trim(),
+					UserCode = _authentication.Usercode(),
+					DateCreated = DateTime.UtcNow.AddHours(3)
+				};
+
+				await _context.ProvisionalCustomers.AddAsync(customer);
+				await _context.SaveChangesAsync();
+
+				return ServiceResponse<object>.Success(
+					"Provisional customer added successfully",
+					null);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error adding provisional customer");
+
+				return ServiceResponse<object>.Error(
+					ex.InnerException?.Message ?? ex.Message,
+					null);
+			}
+		}
 
 		// Retrieves a list of all vehicles.
 		public async Task<ServiceResponse<object>> GetAllVehicles()

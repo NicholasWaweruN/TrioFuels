@@ -15,6 +15,7 @@ using DataAccessLayer.EntityModels.ProtoBase;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Stations;
 using DataAccessLayer.EntityModels.StockTake;
+using DataAccessLayer.EntityModels.Template_Register;
 using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.EntityModels.Views;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -127,6 +128,7 @@ namespace DataAccessLayer.Context
         // --- Reports & Views ---
         public DbSet<Reports> Reports { get; set; }
         public DbSet<Vw_SalesData> VwSalesData { get; set; }
+		public DbSet<ProvisionalCustomers> ProvisionalCustomers { get; set; } 
 
 
 		//Daraja

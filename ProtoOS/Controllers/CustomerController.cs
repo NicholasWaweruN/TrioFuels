@@ -88,6 +88,18 @@ namespace ProtoOS.Controllers
 			return CreateResponse(response);
 		}
 
+		[HttpPost("add-provisional-customer")]
+		[Authorize]
+		public async Task<IActionResult> AddProvisionalCustomer([FromBody] AddProvisionalCustomerDto model)
+		{
+			var result = await _vehicles.AddProvisionalCustomers(
+				model.PhoneNumber,
+				model.Name,
+				model.NumberPlate);
+
+			return Ok(result);
+		}
+
 		[HttpPost("DeactivateVehicle")]
 		[Authorize(Roles = "can deactivate a vehicle")]
 		public async Task<IActionResult> DeactivateVehicle(string vehicleCode)
@@ -335,6 +347,15 @@ namespace ProtoOS.Controllers
 			var result = await _loyalty.GetLoyaltyBalanceByPhoneAsync(phoneNumber);
 			return Ok(result);
 		}
+
+		
+	}
+
+	public class AddProvisionalCustomerDto
+	{
+		public string Name { get; set; } = string.Empty;
+		public string PhoneNumber { get; set; } = string.Empty;
+		public string NumberPlate { get; set; } = string.Empty;
 	}
 }
 
