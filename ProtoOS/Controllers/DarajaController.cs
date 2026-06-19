@@ -186,6 +186,7 @@ public class DarajaController(IStkPushService stkPushService,
 	// ─────────────────────────────────────────────
 
 	[HttpPost("daraja/c2b/confirm")]
+	[AllowAnonymous]
 	public async Task<IActionResult> Confirmation()
 	{
 		Request.EnableBuffering();
