@@ -19,6 +19,7 @@ public interface IC2BService
 	Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default);
 }
 
+
 public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<C2BService> logger,OTOContext context) : IC2BService
 {
 	private readonly DarajaConfig _cfg = options.Value;
@@ -29,7 +30,52 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 	// ── Registration ──────────────────────────────────────────────────────────
 
+	// ── Diagnostic shadow-logger — SAFE: read-only, no DB writes, no rejection logic ──
+	// Call this at the TOP of HandleConfirmationAsync, before any other logic.
+	// Does NOT affect Validate() accept/reject behavior in any way.
 
+	private void DiagnosticDump(C2BConfirmationRequest request)
+	{
+		Console.WriteLine("══════════════════════════════════════════════════════");
+		Console.WriteLine($"[C2B-DIAG] {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+		Console.WriteLine("──────────────────────────────────────────────────────");
+		Console.WriteLine($"TransactionType     : {request.TransactionType}");
+		Console.WriteLine($"TransID             : {request.TransactionId}");
+		Console.WriteLine($"TransTime           : {request.TransTime}");
+		Console.WriteLine($"TransAmount         : {request.TransAmount}");
+		Console.WriteLine($"BusinessShortCode   : {request.BusinessShortCode}");
+		Console.WriteLine($"BillRefNumber       : {request.BillRefNumber}");
+		Console.WriteLine($"InvoiceNumber       : {request.InvoiceNumber}");
+		Console.WriteLine($"OrgAccountBalance   : {request.OrgAccountBalance}");
+		Console.WriteLine($"ThirdPartyTransID   : {request.ThirdPartyTransId}");
+		Console.WriteLine($"MSISDN              : {request.PhoneNumber}");
+		Console.WriteLine($"FirstName           : {request.FirstName}");
+		Console.WriteLine($"MiddleName          : {request.MiddleName}");
+		Console.WriteLine($"LastName            : {request.LastName}");
+		Console.WriteLine("──────────────────────────────────────────────────────");
+
+		// Show what your CURRENT matching logic would decide, WITHOUT acting on it
+		var byShortCode = _cfg.Tills.FirstOrDefault(t =>
+			string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
+
+		var byRef = !string.IsNullOrWhiteSpace(request.BillRefNumber)
+			? _cfg.Tills.FirstOrDefault(t =>
+				string.Equals(t.AccountReference, request.BillRefNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+			: null;
+
+		Console.WriteLine($"Would match via BusinessShortCode → {(byShortCode is not null ? $"{byShortCode.TillNumber} ({byShortCode.Name})" : "NO MATCH")}");
+		Console.WriteLine($"Would match via BillRefNumber      → {(byRef is not null ? $"{byRef.TillNumber} ({byRef.Name})" : "NO MATCH")}");
+
+		var isO2O = string.Equals(request.TransactionType, "Organization To Organization Transfer", StringComparison.OrdinalIgnoreCase);
+		Console.WriteLine($"Is O2O sweep                       → {isO2O}");
+
+		// Also dump the full raw JSON in case there are fields the model isn't capturing
+		var rawJson = JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true });
+		Console.WriteLine("──────────────────────────────────────────────────────");
+		Console.WriteLine("RAW JSON (model-bound — won't show unmapped fields):");
+		Console.WriteLine(rawJson);
+		Console.WriteLine("══════════════════════════════════════════════════════");
+	}
 	public async Task<IEnumerable<DarajaResult<C2BRegisterResponse>>> RegisterAllTillsAsync(CancellationToken ct = default)
 	{
 		var results = new List<DarajaResult<C2BRegisterResponse>>();
@@ -196,6 +242,8 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 	public async Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default)
 	{
+		DiagnosticDump(request); // ← new line, safe, observe-only
+
 		logger.LogInformation("[C2B][Confirm] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
 
 		// Idempotency guard — also requires a UNIQUE INDEX on MpesaTransactions.TransID

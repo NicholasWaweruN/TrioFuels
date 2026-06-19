@@ -185,26 +185,24 @@ public class DarajaController(IStkPushService stkPushService,
 	// C2B — CONFIRM
 	// ─────────────────────────────────────────────
 
-	[AllowAnonymous]
-	[HttpPost("daraja/c2b/confirm")]
-	public async Task<IActionResult> C2BConfirm(CancellationToken ct)
+	[HttpPost("c2b/confirmation")]
+	public async Task<IActionResult> Confirmation()
 	{
 		Request.EnableBuffering();
-
-		using var reader = new StreamReader(
-			Request.Body,
-			Encoding.UTF8,
-			leaveOpen: true);
-
-		var body = await reader.ReadToEndAsync();
-
+		using var reader = new StreamReader(Request.Body, leaveOpen: true);
+		var rawBody = await reader.ReadToEndAsync();
 		Request.Body.Position = 0;
 
-		logger.LogInformation("[C2B][Confirm] RAW BODY => {Body}",body);
+		Console.WriteLine("══════════════════════════════════════════════════════");
+		Console.WriteLine($"[C2B-RAW-BODY] {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+		Console.WriteLine(rawBody);
+		Console.WriteLine("══════════════════════════════════════════════════════");
 
-		return Ok();
+		var request = JsonSerializer.Deserialize<C2BConfirmationRequest>(rawBody);
+		await c2bService.HandleConfirmationAsync(request!);
+
+		return Ok(new { ResultCode = "0", ResultDesc = "Success" });
 	}
-
 	// ── Private Utility Helpers ──────────────────────────────────────────────────
 
 	private static string MaskPhoneNumber(string? phone)
