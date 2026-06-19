@@ -56,11 +56,11 @@ public class EmailBackgroundService : BackgroundService
 					_lastMonthlySalesReportRun = currentTime;
 				}
 
-				if (currentTime.Hour == 12 && currentTime.Minute <= 59 && (_lastWalletBalanceReportRun == null || _lastWalletBalanceReportRun.Value.Date != currentTime.Date))
-				{
-					await WalletBalanceReport(scope);
-					_lastWalletBalanceReportRun = currentTime;
-				}
+				//if (currentTime.Hour == 12 && currentTime.Minute <= 59 && (_lastWalletBalanceReportRun == null || _lastWalletBalanceReportRun.Value.Date != currentTime.Date))
+				//{
+				//	await WalletBalanceReport(scope);
+				//	_lastWalletBalanceReportRun = currentTime;
+				//}
 
 				await ApplyScheduledPrices(scope, currentTime);
 				await SendRescheduledMessages(scope);
@@ -90,14 +90,14 @@ public class EmailBackgroundService : BackgroundService
 		var salesReportService = scope.ServiceProvider.GetRequiredService<Forecast>();
 		await salesReportService.GetForeCastData();
 	}
-	private static async Task WalletBalanceReport(IServiceScope scope)
-	{
-		var walletService = scope.ServiceProvider.GetRequiredService<TransactionsSummaries>();
-		var emailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
+	//private static async Task WalletBalanceReport(IServiceScope scope)
+	//{
+	//	//var walletService = scope.ServiceProvider.GetRequiredService<TransactionsSummaries>();
+	//	var emailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
 
-		var emails = await emailRecipients.GetRecipients("003");
-		await walletService.ComprehensiveCustomerBalances(emails ?? new Mails());
-	}
+	//	var emails = await emailRecipients.GetRecipients("003");
+	//	await walletService.ComprehensiveCustomerBalances(emails ?? new Mails());
+	//}
 	private async Task ApplyScheduledPrices(IServiceScope scope, DateTime currentTime)
 	{
 		var dbContext = scope.ServiceProvider.GetRequiredService<OTOContext>();

@@ -134,7 +134,7 @@ public static class BusinessServicesExtensions
 		services.AddScoped<IMainData, MainData>();
 		services.AddScoped<SalesReportService>();
 		services.AddScoped<SalesReport_Summary>();
-		services.AddScoped<TransactionsSummaries>();
+		//services.AddScoped<TransactionsSummaries>();
 		services.AddScoped<Statements>();
 
 
