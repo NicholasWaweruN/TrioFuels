@@ -237,6 +237,7 @@ public class C2BValidationResponse
 	public string ResultDesc { get; set; } = "Accepted";
 }
 
+
 public class C2BConfirmationRequest
 {
 	[JsonPropertyName("TransactionType")]
@@ -277,7 +278,25 @@ public class C2BConfirmationRequest
 
 	[JsonPropertyName("LastName")]
 	public string LastName { get; set; } = string.Empty;
+
+	// ── CRUCIAL ORG-TO-ORG AGGREGATOR FALLBACK FIELDS ──
+
+	[JsonPropertyName("CommandID")]
+	public string? CommandID { get; set; }
+
+	[JsonPropertyName("InitiatorReceiverType")]
+	public string? InitiatorReceiverType { get; set; }
+
+	[JsonPropertyName("TransNo")]
+	public string? TransNo { get; set; }
+
+	[JsonPropertyName("ConversationID")]
+	public string? ConversationID { get; set; }
+
+	[JsonPropertyName("OriginatorConversationID")]
+	public string? OriginatorConversationID { get; set; }
 }
+
 
 // ─── Pull Transactions ────────────────────────────────────────────────────────
 

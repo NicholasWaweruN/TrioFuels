@@ -54,7 +54,6 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			var result = await RegisterUrlsAsync(till.TillNumber, ct);
 			results.Add(result);
 		}
-
 		return results;
 	}
 
@@ -209,7 +208,8 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 	{
 		DiagnosticDump(request); // safe, observe-only — keep this until till-identifying field is confirmed
 
-		logger.LogInformation("[C2B][Confirm] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref}",request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber);
+		logger.LogInformation("[C2B][Confirm] TransID={ID} Amount={Amount} BusinessShortCode={BSC} BillRefNumber={Ref} CommandID={Cmd}",
+			request.TransactionId, request.TransAmount, request.BusinessShortCode, request.BillRefNumber, request.CommandID);
 
 		var exists = await context.MpesaTransactions
 			.AnyAsync(x => x.TransID == request.TransactionId, ct);
@@ -229,8 +229,21 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 				request.TransactionId, request.TransAmount);
 		}
 
-		var till = ResolveTill(request);
+		// Smart extraction for phone numbers because Org-to-Org sets request.PhoneNumber to null
+		var finalPhone = request.PhoneNumber;
+		if (string.IsNullOrWhiteSpace(finalPhone))
+		{
+			var rawSourceData = $"{request.BillRefNumber} {request.TransNo} {request.InvoiceNumber} {request.TransactionType}";
+			var match = System.Text.RegularExpressions.Regex.Match(rawSourceData, @"(?:254|\+254|0)?(7|1)\d{8}");
 
+			finalPhone = match.Success
+				? "254" + match.Value.Substring(match.Value.Length - 9)
+				: "ORGANIZATION_SETTLEMENT";
+
+			logger.LogInformation("[C2B][Confirm] Resolved fallback phone payload. Extracted={Phone}", finalPhone);
+		}
+
+		var till = ResolveTill(request);
 		var eatNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatTimeZone);
 
 		var transaction = new MpesaTransaction
@@ -244,7 +257,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			TillNumber = till?.TillNumber ?? "UNMATCHED",
 			TillName = till?.Name ?? "UNMATCHED",
 			PaymentMethod = "C2B",
-			MSISDN = request.PhoneNumber ?? string.Empty,
+			MSISDN = finalPhone, // Uses resolved fallback string if standard customer field drops
 			FirstName = request.FirstName ?? string.Empty,
 			MiddName = request.MiddleName ?? string.Empty,
 			LastName = request.LastName ?? string.Empty,
@@ -271,6 +284,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 				request.TransactionId);
 		}
 	}
+
 
 	// ── Private helpers ───────────────────────────────────────────────────────
 
@@ -305,7 +319,8 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		{
 			var targetRef = request.BillRefNumber.Trim();
 			var byRef = _cfg.Tills.FirstOrDefault(t =>
-				string.Equals(t.AccountReference, targetRef, StringComparison.OrdinalIgnoreCase));
+				string.Equals(t.AccountReference, targetRef, StringComparison.OrdinalIgnoreCase) ||
+				string.Equals(t.TillNumber, targetRef, StringComparison.OrdinalIgnoreCase)); // Checks if till number itself was passed as the reference
 
 			if (byRef is not null)
 			{
@@ -314,19 +329,34 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 					targetRef, byRef.TillNumber, byRef.Name);
 				return byRef;
 			}
-
-			logger.LogWarning(
-				"[C2B][ResolveTill] No till matched BSC='{BSC}' or BillRefNumber='{Ref}'. " +
-				"Check DiagnosticDump RAW JSON output for a till-identifying field not yet mapped onto C2BConfirmationRequest.",
-				request.BusinessShortCode, targetRef);
 		}
 
-		// UNRESOLVED: under aggregator routing, neither field above may carry
-		// individual till identity. Once a real confirmation payload is captured,
-		// inspect DiagnosticDump's RAW JSON for fields like a third-party till
-		// identifier or store-level reference and add a matching branch here.
+		// 3) Aggregator text dump match — processes alternative text structures 
+		//    where Safaricom passes child identity within custom string parameters
+		var combinedText = $"{request.BillRefNumber} {request.TransNo} {request.InvoiceNumber}".Trim();
+		if (!string.IsNullOrWhiteSpace(combinedText))
+		{
+			var byTextSearch = _cfg.Tills.FirstOrDefault(t =>
+				combinedText.Contains(t.TillNumber, StringComparison.OrdinalIgnoreCase) ||
+				(!string.IsNullOrWhiteSpace(t.AccountReference) && combinedText.Contains(t.AccountReference, StringComparison.OrdinalIgnoreCase)));
+
+			if (byTextSearch is not null)
+			{
+				logger.LogInformation(
+					"[C2B][ResolveTill] Matched via text extraction from payloads ('{Text}') → Till={Till} ({Name})",
+					combinedText, byTextSearch.TillNumber, byTextSearch.Name);
+				return byTextSearch;
+			}
+
+			logger.LogWarning(
+				"[C2B][ResolveTill] No till matched BSC='{BSC}' or combined payload strings '{Text}'. " +
+				"Check DiagnosticDump RAW JSON output for a till-identifying field not yet mapped onto C2BConfirmationRequest.",
+				request.BusinessShortCode, combinedText);
+		}
+
 		return null;
 	}
+
 
 	private void DiagnosticDump(C2BConfirmationRequest request)
 	{
