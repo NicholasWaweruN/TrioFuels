@@ -94,6 +94,8 @@ public sealed class PullTransactionImportService(
 						DateCreated = DateTime.UtcNow,
 						UsageBalance = tx.Amount,
 						UserCode = tx.SenderPhone,
+						CheckoutRequestID = string.Empty,
+						MerchantRequestID = string.Empty
 					});
 					inserted++;
 				}

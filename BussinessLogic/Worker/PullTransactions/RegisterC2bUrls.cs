@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Safaricom_Daraja.C2bService;
 
+
 public sealed class C2BRegistrationStartupService : IHostedService
 {
 	private readonly IServiceScopeFactory _scopeFactory;
