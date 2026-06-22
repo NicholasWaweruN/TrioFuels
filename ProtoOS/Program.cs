@@ -5,6 +5,7 @@ using DataAccessLayer.DTOs.Messaging;
 using FuelFlow.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using OnfonSms;
 using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,7 +46,7 @@ builder.Services.AddDaraja(builder.Configuration);
 // ── Application services ────────────────────────────────────────────────────
 builder.Services.AddBusinessServices();
 builder.Services.AddBackgroundWorkers();
-
+builder.Services.AddOnfonSms(builder.Configuration);
 Console.WriteLine($"ENV: {builder.Environment.EnvironmentName}");
 
 builder.Logging.ClearProviders();

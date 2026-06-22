@@ -18,6 +18,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Safaricom_Daraja", "Safaric
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FuelFlow_Tests", "FuelFlow_Tests\FuelFlow_Tests.csproj", "{5B23913F-AC1C-4A51-A1E0-67056D4FF738}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnFonMessaging", "OnFonMessaging\OnFonMessaging.csproj", "{7E54245E-681F-4111-97C0-B70CA262BA9C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{5B23913F-AC1C-4A51-A1E0-67056D4FF738}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B23913F-AC1C-4A51-A1E0-67056D4FF738}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B23913F-AC1C-4A51-A1E0-67056D4FF738}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E54245E-681F-4111-97C0-B70CA262BA9C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E54245E-681F-4111-97C0-B70CA262BA9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E54245E-681F-4111-97C0-B70CA262BA9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E54245E-681F-4111-97C0-B70CA262BA9C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
