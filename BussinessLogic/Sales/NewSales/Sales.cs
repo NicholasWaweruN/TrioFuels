@@ -483,11 +483,14 @@ namespace BussinessLogic.Sales.NewSales
 				receiptStationOverride: _setups.SentenceCase(station.StationName),
 				paymentStep: async (s, ctx, _) =>
 				{
-					var usableBal = await GetTotalUsableMpesaAsync(
+					var balResult = await GetTotalUsableMpesaAsync(
 						s.PaymentDetails.Select(p => p.TransactionReference),
 						ctx.Station.TillNumber);
 
-					if (usableBal < ctx.Requested)
+					if (balResult.ResponseCode != Response.Success)
+						return Info(balResult.ResponseMessage!);
+
+					if (balResult.ResponseObject < ctx.Requested)
 						return Info("Insufficient funds, cannot complete the transaction");
 
 					if (ctx.Vehicle.ProductCode is "04" or "05")
@@ -597,8 +600,8 @@ namespace BussinessLogic.Sales.NewSales
 		// =====================================================================
 
 		private async Task<List<string>> PersistSaleAsync(
-			AddsaleDto sales, SaleContext ctx, string saleId,
-			string? mpesaStoreNumber = null)
+	AddsaleDto sales, SaleContext ctx, string saleId,
+	string? mpesaStoreNumber = null)
 		{
 			_context.QuantityTransactions.Add(
 				BuildQuantityTransaction(sales, ctx, saleId));
@@ -630,7 +633,9 @@ namespace BussinessLogic.Sales.NewSales
 					TransactionAmountDebit = 0
 				});
 
-				if (!string.IsNullOrWhiteSpace(pay.TransactionReference))
+				// ── Only queue for reconciliation if this is an M-Pesa payment ──
+				if (!string.IsNullOrWhiteSpace(pay.TransactionReference)
+					&& !string.IsNullOrWhiteSpace(mpesaStoreNumber))
 					mpesaRefs.Add(pay.TransactionReference);
 
 				remaining -= alloc;
@@ -638,7 +643,6 @@ namespace BussinessLogic.Sales.NewSales
 
 			return mpesaRefs;
 		}
-
 		// =====================================================================
 		// M-Pesa usage balance reconciliation — runs AFTER SaveChanges + Commit
 		// =====================================================================
@@ -848,19 +852,22 @@ namespace BussinessLogic.Sales.NewSales
 					Phone: tx.MSISDN
 				));
 		}
-		private async Task<decimal> GetTotalUsableMpesaAsync(
-			IEnumerable<string?> transIds, string storeNumber)
+		private async Task<ServiceResponse<decimal>> GetTotalUsableMpesaAsync(
+		IEnumerable<string?> transIds, string storeNumber)
 		{
 			decimal total = 0m;
 
 			foreach (var id in transIds.Where(x => !string.IsNullOrWhiteSpace(x))!)
 			{
 				var r = await ValidateMpesaPaymentAsync(id!, storeNumber);
-				if (r.ResponseCode == Response.Success && r.ResponseObject.HasValue)
-					total += r.ResponseObject.Value;
+
+				if (r.ResponseCode != Response.Success)
+					return ServiceResponse<decimal>.Information(r.ResponseMessage!, 0);
+
+				total += r.ResponseObject ?? 0;
 			}
 
-			return total;
+			return ServiceResponse<decimal>.Success("Valid", total);
 		}
 
 		private async Task<ServiceResponse<int?>> ValidateMpesaPaymentAsync(
