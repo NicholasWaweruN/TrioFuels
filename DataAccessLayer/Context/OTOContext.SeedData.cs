@@ -55,7 +55,7 @@ namespace DataAccessLayer.Context
 			modelBuilder.Entity<Codegenerator>().HasData(
 				new Codegenerator { Length = 5, NextNumber = 0, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "UserCode", UserCode = "00001", Id = 1 },
 				new Codegenerator { Length = 2, NextNumber = 0, Prefix = "D", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "DispenserCode", UserCode = "00001", Id = 2 },
-				new Codegenerator { Length = 2, NextNumber = 0, Prefix = "N", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "Nozzlecode", UserCode = "00001", Id = 3 },
+				new Codegenerator { Length = 2, NextNumber = 0, Prefix = "N", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "NozzleCode", UserCode = "00001", Id = 3 },
 				new Codegenerator { Length = 3, NextNumber = 0, Prefix = "S", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "StationCode", UserCode = "00001", Id = 4 },
 				new Codegenerator { Length = 5, NextNumber = 10000, Prefix = "", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "CustomerCode", UserCode = "00001", Id = 5 },
 				new Codegenerator { Length = 4, NextNumber = 0, Prefix = "PD", Suffix = "", Seed = 1, DateCreated = DateTime.UtcNow, TypeName = "pdadevice", UserCode = "00001", Id = 14 },

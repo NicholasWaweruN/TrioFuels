@@ -581,15 +581,18 @@ namespace BussinessLogic.Sales.NewSales
 			var requested = Math.Round(sales.PaymentDetails.Sum(x => x.TransactionAmount), 2);
 			var calculated = Math.Round(unitPrice * sales.Quantity, 2);
 
-			// If customer paid within 1 KES of calculated, use what they paid
-			var effective = (requested >= calculated && requested - calculated <= 1.00m)
-				? requested
+			// Round requested to nearest whole KES — mirrors Android Math.round()
+			var roundedRequested = Math.Round(requested, 0, MidpointRounding.AwayFromZero);
+
+			// Use rounded amount if within 1 KES of calculated, otherwise use calculated
+			var effective = Math.Abs(roundedRequested - calculated) <= 1.00m
+				? roundedRequested
 				: calculated;
 
 			return new SaleContext(
 				station, vehicle, customer, unitPrice, disc,
 				Calculated: effective,
-				Requested: requested,
+				Requested: roundedRequested,   // ← also store the rounded value
 				TransactionRef: transactionRef
 			);
 		}
