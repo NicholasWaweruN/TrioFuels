@@ -244,7 +244,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		}
 
 		var till = ResolveTill(request);
-		var eatNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatTimeZone);
+		var eatNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow.AddHours(3), EatTimeZone);
 
 		var transaction = new MpesaTransaction
 		{
@@ -361,7 +361,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 	private void DiagnosticDump(C2BConfirmationRequest request)
 	{
 		Console.WriteLine("══════════════════════════════════════════════════════");
-		Console.WriteLine($"[C2B-DIAG] {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+		Console.WriteLine($"[C2B-DIAG] {DateTime.UtcNow.AddHours(3):yyyy-MM-dd HH:mm:ss} UTC");
 		Console.WriteLine("──────────────────────────────────────────────────────");
 		Console.WriteLine($"TransactionType     : {request.TransactionType}");
 		Console.WriteLine($"TransID             : {request.TransactionId}");

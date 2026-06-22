@@ -65,7 +65,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 								{
 									AttedantUserCode = assignment.AttedantUserCode,
 									DispenserCode = assignment.DispenserCode,
-									DateAssigned = DateTime.UtcNow,
+									DateAssigned = DateTime.UtcNow.AddHours(3),
 									AssignedBy = _authentication.Name(),
 									StationCode = assignment.StationCode,
 								};
@@ -81,7 +81,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 								await _context.DispenserAssignments.AddAsync(ass);
 								await _context.SaveChangesAsync();
 
-								var message = $"{_authentication.Name()} assigned {AttendantName} to dispenser {dispenser.DispenserName} at {stationName} station on {DateTime.UtcNow}";
+								var message = $"{_authentication.Name()} assigned {AttendantName} to dispenser {dispenser.DispenserName} at {stationName} station on {DateTime.UtcNow.AddHours(3)}";
 
 								await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 								return ServiceResponse<object>.Success("Dispenser Assigned Successfully", null);
@@ -100,11 +100,11 @@ namespace BussinessLogic.Station.DispenserAssignments
 							assign.DispenserCode = assignment.DispenserCode;
 							assign.StationCode = assignment.StationCode;
 							assign.AssignedBy = _authentication.Name();
-							assign.DateAssigned = DateTime.UtcNow;
+							assign.DateAssigned = DateTime.UtcNow.AddHours(3);
 
 							_context.DispenserAssignments.Update(assign);
 							await _context.SaveChangesAsync();
-							var message = $"{_authentication.Name()} assigned {AttendantName} to dispenser {dispenser.DispenserName} at {stationName} station on {DateTime.UtcNow}";
+							var message = $"{_authentication.Name()} assigned {AttendantName} to dispenser {dispenser.DispenserName} at {stationName} station on {DateTime.UtcNow.AddHours(3)}";
 							await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 							return ServiceResponse<object>.Success("Dispenser Updated Successfully", new { assignment.DispenserCode, assignment.AttedantUserCode });
 
@@ -127,7 +127,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = DateTime.UtcNow.AddHours(3),
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -177,7 +177,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 							_context.DispenserAssignments.Remove(assign);
 							await _context.SaveChangesAsync();
 
-							var message = $" {user.ResponseObject.FirstName} {user.ResponseObject.MiddName} {user.ResponseObject.LastName} has been Unassigned from  Dispenser {assign.DispenserCode} in {stationName} by {_authentication.Name()} on {DateTime.UtcNow}";
+							var message = $" {user.ResponseObject.FirstName} {user.ResponseObject.MiddName} {user.ResponseObject.LastName} has been Unassigned from  Dispenser {assign.DispenserCode} in {stationName} by {_authentication.Name()} on {DateTime.UtcNow.AddHours(3)}";
 							await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 
 							return ServiceResponse<object>.Success(message, null);
@@ -199,7 +199,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = DateTime.UtcNow.AddHours(3),
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -245,7 +245,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = DateTime.UtcNow.AddHours(3),
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -283,7 +283,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = DateTime.UtcNow.AddHours(3),
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -324,7 +324,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = DateTime.UtcNow.AddHours(3),
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -392,7 +392,7 @@ namespace BussinessLogic.Station.DispenserAssignments
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = DateTime.UtcNow.AddHours(3),
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

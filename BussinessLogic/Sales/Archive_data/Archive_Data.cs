@@ -195,7 +195,7 @@ namespace BusinessLogic.Sales.Archive_data
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = DateTime.UtcNow.AddHours(3),
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

@@ -204,7 +204,7 @@ namespace BussinessLogic.Worker.Roles
 			context.ChangeTracker.Clear(); // 🧹 Clear tracked entities to prevent conflicts
 
 			var userCode = "99999";
-			var now = DateTime.UtcNow;
+			var now = DateTime.UtcNow.AddHours(3);
 			var roleCode = "001";			
 
 			if (!(roleCode == "001" && await context.RoleToUser.AnyAsync(r => r.RoleCode == "001" && r.UserCode == "99999", cancellationToken)))

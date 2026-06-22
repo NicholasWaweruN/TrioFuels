@@ -22,8 +22,8 @@ namespace DataAccessLayer.Authentication.Entity
 		public string PayrollNumber { get; set; } = string.Empty;
 		[Required, StringLength(10), Unicode(false)]
 		public string UserCode { get; set; } = string.Empty;
-		public DateTime DateCreated { get; set; } = DateTime.UtcNow;
-		public DateTime DateModified { get; set; } = DateTime.UtcNow;
+		public DateTime DateCreated { get; set; } = DateTime.UtcNow.AddHours(3);
+		public DateTime DateModified { get; set; } = DateTime.UtcNow.AddHours(3);
 		[StringLength(50), Unicode(false)]
 		public string CreatedBy { get; set; } = string.Empty;
 		[StringLength(50), Unicode(false)]
@@ -122,7 +122,7 @@ namespace DataAccessLayer.Authentication.Entity
         public string UserCode { get; set; } = string.Empty;
         [Required,StringLength(50),Unicode(false)]
         public Guid Id { get; set; } = Guid.NewGuid();
-        public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+        public DateTime DateCreated { get; set; } = DateTime.UtcNow.AddHours(3);
         [Required,StringLength(20),Unicode(false)]
         public string  CurrentVersion { get; set; } = string.Empty;
 
@@ -135,6 +135,6 @@ namespace DataAccessLayer.Authentication.Entity
         public string UserCode { get; set; } = string.Empty;
         [Required, StringLength(50), Unicode(false)]
         public Guid Id { get; set; } = Guid.NewGuid();
-        public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+        public DateTime DateCreated { get; set; } = DateTime.UtcNow.AddHours(3);
     }
 }

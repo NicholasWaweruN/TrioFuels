@@ -39,7 +39,7 @@ namespace BussinessLogic.Messaging
 
 				var Sms = new Sms
 				{
-					DateCreated = DateTime.UtcNow,
+					DateCreated = DateTime.UtcNow.AddHours(3),
 					Message = message,
 					PhoneNumber = phoneNumber,
 					Status = "Sent",
@@ -150,7 +150,7 @@ namespace BussinessLogic.Messaging
 				NetworkCode = callback.NetworkCode,
 				FailureReason = callback.FailureReason,
 				Cost = callback.Cost,
-				DateCreated = DateTime.UtcNow,
+				DateCreated = DateTime.UtcNow.AddHours(3),
 
 			};
 			_context.Add(callbackDetails);

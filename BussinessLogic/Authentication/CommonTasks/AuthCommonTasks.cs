@@ -59,7 +59,7 @@ namespace BussinessLogic.Authentication.CommonTasks
 					Message = message,
 					UserCode = Usercode(), // From current user claims
 					UserName = Name(), // From current user claims
-					DateCreated = DateTime.UtcNow,
+					DateCreated = DateTime.UtcNow.AddHours(3),
 				};
 
 				// Adds to DB
@@ -82,7 +82,7 @@ namespace BussinessLogic.Authentication.CommonTasks
 					INSERT INTO ErrorTrails 
 						(DateCreated, ErrorCode, ErrorMessage, Method, InnerErrorMessage, StackTrace)
 					VALUES 
-						('{DateTime.UtcNow}', '{errorTrail.ErrorCode ?? ""}', '{errorTrail.ErrorMessage ?? ""}', 
+						('{DateTime.UtcNow.AddHours(3)}', '{errorTrail.ErrorCode ?? ""}', '{errorTrail.ErrorMessage ?? ""}', 
 						 '{errorTrail.Method ?? ""}', '{errorTrail.InnerErrorMessage ?? ""}', 
 						 '{errorTrail.StackTrace ?? ""}')";
 

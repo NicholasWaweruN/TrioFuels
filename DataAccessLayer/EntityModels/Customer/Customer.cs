@@ -102,7 +102,7 @@ namespace DataAccessLayer.EntityModels.Customer
 		[Precision(18, 2)] public decimal Discount { get; set; }
 		public string TelematicSerialNumber { get; set; } = string.Empty;
 		public bool IsTelematicInstalled  { get; set; } 
-		public DateTime TelematicInstallationDate { get; set; } = DateTime.UtcNow;
+		public DateTime TelematicInstallationDate { get; set; } = DateTime.UtcNow.AddHours(3);
 		public decimal RoyaltyPointPerLitre { get; set; } = 0m;
 	}
 	public class Customer_Complains : BaseEntity

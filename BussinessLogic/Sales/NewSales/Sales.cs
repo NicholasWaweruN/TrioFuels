@@ -318,7 +318,7 @@ namespace BussinessLogic.Sales.NewSales
 						TransactionReference = ctx.TransactionRef,
 						VehicleCode = s.VehicleCode,
 						StationCode = ctx.Station.StationCode,
-						DateCreated = DateTime.UtcNow,
+						DateCreated = DateTime.UtcNow.AddHours(3),
 						UserCode = _authentication.Usercode()
 					});
 
@@ -394,7 +394,7 @@ namespace BussinessLogic.Sales.NewSales
 						TransactionType = "0",
 						TransactionCode = await _setups.GetCodeGenerator("TransactionId"),
 						WalletId = s.WalletId ?? string.Empty,
-						DateCreated = DateTime.UtcNow,
+						DateCreated = DateTime.UtcNow.AddHours(3),
 						UserCode = _authentication.Usercode(),
 						Description = $"Fuel purchase at {ctx.Station.StationName}",
 						SaleId = ctx.TransactionRef,
@@ -430,7 +430,7 @@ namespace BussinessLogic.Sales.NewSales
 
 					if (voucher is null) return Info("Invalid voucher number.");
 					if (voucher.IsUsed) return Info("This voucher has already been used.");
-					if (voucher.ExpiryDate < DateTime.UtcNow) return Info("This voucher has expired.");
+					if (voucher.ExpiryDate < DateTime.UtcNow.AddHours(3)) return Info("This voucher has expired.");
 					if (voucher.VehicleCode != s.VehicleCode) return Info("This voucher is not valid for this vehicle.");
 					if (voucher.Amount != ctx.Requested) return Info("The voucher must be used once for the full amount.");
 
@@ -445,7 +445,7 @@ namespace BussinessLogic.Sales.NewSales
 					if (loyaltySub is not null)
 					{
 						loyaltySub.IsRewardClaimed = true;
-						loyaltySub.RewardClaimedDate = DateTime.UtcNow;
+						loyaltySub.RewardClaimedDate = DateTime.UtcNow.AddHours(3);
 					}
 
 					StageQueuedSms(ctx.Vehicle.PhoneNumber,
@@ -501,7 +501,7 @@ namespace BussinessLogic.Sales.NewSales
 							$"has been received for {s.Quantity:N2} litres for vehicle " +
 							$"{ctx.Vehicle.VehicleRegistration} at " +
 							$"{_setups.SentenceCase(ctx.Station.StationName)} " +
-							$"on {DateTime.UtcNow:yyyy-MMM-dd} at {DateTime.UtcNow:HH:mm}. Thank you!");
+							$"on {DateTime.UtcNow.AddHours(3):yyyy-MMM-dd} at {DateTime.UtcNow.AddHours(3):HH:mm}. Thank you!");
 					}
 
 					return null;
@@ -569,8 +569,7 @@ namespace BussinessLogic.Sales.NewSales
 		// Context resolution
 		// =====================================================================
 
-		private async Task<SaleContext> ResolveSaleContextAsync(
-			AddsaleDto sales, string transactionRef)
+		private async Task<SaleContext> ResolveSaleContextAsync(AddsaleDto sales, string transactionRef)
 		{
 			var station = await GetStationAsync(sales.DispenserCode);
 			var vehicle = await GetVehicleAsync(sales.VehicleCode);
@@ -584,7 +583,7 @@ namespace BussinessLogic.Sales.NewSales
 			// Round requested to nearest whole KES — mirrors Android Math.round()
 			var roundedRequested = Math.Round(requested, 0, MidpointRounding.AwayFromZero);
 
-			// Use rounded amount if within 1 KES of calculated, otherwise use calculated
+			// If within 1 KES, take the full requested amount (e.g. 2001 when fuel = 2000)
 			var effective = Math.Abs(roundedRequested - calculated) <= 1.00m
 				? roundedRequested
 				: calculated;
@@ -592,7 +591,7 @@ namespace BussinessLogic.Sales.NewSales
 			return new SaleContext(
 				station, vehicle, customer, unitPrice, disc,
 				Calculated: effective,
-				Requested: roundedRequested,   // ← also store the rounded value
+				Requested: roundedRequested,
 				TransactionRef: transactionRef
 			);
 		}
@@ -629,7 +628,7 @@ namespace BussinessLogic.Sales.NewSales
 				{
 					PaymentRefrence = pay.TransactionReference,
 					TransactionAmount = alloc,
-					DateCreated = DateTime.UtcNow,
+					DateCreated = DateTime.UtcNow.AddHours(3),
 					UserCode = _authentication.Usercode(),
 					SaleId = saleId,
 					TransactionAmountDebit = 0
@@ -678,7 +677,7 @@ namespace BussinessLogic.Sales.NewSales
 
 			mpesaTx.UsageBalance = Math.Max(0, mpesaTx.TransAmount - totalUsed);
 			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
-			mpesaTx.DateModified = DateTime.UtcNow;
+			mpesaTx.DateModified = DateTime.UtcNow.AddHours(3);
 
 			_context.Entry(mpesaTx).State = EntityState.Modified;
 
@@ -698,7 +697,7 @@ namespace BussinessLogic.Sales.NewSales
 				CustomerName = ctx.Customer.CustomerName,
 				PhoneNumber = ctx.Vehicle.PhoneNumber ?? string.Empty,
 				TotalAmount = (double)ctx.Requested,
-				DateCreated = DateTime.UtcNow,
+				DateCreated = DateTime.UtcNow.AddHours(3),
 				Duplicate = 0,
 				VehicleReg = ctx.Vehicle.VehicleRegistration,
 				ReceiptNumber = ctx.TransactionRef,
@@ -718,12 +717,12 @@ namespace BussinessLogic.Sales.NewSales
 
 			_context.RescheduledMessages.Add(new RescheduledMessages
 			{
-				DateCreated = DateTime.UtcNow,
-				DateSent = DateTime.UtcNow,
+				DateCreated = DateTime.UtcNow.AddHours(3),
+				DateSent = DateTime.UtcNow.AddHours(3),
 				IsSent = false,
 				Message = message,
 				PhoneNumber = phone,
-				ScheduledSendingdate = DateTime.UtcNow,
+				ScheduledSendingdate = DateTime.UtcNow.AddHours(3),
 				SenderId = "Fuel Flow"
 			});
 		}
@@ -745,7 +744,7 @@ namespace BussinessLogic.Sales.NewSales
 				$"SaleTotal={ctx.Calculated:0.00} | EnteredTotal={ctx.Requested:0.00} | " +
 				$"Shift={sales.ShiftNumber} | Dispenser={sales.DispenserCode} | " +
 				$"Nozzle={sales.NozzleCode} | Vehicle={ctx.Vehicle.VehicleRegistration} | " +
-				$"Refs={refsStr} | At={DateTime.UtcNow:yyyy/MM/dd HH:mm:ss} | " +
+				$"Refs={refsStr} | At={DateTime.UtcNow.AddHours(3):yyyy/MM/dd HH:mm:ss} | " +
 				$"User={_authentication.Usercode()}";
 
 			await _authentication.AddUserTrail(msg, operationType);
@@ -792,7 +791,7 @@ namespace BussinessLogic.Sales.NewSales
 
 		public async Task<ServiceResponse<bool>> CheckDuplicates(AddsaleDto sales)
 		{
-			var cutoff = DateTime.UtcNow.AddMinutes(-2);
+			var cutoff = DateTime.UtcNow.AddHours(3).AddMinutes(-2);
 
 			var exists = await _context.QuantityTransactions.AnyAsync(p =>
 				p.NozzleCode == sales.NozzleCode
@@ -812,7 +811,7 @@ namespace BussinessLogic.Sales.NewSales
 				.Select(w => (DateTime?)EF.Property<DateTime>(w, "DateCreated"))
 				.FirstOrDefaultAsync();
 
-			return last.HasValue && last.Value < DateTime.UtcNow.AddDays(-30);
+			return last.HasValue && last.Value < DateTime.UtcNow.AddHours(3).AddDays(-30);
 		}
 
 		// =====================================================================
@@ -1003,7 +1002,7 @@ namespace BussinessLogic.Sales.NewSales
 				DispenserCode = sales.DispenserCode,
 				NozzleCode = sales.NozzleCode,
 				StationCode = ctx.Station.StationCode,
-				DateCreated = DateTime.UtcNow,
+				DateCreated = DateTime.UtcNow.AddHours(3),
 				IsReversed = false,
 				PaymentTypeCode = sales.PaymentTypeCode,
 				SaleId = saleId,
@@ -1025,7 +1024,7 @@ namespace BussinessLogic.Sales.NewSales
 
 			await _context.Database.ExecuteSqlRawAsync(
 				"EXEC InsertCustomerTransaction @p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9",
-				vehicleCode, 0, debitAmount, saleId, DateTime.UtcNow,
+				vehicleCode, 0, debitAmount, saleId, DateTime.UtcNow.AddHours(3),
 				string.Empty, _authentication.Usercode(), 2, 0,
 				$"Fueled at {station.StationName} station");
 		}
@@ -1064,7 +1063,7 @@ namespace BussinessLogic.Sales.NewSales
 			=> $"Dear {FirstName(ctx.Customer.CustomerName)}, {body}";
 
 		private static string UtcStamp()
-			=> $"{DateTime.UtcNow:dd/MM/yy} {DateTime.UtcNow:hh:mm tt}";
+			=> $"{DateTime.UtcNow.AddHours(3):dd/MM/yy} {DateTime.UtcNow.AddHours(3):hh:mm tt}";
 
 		private static ServiceResponse<object> Info(string message)
 			=> ServiceResponse<object>.Information(message, null);

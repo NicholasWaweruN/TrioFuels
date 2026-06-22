@@ -22,7 +22,7 @@ namespace DataAccessLayer.EntityModels.Stations
         public string AttedantUserCode { get; set; } = string.Empty;
         [Required, StringLength(50), Unicode(false)]
         public string AssignedBy { get; set; } = string.Empty;
-        public DateTime DateAssigned { get; set; } = DateTime.UtcNow;
+        public DateTime DateAssigned { get; set; } = DateTime.UtcNow.AddHours(3);
         public bool IsActive { get; set; } = true;
 
 

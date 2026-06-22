@@ -107,8 +107,8 @@ namespace BussinessLogic.Authentication.AddUsers
 					PhoneNumber = phone,
 					PayrollNumber = payroll!,
 					AccessApps = string.Join(",", register.AccessApps ?? []),
-					DateCreated = DateTime.UtcNow,
-					DateModified = DateTime.UtcNow,
+					DateCreated = DateTime.UtcNow.AddHours(3),
+					DateModified = DateTime.UtcNow.AddHours(3),
 					IsActive = true,
 					EmailConfirmed = true,
 					PhoneNumberConfirmed = true,
@@ -160,7 +160,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					ActionType = "UserRegistration",
 					Message = $"User {email} created by {_authentication.Name()}",
 					UserName = _authentication.Name(),
-					DateCreated = DateTime.UtcNow
+					DateCreated = DateTime.UtcNow.AddHours(3)
 				};
 
 				_context.AddRange(audit,userApps);
@@ -398,7 +398,7 @@ namespace BussinessLogic.Authentication.AddUsers
 				await _context.SaveChangesAsync();
 
 				// Audit trail entry
-				var auditMessage = $@"User account updated by {_authentication.Name()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}.
+				var auditMessage = $@"User account updated by {_authentication.Name()} on {DateTime.UtcNow.AddHours(3):yyyy-MM-dd HH:mm:ss}.
 				Affected User: {user.FirstName} {user.MiddName} {user.LastName} ({user.UserCode}) Changes:{string.Join(':', Environment.NewLine, changes)}";
 
 				await SaveAuditTrailAsync(user.UserCode, auditMessage);
@@ -464,7 +464,7 @@ namespace BussinessLogic.Authentication.AddUsers
 				ActionType = "UpdateUser",
 				Message = message,
 				UserName = _authentication.Name(),
-				DateCreated = DateTime.UtcNow
+				DateCreated = DateTime.UtcNow.AddHours(3)
 			};
 
 			_context.UserTrails.Add(audit);
@@ -521,7 +521,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					LastName = _setups.SentenceCase(register.LastName),
 					PhoneNumber = register.PhoneNumber,
 					PayrollNumber = register.PayrollNumber.ToUpper(),
-					DateCreated = DateTime.UtcNow,
+					DateCreated = DateTime.UtcNow.AddHours(3),
 					IsActive = true,
 					MiddName = _setups.SentenceCase(register.MiddName),
 					UserCode = userCode,
@@ -540,7 +540,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					LastLoginDate = null,
 					PasswordLastUpdated = null,
 					DepartmentCode = string.Empty,
-					DateModified = DateTime.UtcNow,
+					DateModified = DateTime.UtcNow.AddHours(3),
 					TwoFactorEnabled = false,
 					StationCode = string.Empty,
 					UserType = 1
@@ -627,7 +627,7 @@ namespace BussinessLogic.Authentication.AddUsers
 
 				var statusText = isActive ? "Active" : "Inactive";
 				var message = $@"User '{user.FirstName} {user.LastName}' 
-                        has been {action} successfully on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}.
+                        has been {action} successfully on {DateTime.UtcNow.AddHours(3):yyyy-MM-dd HH:mm:ss}.
                         Current Status: {statusText} by {_authentication.Name()}";
 
 				// Save audit trail
@@ -637,7 +637,7 @@ namespace BussinessLogic.Authentication.AddUsers
 					Message = message,
 					UserName = _authentication.Name(),
 					UserCode = _authentication.Usercode(),
-					DateCreated = DateTime.UtcNow,
+					DateCreated = DateTime.UtcNow.AddHours(3),
 				};
 				await _context.UserTrails.AddAsync(userTrail);
 				await _context.SaveChangesAsync();

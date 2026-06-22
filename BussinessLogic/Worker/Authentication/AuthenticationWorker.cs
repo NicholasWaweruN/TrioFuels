@@ -25,7 +25,7 @@ namespace BussinessLogic.Worker.Authentication
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
-			_logger.LogInformation("Authentication background service started at {Time}", DateTime.UtcNow);
+			_logger.LogInformation("Authentication background service started at {Time}", DateTime.UtcNow.AddHours(3));
 
 			while (!stoppingToken.IsCancellationRequested)
 			{
@@ -40,7 +40,7 @@ namespace BussinessLogic.Worker.Authentication
 				}
 
 				// Calculate next 2:00 AM run time
-				var now = DateTime.UtcNow;
+				var now = DateTime.UtcNow.AddHours(3);
 				var nextRun = now.Date.AddDays(1).AddHours(2); // tomorrow at 2 AM
 
 				var delay = nextRun - now;
