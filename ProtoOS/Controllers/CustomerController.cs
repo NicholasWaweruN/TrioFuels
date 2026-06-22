@@ -347,8 +347,6 @@ namespace ProtoOS.Controllers
 			var result = await _loyalty.GetLoyaltyBalanceByPhoneAsync(phoneNumber);
 			return Ok(result);
 		}
-
-		
 	}
 
 	public class AddProvisionalCustomerDto

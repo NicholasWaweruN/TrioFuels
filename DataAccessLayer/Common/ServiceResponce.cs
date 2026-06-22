@@ -124,6 +124,7 @@ namespace DataAccessLayer.Common
 		public const int Cash = 12;
 		public const int Credit = 13;
 		public const int Loyalty = 14;
+		public const int PDQ = 15;
 	} 
     public class Constants
     {

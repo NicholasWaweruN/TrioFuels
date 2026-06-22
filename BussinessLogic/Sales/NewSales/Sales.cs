@@ -94,9 +94,14 @@ namespace BussinessLogic.Sales.NewSales
 				PaymetMethod.Cash => await HandleCashAsync(sales, saleId),
 				PaymetMethod.Credit => await HandleCreditAsync(sales, saleId),
 				PaymetMethod.Loyalty => await HandleLoyaltyAsync(sales, saleId),
+				PaymetMethod.PDQ => await HandlePDQAsync(sales, saleId),
 				_ => Info("Feature Coming Soon"),
 			};
 		}
+
+	
+
+
 
 		// =====================================================================
 		// Unified pipeline — standard payment methods
@@ -257,6 +262,27 @@ namespace BussinessLogic.Sales.NewSales
 			);
 		}
 
+
+		private Task<ServiceResponse<object>> HandlePDQAsync(AddsaleDto sales, string saleId)
+		{
+			return ExecuteSaleAsync(
+				sales, saleId,
+				operationType: "PDQ SALE",
+				receiptPaymentMethod: "PDQ",
+				awardLoyalty: true,
+				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
+				paymentStep: (_, ctx, _) =>
+				{
+					StageQueuedSms(ctx.Vehicle.PhoneNumber, BuildSms(ctx,
+						$"a PDQ (card) payment of KES {ctx.Calculated:N2} " +
+						$"for {sales.Quantity:N2} litres has been recorded " +
+						$"for vehicle {ctx.Vehicle.VehicleRegistration} " +
+						$"at {ctx.Station.StationName} on {UtcStamp()}."));
+
+					return Task.FromResult<ServiceResponse<object>?>(null);
+				}
+			);
+		}
 		private Task<ServiceResponse<object>> HandleCreditAsync(AddsaleDto sales, string saleId)
 		{
 			return ExecuteSaleAsync(
