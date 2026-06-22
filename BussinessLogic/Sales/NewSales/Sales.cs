@@ -265,12 +265,11 @@ namespace BussinessLogic.Sales.NewSales
 
 		private Task<ServiceResponse<object>> HandlePDQAsync(AddsaleDto sales, string saleId)
 		{
-			return ExecuteSaleAsync(
+			return ExecuteSaleRawRefAsync(
 				sales, saleId,
 				operationType: "PDQ SALE",
 				receiptPaymentMethod: "PDQ",
 				awardLoyalty: true,
-				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
 				paymentStep: (_, ctx, _) =>
 				{
 					StageQueuedSms(ctx.Vehicle.PhoneNumber, BuildSms(ctx,
@@ -341,7 +340,7 @@ namespace BussinessLogic.Sales.NewSales
 				sales, saleId,
 				operationType: "WALLET SALE",
 				receiptPaymentMethod: "Wallet",
-				awardLoyalty: false,
+				awardLoyalty: true,
 				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
 				paymentStep: async (s, ctx, sid) =>
 				{
