@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OnFonMessaging;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -138,7 +139,7 @@ public class OnfonSmsService : ISmsService
     {
         phone = phone.Trim().Replace(" ", "").Replace("-", "");
 
-        if (phone.StartsWith("+"))
+        if (phone.StartsWith('+'))
             phone = phone[1..];
 
         if (phone.StartsWith("07") || phone.StartsWith("01"))

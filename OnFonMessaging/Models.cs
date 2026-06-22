@@ -1,4 +1,4 @@
-namespace OnfonSms;
+namespace OnFonMessaging; 
 
 // ── Request ──────────────────────────────────────────────────────────────────
 

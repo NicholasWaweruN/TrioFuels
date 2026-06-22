@@ -17,6 +17,7 @@ using DataAccessLayer.Authentication.Entity;
 using BussinessLogic.Authentication.AddUsers;
 using PhoneNumbers;
 using BussinessLogic.Messaging;
+using OnfonSms;
 
 namespace BussinessLogic.Authentication.SignIn
 {
@@ -30,13 +31,13 @@ namespace BussinessLogic.Authentication.SignIn
 		private readonly UserManager<ApplicationUser> _userManager;
 		private readonly ICommonSetups _setups;
 		private readonly IMessagingService _messagingService;
-		private readonly IAfricaIsTalking _isTalking;
 		private readonly IEmailService _emailService;
 		private readonly ILogger<RegisterUsers> _logger;
 		private readonly IAuthCommonTasks _authentication;
 		private readonly ITokenManagement _token;
+		private readonly ISmsService _sms;
 		private readonly IHttpContextAccessor _httpContextAccessor;
-	
+
 
 		// Constructor to initialize dependencies.
 		public SignInUser(
@@ -44,25 +45,25 @@ namespace BussinessLogic.Authentication.SignIn
 			UserManager<ApplicationUser> userManager,
 			ICommonSetups setups,
 			IMessagingService messagingService,
-			IAfricaIsTalking isTalking,
 			IEmailService emailService,
 			ILogger<RegisterUsers> logger,
 			IAuthCommonTasks authentication,
 			ITokenManagement token,
-			IHttpContextAccessor httpContextAccessor
+			IHttpContextAccessor httpContextAccessor,
+			ISmsService sms
 			)
 		{
 			_context = context;
 			_userManager = userManager;
 			_setups = setups;
 			_messagingService = messagingService;
-			_isTalking = isTalking;
 			_emailService = emailService;
 			_logger = logger;
 			_authentication = authentication;
 			_token = token;
 			_httpContextAccessor = httpContextAccessor;
-		
+			_sms = sms;
+
 		}
 
 		/// <summary>
@@ -201,11 +202,11 @@ namespace BussinessLogic.Authentication.SignIn
 		/// </summary>
 		private async Task<ServiceResponse<object>> GenerateUserTokenAsync(ApplicationUser user, string appCode)
 		{
-		
+
 			var daysLeft = await DaysToPasswordExpiryAsync(user);
 			if (daysLeft < 0) daysLeft = 0;
 
-			var success  = $"Successful! {daysLeft} day(s) remaining to password expiry.";
+			var success = $"Successful! {daysLeft} day(s) remaining to password expiry.";
 
 
 			var tokenResult = await _token.CreateToken(user, appCode);
@@ -249,7 +250,7 @@ namespace BussinessLogic.Authentication.SignIn
 				}
 			}
 
-		
+
 
 			return ServiceResponse<object>.Success($"{success}", new UserDetailsDispensers
 			{
@@ -511,14 +512,14 @@ namespace BussinessLogic.Authentication.SignIn
 </body>
 </html>";
 
-				  await _emailService.SendEmail(
-					email,
-					null,
-					"OTP Verification Code",
-					body);
+				await _emailService.SendEmail(
+				  email,
+				  null,
+				  "OTP Verification Code",
+				  body);
 
 				return ServiceResponse<object>.Success("OTP sent successfully", otp);
-				
+
 			}
 			catch (Exception ex)
 			{
@@ -530,25 +531,52 @@ namespace BussinessLogic.Authentication.SignIn
 			}
 		}
 
-		/// <summary>
-		/// Changes the user's password (authenticated user action).
-		/// </summary>
-		public async Task<ServiceResponse<object>> ChangePasswordAsync(string oldPassword, string newPassword, string confirmPassword)
+		public async Task<ServiceResponse<object>> SendOTP(string phoneNumber)
 		{
 			try
 			{
-				var user = await _context.Users.FirstOrDefaultAsync(u => u.UserCode == _authentication.Usercode());
-				if (user == null)
+				var otp = _messagingService.GetOtp();
+
+				var otpResponse = await _messagingService.SaveEmailOtpAsync(phoneNumber, otp);
+
+				if (otpResponse.ResponseCode != Response.Success)
+					return ServiceResponse<object>.Information("OTP not saved", otpResponse.ResponseObject);
+
+				var message = $"Your FuelFlow verification code is {otp}. Valid for 10 minutes. Never share this code.";
+
+				await _sms.SendAsync(phoneNumber, message);
+
+				// Don't return the OTP in the response object — client doesn't need it
+				return ServiceResponse<object>.Success("OTP sent successfully", otp);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error sending OTP to {PhoneNumber}", phoneNumber);
+				return ServiceResponse<object>.Error("An error occurred while sending OTP", null);
+			}
+		}
+		/// <summary>
+		/// Changes the user's password (authenticated user action).
+		/// </summary>
+		public async Task<ServiceResponse<object>> ChangePasswordAsync(
+			string oldPassword, string newPassword, string confirmPassword)
+		{
+			try
+			{
+				var user = await _context.Users
+					.FirstOrDefaultAsync(u => u.UserCode == _authentication.Usercode());
+
+				if (user is null)
 					return ServiceResponse<object>.Information("User not found", null);
 
 				if (!user.IsActive)
-					return ServiceResponse<object>.Information($"Hi {user.FirstName}, your account is inactive", "");
-
-				if (!await _userManager.CheckPasswordAsync(user, oldPassword))
-					return ServiceResponse<object>.Information("Invalid old password", null);
+					return ServiceResponse<object>.Information($"Hi {user.FirstName}, your account is inactive", null);
 
 				if (!string.Equals(newPassword, confirmPassword))
 					return ServiceResponse<object>.Information("Passwords do not match", null);
+
+				if (!await _userManager.CheckPasswordAsync(user, oldPassword))
+					return ServiceResponse<object>.Information("Invalid old password", null);
 
 				if (await IsPasswordReusedAsync(user, newPassword))
 					return ServiceResponse<object>.Information("You have used this password before. Please choose a different password.", null);
@@ -556,101 +584,99 @@ namespace BussinessLogic.Authentication.SignIn
 				var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 				var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
 
-				if (result.Succeeded)
+				if (!result.Succeeded)
+					return ServiceResponse<object>.Information("Password change failed", null);
+
+				user.AccessFailedCount = 0;
+				user.PasswordLastUpdated = DateTime.UtcNow;
+
+				await _userManager.UpdateSecurityStampAsync(user);
+
+				await _context.PasswordHistory.AddAsync(new PasswordHistory
 				{
-					user.AccessFailedCount = 0;
-					user.PasswordLastUpdated = DateTime.UtcNow;
+					UserCode = user.UserCode,
+					DateCreated = DateTime.UtcNow,
+					PasswordHash = _userManager.PasswordHasher.HashPassword(user, newPassword)
+				});
 
-					await _userManager.UpdateSecurityStampAsync(user);
+				_context.Users.Update(user);
+				await _context.SaveChangesAsync();
 
-					await _context.PasswordHistory.AddAsync(new PasswordHistory
-					{
-						UserCode = user.UserCode,
-						DateCreated = DateTime.UtcNow,
-						PasswordHash = _userManager.PasswordHasher.HashPassword(user, newPassword),
-					});
-
-					_context.Users.Update(user);
-					await _context.SaveChangesAsync();
-
-					return ServiceResponse<object>.Success("Password changed successfully", null);
-				}
-
-				return ServiceResponse<object>.Information("Password change failed", result.Errors);
+				return ServiceResponse<object>.Success("Password changed successfully", null);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error changing password for user {userCode}", _authentication.Usercode());
-				return ServiceResponse<object>.Error("An error occurred while changing password", ex);
+				_logger.LogError(ex, "Error changing password for user {UserCode}", _authentication.Usercode());
+				return ServiceResponse<object>.Error("An error occurred while changing password", null);
 			}
 		}
 
 		/// <summary>
 		/// Resets the user's password using OTP validation.
 		/// </summary>
-		public async Task<ServiceResponse<object>> ForgotPassword(ResetPasswordModelEmail reset)
+		public async Task<ServiceResponse<object>> ForgotPassword(ResetPasswordModel reset)
 		{
 			try
 			{
-				
-		
-				var user = await _context.Users.FirstOrDefaultAsync(x => x.Email!.ToLower() == reset.Email.ToLower());
+				var user = await _context.Users
+					.FirstOrDefaultAsync(x => x.PhoneNumber == reset.PhoneNumber);
 
-				// Fetch an active OTP and consume it to prevent replay
+				if (user is null)
+					return ServiceResponse<object>.Information("Phone number does not exist", null);
+
 				var otpEntity = await _context.Otps
-					.Where(o => o.OTPCode == reset.OTP && o.EmailAddress.ToLower() == reset.Email.ToLower() && o.OTPStatus == true)
-					.OrderByDescending(o => o.DateCreated) // if you have timestamp
+					.Where(o => o.OTPCode == reset.OTP
+							 && o.PhoneNumber == reset.PhoneNumber
+							 && o.OTPStatus == true
+							 && o.DateCreated >= DateTime.UtcNow.AddMinutes(-10))
+					.OrderByDescending(o => o.DateCreated)
 					.FirstOrDefaultAsync();
 
-				if (otpEntity == null)
-					return ServiceResponse<object>.Information("Invalid OTP", null);
-
-				// Optional: enforce OTP expiry window here if your schema has it
+				if (otpEntity is null)
+					return ServiceResponse<object>.Information("Invalid or expired OTP", null);
 
 				if (!string.Equals(reset.NewPassword, reset.ConfirmPassword))
 					return ServiceResponse<object>.Information("Passwords do not match", null);
 
-				if (user == null)
-					return ServiceResponse<object>.Information("Phone number does not exist", null);
-
 				if (await IsPasswordReusedAsync(user, reset.NewPassword))
-					return ServiceResponse<object>.Information("You have used this password before. Please choose a different password.", null);
+					return ServiceResponse<object>.Information(
+						"You have used this password before. Please choose a different password.", null);
 
-				// Consume OTP before applying password change to prevent replay
+				// Consume OTP immediately to prevent replay
 				otpEntity.OTPStatus = false;
 				_context.Otps.Update(otpEntity);
 
 				var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 				var result = await _userManager.ResetPasswordAsync(user, token, reset.NewPassword);
 
-				if (result.Succeeded)
+				if (!result.Succeeded)
 				{
-					user.AccessFailedCount = 0;
-					user.PasswordLastUpdated = DateTime.UtcNow;
-
-					await _userManager.UpdateSecurityStampAsync(user);
-
-					_context.PasswordHistory.Add(new PasswordHistory
-					{
-						UserCode = user.UserCode,
-						DateCreated = DateTime.UtcNow,
-						PasswordHash = _userManager.PasswordHasher.HashPassword(user, reset.NewPassword),
-					});
-
-					_context.Users.Update(user);
+					// Persist OTP consumption even on failure to block brute-force reuse
 					await _context.SaveChangesAsync();
-
-					return ServiceResponse<object>.Success("Password reset successfully", null);
+					return ServiceResponse<object>.Information("Password reset failed", null);
 				}
 
-				// If failed, still persist OTP consumption to thwart brute-force reuse
+				user.AccessFailedCount = 0;
+				user.PasswordLastUpdated = DateTime.UtcNow;
+
+				await _userManager.UpdateSecurityStampAsync(user);
+
+				_context.PasswordHistory.Add(new PasswordHistory
+				{
+					UserCode = user.UserCode,
+					DateCreated = DateTime.UtcNow,
+					PasswordHash = _userManager.PasswordHasher.HashPassword(user, reset.NewPassword)
+				});
+
+				_context.Users.Update(user);
 				await _context.SaveChangesAsync();
-				return ServiceResponse<object>.Information("Password reset failed", result.Errors);
+
+				return ServiceResponse<object>.Success("Password reset successfully", null);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error resetting password for phone number {phoneNumber}", reset.Email);
-				return ServiceResponse<object>.Error("An error occurred while resetting password", ex);
+				_logger.LogError(ex, "Error resetting password for {PhoneNumber}", reset.PhoneNumber);
+				return ServiceResponse<object>.Error("An error occurred while resetting password", null);
 			}
 		}
 
@@ -785,7 +811,7 @@ namespace BussinessLogic.Authentication.SignIn
 	/// <summary>
 	/// 
 	/// </summary>
-	public class ResetPasswordModelEmail
+	public class ResetPassword
 	{
 		[Required]
 		[EmailAddress(ErrorMessage = "Invalid email address.")]

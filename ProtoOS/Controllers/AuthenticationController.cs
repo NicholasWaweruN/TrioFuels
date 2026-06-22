@@ -168,9 +168,9 @@
 		[HttpGet]
 		[Route("SendOTP")]
 		[AllowAnonymous]
-		public async Task<IActionResult> SendOTP([FromQuery] string email)
+		public async Task<IActionResult> SendOTP([FromQuery] string phoneNumber)
 		{
-			var response = await _signIn.SendOTPAsync(email);
+			var response = await _signIn.SendOTP(phoneNumber);
 			return Ok(response);
 		}
 
@@ -182,7 +182,7 @@
 		[HttpPost]
 		[Route("ChangePassword")]
 		[AllowAnonymous]
-		public async Task<IActionResult> ForgotPassword(ResetPasswordModelEmail reset)
+		public async Task<IActionResult> ForgotPassword(ResetPasswordModel reset)
 		{
 			var response = await _signIn.ForgotPassword(reset);
 			return Ok(response);

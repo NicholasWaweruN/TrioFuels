@@ -20,43 +20,46 @@ builder.Services.AddOnfonSms(builder.Configuration);
 
 using OnfonSms;
 
-public class NotificationService
+namespace OnFonMessaging
 {
-    private readonly ISmsService _sms;
+	public class NotificationService
+	{
+		private readonly ISmsService _sms;
 
-    public NotificationService(ISmsService sms) => _sms = sms;
+		public NotificationService(ISmsService sms) => _sms = sms;
 
-    // 1. Single recipient
-    public async Task NotifyCustomerAsync(string phone, string message)
-    {
-        var result = await _sms.SendAsync(phone, message);
+		// 1. Single recipient
+		public async Task NotifyCustomerAsync(string phone, string message)
+		{
+			var result = await _sms.SendAsync(phone, message);
 
-        if (result.ErrorCode != 0)
-            throw new Exception($"SMS failed: {result.ErrorDescription}");
-    }
+			if (result.ErrorCode != 0)
+				throw new Exception($"SMS failed: {result.ErrorDescription}");
+		}
 
-    // 2. Bulk — same message to many
-    public async Task NotifyAllStationsAsync(IEnumerable<string> phones, string alert)
-    {
-        var result = await _sms.SendBulkAsync(phones, alert);
-        // result.Data contains a MessageId per recipient
-    }
+		// 2. Bulk — same message to many
+		public async Task NotifyAllStationsAsync(IEnumerable<string> phones, string alert)
+		{
+			var result = await _sms.SendBulkAsync(phones, alert);
+			// result.Data contains a MessageId per recipient
+		}
 
-    // 3. Personalised — different text per recipient
-    public async Task SendReceiptsAsync(List<(string Phone, string Receipt)> items)
-    {
-        var messages = items.Select(x => new SmsMessage
-        {
-            Number = x.Phone,
-            Text = x.Receipt
-        });
+		// 3. Personalised — different text per recipient
+		public async Task SendReceiptsAsync(List<(string Phone, string Receipt)> items)
+		{
+			var messages = items.Select(x => new SmsMessage
+			{
+				Number = x.Phone,
+				Text = x.Receipt
+			});
 
-        await _sms.SendPersonalisedAsync(messages);
-    }
+			await _sms.SendPersonalisedAsync(messages);
+		}
 
-    // 4. Scheduled
-    public async Task SendReminderAsync(string phone, string message, DateTime sendAt)
-    {
-        await _sms.SendScheduledAsync(phone, message, sendAt);
-    }
+		// 4. Scheduled
+		public async Task SendReminderAsync(string phone, string message, DateTime sendAt)
+		{
+			await _sms.SendScheduledAsync(phone, message, sendAt);
+		}
+	}
 }

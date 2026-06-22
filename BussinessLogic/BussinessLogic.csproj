@@ -44,6 +44,7 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\DataAccessLayer\DataAccessLayer.csproj" />
+	  <ProjectReference Include="..\OnFonMessaging\OnFonMessaging.csproj" />
 	  <ProjectReference Include="..\Safaricom_Daraja\Safaricom_Daraja.csproj" />
 	</ItemGroup>
 </Project>
