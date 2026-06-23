@@ -1,6 +1,7 @@
 ﻿using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Daraja;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -124,9 +125,9 @@ public sealed class StkCallbackHandler(
 			PaymentMethod = "STK",
 			MSISDN = phone,
 			Status = 1,
-			DateTimeStamp = DateTime.UtcNow.AddHours(3),
-			DateModified = DateTime.UtcNow.AddHours(3),
-			DateCreated = DateTime.UtcNow.AddHours(3),
+			DateTimeStamp = EatTime.Now,
+			DateModified = EatTime.Now,
+			DateCreated = EatTime.Now,
 			FirstName = string.Empty,
 			LastName = string.Empty,
 			MiddName = string.Empty,

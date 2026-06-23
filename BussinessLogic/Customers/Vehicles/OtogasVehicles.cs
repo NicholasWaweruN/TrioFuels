@@ -6,6 +6,7 @@ using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Template_Register;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
@@ -445,7 +446,7 @@ namespace BussinessLogic.Customers.Vehicles
 					PhoneNumber = phoneNumber.Trim(),
 					NumberPlate = numberPlate.Trim(),
 					UserCode = _authentication.Usercode(),
-					DateCreated = DateTime.UtcNow.AddHours(3)
+					DateCreated = EatTime.Now
 				};
 
 				await _context.ProvisionalCustomers.AddAsync(customer);

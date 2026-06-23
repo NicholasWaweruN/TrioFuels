@@ -2,6 +2,7 @@
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Authentication;
 using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -59,7 +60,7 @@ namespace BussinessLogic.Authentication.CommonTasks
 					Message = message,
 					UserCode = Usercode(), // From current user claims
 					UserName = Name(), // From current user claims
-					DateCreated = DateTime.UtcNow.AddHours(3),
+					DateCreated = EatTime.Now,
 				};
 
 				// Adds to DB
@@ -82,7 +83,7 @@ namespace BussinessLogic.Authentication.CommonTasks
 					INSERT INTO ErrorTrails 
 						(DateCreated, ErrorCode, ErrorMessage, Method, InnerErrorMessage, StackTrace)
 					VALUES 
-						('{DateTime.UtcNow.AddHours(3)}', '{errorTrail.ErrorCode ?? ""}', '{errorTrail.ErrorMessage ?? ""}', 
+						('{EatTime.Now}', '{errorTrail.ErrorCode ?? ""}', '{errorTrail.ErrorMessage ?? ""}', 
 						 '{errorTrail.Method ?? ""}', '{errorTrail.InnerErrorMessage ?? ""}', 
 						 '{errorTrail.StackTrace ?? ""}')";
 

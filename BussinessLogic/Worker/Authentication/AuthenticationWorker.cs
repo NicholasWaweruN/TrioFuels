@@ -1,6 +1,7 @@
 ﻿using BussinessLogic.PlateDetection;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,7 +26,7 @@ namespace BussinessLogic.Worker.Authentication
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
-			_logger.LogInformation("Authentication background service started at {Time}", DateTime.UtcNow.AddHours(3));
+			_logger.LogInformation("Authentication background service started at {Time}", EatTime.Now);
 
 			while (!stoppingToken.IsCancellationRequested)
 			{
@@ -40,7 +41,7 @@ namespace BussinessLogic.Worker.Authentication
 				}
 
 				// Calculate next 2:00 AM run time
-				var now = DateTime.UtcNow.AddHours(3);
+				var now = EatTime.Now;
 				var nextRun = now.Date.AddDays(1).AddHours(2); // tomorrow at 2 AM
 
 				var delay = nextRun - now;

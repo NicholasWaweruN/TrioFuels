@@ -1,4 +1,5 @@
 ﻿
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -12,7 +13,7 @@ namespace DataAccessLayer.Common
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
         public long Id { get; set; } 
-        public DateTime DateCreated { get; set; } = DateTime.UtcNow.AddHours(3);
+        public DateTime DateCreated { get; set; } = EatTime.Now;
         [StringLength(20), Unicode(false)]
         public string UserCode { get; set; } = string.Empty;
     }

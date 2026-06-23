@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DataAccessLayer.Helpers;
 
 namespace BusinessLogic.Sales.Archive_data
 {
@@ -195,7 +196,7 @@ namespace BusinessLogic.Sales.Archive_data
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow.AddHours(3),
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

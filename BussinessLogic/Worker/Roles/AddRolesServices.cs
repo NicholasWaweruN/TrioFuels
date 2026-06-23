@@ -1,5 +1,6 @@
 ﻿using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Context;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -204,7 +205,7 @@ namespace BussinessLogic.Worker.Roles
 			context.ChangeTracker.Clear(); // 🧹 Clear tracked entities to prevent conflicts
 
 			var userCode = "99999";
-			var now = DateTime.UtcNow.AddHours(3);
+			var now = EatTime.Now;
 			var roleCode = "001";			
 
 			if (!(roleCode == "001" && await context.RoleToUser.AnyAsync(r => r.RoleCode == "001" && r.UserCode == "99999", cancellationToken)))

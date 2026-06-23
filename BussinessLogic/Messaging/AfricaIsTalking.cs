@@ -11,6 +11,7 @@ using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Messaging;
 using DataAccessLayer.EntityModels.Messaging;
+using DataAccessLayer.Helpers;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
@@ -39,7 +40,7 @@ namespace BussinessLogic.Messaging
 
 				var Sms = new Sms
 				{
-					DateCreated = DateTime.UtcNow.AddHours(3),
+					DateCreated = EatTime.Now,
 					Message = message,
 					PhoneNumber = phoneNumber,
 					Status = "Sent",
@@ -150,7 +151,7 @@ namespace BussinessLogic.Messaging
 				NetworkCode = callback.NetworkCode,
 				FailureReason = callback.FailureReason,
 				Cost = callback.Cost,
-				DateCreated = DateTime.UtcNow.AddHours(3),
+				DateCreated = EatTime.Now,
 
 			};
 			_context.Add(callbackDetails);

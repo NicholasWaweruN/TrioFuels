@@ -11,6 +11,7 @@ using ClosedXML.Excel;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BusinessLogic.EmailService
 {
@@ -205,11 +206,11 @@ namespace BusinessLogic.EmailService
 				{
 					OTPType = 1,
 					UserCode = string.Empty,
-					ExpiryDate = DateTime.UtcNow.AddHours(3),
+					ExpiryDate = EatTime.Now,
 					OTPCode = otp,
 					OTPStatus = true,
 					EmailAddress = email,
-					DateCreated = DateTime.UtcNow.AddHours(3),
+					DateCreated = EatTime.Now,
 
 				};
 				await _context.AddAsync(otps);

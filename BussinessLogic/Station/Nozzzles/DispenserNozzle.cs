@@ -8,6 +8,7 @@ using DataAccessLayer.EntityModels.Stations;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BusinessLogic.Station.Nozzzles
 {
@@ -40,14 +41,14 @@ namespace BusinessLogic.Station.Nozzzles
                     {
                         NozzleName = addNozzle.NozzleName,
                         NozzleCode = code,
-                        DateCreated = DateTime.UtcNow.AddHours(3),
+                        DateCreated = EatTime.Now,
                         UserCode = _authentication.Usercode(),
                         IsActive = true,
                         DispenserCode = addNozzle.DispenserCode,
                     };
                     await _context.Nozzles.AddAsync(nozzle);
                     await _context.SaveChangesAsync();
-                    var message = $"Nozzle {addNozzle.NozzleName} Added SuccessFully by {_authentication.Name()} on {DateTime.UtcNow.AddHours(3)}";
+                    var message = $"Nozzle {addNozzle.NozzleName} Added SuccessFully by {_authentication.Name()} on {EatTime.Now}";
                     await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 
                     return ServiceResponse<object>.Success("Nozzle added successfully", nozzle);
@@ -59,7 +60,7 @@ namespace BusinessLogic.Station.Nozzzles
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow.AddHours(3),
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -99,7 +100,7 @@ namespace BusinessLogic.Station.Nozzzles
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow.AddHours(3),
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -123,7 +124,7 @@ namespace BusinessLogic.Station.Nozzzles
                 nozzle.IsActive = status;
                 await _context.SaveChangesAsync();
                 var nozzleStatus = status ? "Activated" : "Deactivated";
-                var message = $"User {_authentication.Name()} {nozzleStatus} {nozzle.NozzleName} Nozzle on {DateTime.UtcNow.AddHours(3)}";
+                var message = $"User {_authentication.Name()} {nozzleStatus} {nozzle.NozzleName} Nozzle on {EatTime.Now}";
                 await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
                 return ServiceResponse<object>.Success($"Nozzle {nozzleStatus} successfully", nozzle);
             }
@@ -133,7 +134,7 @@ namespace BusinessLogic.Station.Nozzzles
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow.AddHours(3),
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -161,7 +162,7 @@ namespace BusinessLogic.Station.Nozzzles
                     nozzle.NozzleName = updateNozzle.NozzleName;
                     _context.Nozzles.Update(nozzle);
                     await _context.SaveChangesAsync();
-                    var message = $"Nozzle {updateNozzle.NozzleName} Updated successFully by {_authentication.Name()} on {DateTime.UtcNow.AddHours(3)}";
+                    var message = $"Nozzle {updateNozzle.NozzleName} Updated successFully by {_authentication.Name()} on {EatTime.Now}";
                     await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
                     return ServiceResponse<object>.Success("Nozzle updated successfully", nozzle);
                 }
@@ -172,7 +173,7 @@ namespace BusinessLogic.Station.Nozzzles
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow.AddHours(3),
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -204,7 +205,7 @@ namespace BusinessLogic.Station.Nozzzles
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow.AddHours(3),
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

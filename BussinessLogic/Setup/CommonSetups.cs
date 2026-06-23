@@ -1,6 +1,7 @@
 ﻿using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -35,7 +36,7 @@ namespace BussinessLogic.Setup
 						Prefix = "D",
 						Suffix = string.Empty,
 						Length = 2,
-						DateCreated = DateTime.UtcNow.AddHours(3),
+						DateCreated = EatTime.Now,
 						UserCode = "00001"
 					};
 					_context.Codegenerators.Add(codegenerator);
@@ -212,7 +213,7 @@ namespace BussinessLogic.Setup
 		// Method to generate Sale ID using all mappings
 		public string GenerateSaleId()
 		{
-			var date = DateTime.UtcNow.AddHours(3);
+			var date = EatTime.Now;
 			var monthLetter = MonthAlphabetMapping[date.Month];
 			var yearLetter = YearAlphabetMapping[date.Year];
 			var dayLetter = DayAlphabetMapping[date.Day];
@@ -278,7 +279,7 @@ namespace BussinessLogic.Setup
 
 		public string GenerateShiftNumber()
 		{
-			var date = DateTime.UtcNow.AddHours(3);
+			var date = EatTime.Now;
 
 			// Check if the year exists in the dictionary, otherwise handle error
 			if (!ShiftYearAlphabetMapping.TryGetValue(date.Year, out var yearLetter))

@@ -843,7 +843,7 @@ namespace BussinessLogic.Authentication.SignIn
 
 		[Required]
 		public string OTP { get; set; } = string.Empty;
-
+		
 		[Required]
 		[StringLength(100, MinimumLength = 8)]
 		[RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", ErrorMessage = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.")]

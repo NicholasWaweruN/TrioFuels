@@ -14,6 +14,7 @@ using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Stock.Adjust_Stock
 {
@@ -114,7 +115,7 @@ namespace BussinessLogic.Stock.Adjust_Stock
 
 		private async Task LogStockAdjustmentTrail(string shiftNumber)
 		{
-			var message = $"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow.AddHours(3)} for shift number {shiftNumber}";
+			var message = $"Stock adjusted by {_authentication.Name()} on {EatTime.Now} for shift number {shiftNumber}";
 			await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 		}
 
@@ -123,7 +124,7 @@ namespace BussinessLogic.Stock.Adjust_Stock
 			var methodName = ex.TargetSite?.Name ?? string.Empty;
 			await _authentication.ErrorTrail(new ErrorTrail
 			{
-				DateCreated = DateTime.UtcNow.AddHours(3),
+				DateCreated = EatTime.Now,
 				ErrorCode = "004",
 				ErrorMessage = ex.Message,
 				Method = methodName
