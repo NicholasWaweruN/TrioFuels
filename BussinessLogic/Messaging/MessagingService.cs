@@ -171,23 +171,28 @@ namespace BusinessLogic.EmailService
 		{
 			try
 			{
+				var eatZone = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+				var eatNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, eatZone);
+
 				var otps = new Otps
 				{
 					OTPType = 1,
 					UserCode = string.Empty,
-					ExpiryDate = DateTime.UtcNow,
 					OTPCode = otp,
 					OTPStatus = true,
 					PhoneNumber = phoneNumber,
-					DateCreated = DateTime.UtcNow.AddHours(3)
-
+					DateCreated = eatNow,
+					ExpiryDate = eatNow.AddMinutes(10)
 				};
+
 				await _context.AddAsync(otps);
 				await _context.SaveChangesAsync();
+
 				return ServiceResponse<bool>.Success("OTP saved successfully", true);
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
+				_logger.LogError(ex, "Error saving OTP for {PhoneNumber}", phoneNumber);
 				return ServiceResponse<bool>.Error("An error occurred while saving OTP", false);
 			}
 		}
