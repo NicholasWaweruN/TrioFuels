@@ -283,5 +283,15 @@
 			return Ok(response);
 		}
 
+		[HttpGet("VerifyOTP")]
+		public async Task<IActionResult> VerifyOTP([FromQuery] string phoneNumber, [FromQuery] string otp)
+		{
+			if (string.IsNullOrWhiteSpace(phoneNumber) || string.IsNullOrWhiteSpace(otp))
+				return BadRequest("Phone number and OTP are required");
+
+			var result = await _signIn.VerifyOTPAsync(phoneNumber, otp);
+			return Ok(result);
+		}
+
 	}
 }

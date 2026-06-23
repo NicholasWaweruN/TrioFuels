@@ -14,5 +14,6 @@ namespace BussinessLogic.Authentication.SignIn
 		Task<ServiceResponse<object>> SendOTP(string phoneNumber);
 		Task<ServiceResponse<object>> SendOTPAsync([EmailAddress] string email);
 		Task<ServiceResponse<object>> SignInUserAsync(EmailLoginModel signIn);
+		Task<ServiceResponse<object>> VerifyOTPAsync(string phoneNumber, string otp);
 	}
 }

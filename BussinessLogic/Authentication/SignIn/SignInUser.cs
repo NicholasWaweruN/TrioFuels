@@ -7,6 +7,7 @@ using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Authentication;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -621,8 +622,9 @@ namespace BussinessLogic.Authentication.SignIn
 				var otpEntity = await _context.Otps
 					.Where(o => o.OTPCode == reset.OTP
 							 && o.PhoneNumber == reset.PhoneNumber
-							 && o.OTPStatus == true
+							 && o.OTPStatus == false
 							 && o.DateCreated >= DateTime.UtcNow.AddMinutes(-10))
+
 					.OrderByDescending(o => o.DateCreated)
 					.FirstOrDefaultAsync();
 
@@ -637,7 +639,7 @@ namespace BussinessLogic.Authentication.SignIn
 						"You have used this password before. Please choose a different password.", null);
 
 				// Consume OTP immediately to prevent replay
-				otpEntity.OTPStatus = false;
+				otpEntity.OTPStatus = true;
 				_context.Otps.Update(otpEntity);
 
 				var token = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -654,7 +656,6 @@ namespace BussinessLogic.Authentication.SignIn
 				user.PasswordLastUpdated = DateTime.UtcNow;
 
 				await _userManager.UpdateSecurityStampAsync(user);
-
 				_context.PasswordHistory.Add(new PasswordHistory
 				{
 					UserCode = user.UserCode,
@@ -784,6 +785,35 @@ namespace BussinessLogic.Authentication.SignIn
 					return true;
 			}
 			return false;
+		}
+
+		public async Task<ServiceResponse<object>> VerifyOTPAsync(string phoneNumber, string otp)
+		{
+			try
+			{
+				var otpEntity = await _context.Otps
+					.Where(o => o.PhoneNumber == phoneNumber
+							 && o.OTPCode == otp
+							 && o.OTPStatus == false
+							 && o.ExpiryDate >= EatTime.Now)
+					.OrderByDescending(o => o.DateCreated)
+					.FirstOrDefaultAsync();
+
+				if (otpEntity is null)
+					return ServiceResponse<object>.Information("Invalid or expired OTP", null);
+
+				// Consume OTP to prevent replay
+				otpEntity.OTPStatus = false;
+				_context.Otps.Update(otpEntity);
+				await _context.SaveChangesAsync();
+
+				return ServiceResponse<object>.Success("OTP verified successfully", null);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error verifying OTP for {PhoneNumber}", phoneNumber);
+				return ServiceResponse<object>.Error("An error occurred while verifying OTP", null);
+			}
 		}
 	}
 	public class ResetPasswordModel
