@@ -1,23 +1,18 @@
-﻿using BussinessLogic.Authentication.CommonTasks;
-using BusinessLogic.Authentication.Token;
+﻿using BusinessLogic.Authentication.Token;
 using BusinessLogic.EmailService;
-using BusinessLogic.Messaging;
+using BussinessLogic.Authentication.AddUsers;
+using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.Setup;
+using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Authentication;
-using DataAccessLayer.EntityModels.SetUps;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.ComponentModel.DataAnnotations;
-using BusinessLogic.Authentication.CommonTasks;
-using BussinessLogic.Setup;
-using DataAccessLayer.Authentication.Entity;
-using BussinessLogic.Authentication.AddUsers;
-using PhoneNumbers;
-using BussinessLogic.Messaging;
 using OnfonSms;
+using System.ComponentModel.DataAnnotations;
 
 namespace BussinessLogic.Authentication.SignIn
 {
@@ -558,13 +553,11 @@ namespace BussinessLogic.Authentication.SignIn
 		/// <summary>
 		/// Changes the user's password (authenticated user action).
 		/// </summary>
-		public async Task<ServiceResponse<object>> ChangePasswordAsync(
-			string oldPassword, string newPassword, string confirmPassword)
+		public async Task<ServiceResponse<object>> ChangePasswordAsync(string oldPassword, string newPassword, string confirmPassword)
 		{
 			try
 			{
-				var user = await _context.Users
-					.FirstOrDefaultAsync(u => u.UserCode == _authentication.Usercode());
+				var user = await _context.Users.FirstOrDefaultAsync(u => u.UserCode == _authentication.Usercode());
 
 				if (user is null)
 					return ServiceResponse<object>.Information("User not found", null);
@@ -618,8 +611,9 @@ namespace BussinessLogic.Authentication.SignIn
 		{
 			try
 			{
-				var user = await _context.Users
-					.FirstOrDefaultAsync(x => x.PhoneNumber == reset.PhoneNumber);
+				var sanitizedPhoneNumber = _messagingService.NormalizePhoneNumber(reset.PhoneNumber);
+				var user = await _context.Users.FirstOrDefaultAsync(x => x.PhoneNumber == reset.PhoneNumber);
+
 
 				if (user is null)
 					return ServiceResponse<object>.Information("Phone number does not exist", null);
