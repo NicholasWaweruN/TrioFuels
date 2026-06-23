@@ -531,7 +531,7 @@ namespace BussinessLogic.Authentication.SignIn
 			try
 			{
 				var otp = _messagingService.GetOtp();
-
+				phoneNumber = _messagingService.NormalizePhoneNumber(phoneNumber);
 				var otpResponse = await _messagingService.SaveEmailOtpAsync(phoneNumber, otp);
 
 				if (otpResponse.ResponseCode != Response.Success)
