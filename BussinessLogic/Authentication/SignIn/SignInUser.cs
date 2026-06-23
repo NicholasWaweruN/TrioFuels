@@ -611,7 +611,7 @@ namespace BussinessLogic.Authentication.SignIn
 		{
 			try
 			{
-				var sanitizedPhoneNumber = _messagingService.NormalizePhoneNumber(reset.PhoneNumber);
+				reset.PhoneNumber = _messagingService.NormalizePhoneNumber(reset.PhoneNumber);
 				var user = await _context.Users.FirstOrDefaultAsync(x => x.PhoneNumber == reset.PhoneNumber);
 
 
