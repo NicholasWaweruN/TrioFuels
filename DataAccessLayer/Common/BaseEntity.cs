@@ -12,7 +12,7 @@ namespace DataAccessLayer.Common
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
         public long Id { get; set; } 
-        public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+        public DateTime DateCreated { get; set; } = DateTime.UtcNow.AddHours(3);
         [StringLength(20), Unicode(false)]
         public string UserCode { get; set; } = string.Empty;
     }

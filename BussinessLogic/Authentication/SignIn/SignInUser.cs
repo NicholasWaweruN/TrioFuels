@@ -622,7 +622,7 @@ namespace BussinessLogic.Authentication.SignIn
 					.Where(o => o.OTPCode == reset.OTP
 							 && o.PhoneNumber == reset.PhoneNumber
 							 && o.OTPStatus == true
-							 && o.DateCreated >= DateTime.UtcNow.AddMinutes(-10))
+							 && o.DateCreated >= DateTime.UtcNow.AddHours(3).AddMinutes(-10))
 					.OrderByDescending(o => o.DateCreated)
 					.FirstOrDefaultAsync();
 
