@@ -532,7 +532,7 @@ namespace BussinessLogic.Authentication.SignIn
 			{
 				var otp = _messagingService.GetOtp();
 				phoneNumber = _messagingService.NormalizePhoneNumber(phoneNumber);
-				var otpResponse = await _messagingService.SaveEmailOtpAsync(phoneNumber, otp);
+				var otpResponse = await _messagingService.SaveOtpAsync(phoneNumber, otp);
 
 				if (otpResponse.ResponseCode != Response.Success)
 					return ServiceResponse<object>.Information("OTP not saved", otpResponse.ResponseObject);
@@ -622,7 +622,7 @@ namespace BussinessLogic.Authentication.SignIn
 					.Where(o => o.OTPCode == reset.OTP
 							 && o.PhoneNumber == reset.PhoneNumber
 							 && o.OTPStatus == true
-							 && o.DateCreated >= DateTime.UtcNow.AddHours(3).AddMinutes(-10))
+							 && o.DateCreated >= DateTime.UtcNow.AddMinutes(-10))
 					.OrderByDescending(o => o.DateCreated)
 					.FirstOrDefaultAsync();
 

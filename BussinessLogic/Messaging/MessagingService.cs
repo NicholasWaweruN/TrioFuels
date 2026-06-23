@@ -179,6 +179,7 @@ namespace BusinessLogic.EmailService
 					OTPCode = otp,
 					OTPStatus = true,
 					PhoneNumber = phoneNumber,
+					DateCreated = DateTime.UtcNow.AddHours(3)
 
 				};
 				await _context.AddAsync(otps);
@@ -199,10 +200,11 @@ namespace BusinessLogic.EmailService
 				{
 					OTPType = 1,
 					UserCode = string.Empty,
-					ExpiryDate = DateTime.UtcNow,
+					ExpiryDate = DateTime.UtcNow.AddHours(3),
 					OTPCode = otp,
 					OTPStatus = true,
 					EmailAddress = email,
+					DateCreated = DateTime.UtcNow.AddHours(3),
 
 				};
 				await _context.AddAsync(otps);
