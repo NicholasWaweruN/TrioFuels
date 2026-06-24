@@ -68,7 +68,7 @@ namespace DataAccessLayer.DTOs.Shifts.Station
     }
     //UPDATE
 
-    public class updateTankDto
+    public class updateTankDto 
     {
         [Required, StringLength(50), Unicode(false)]
         public string TankName { get; set; } = string.Empty;

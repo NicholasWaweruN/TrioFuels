@@ -51,8 +51,9 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 		foreach (var till in _cfg.Tills)
 		{
-			logger.LogInformation("[C2B][RegisterAllTills] Registering Till={TillNumber} ({Name})",till.TillNumber, till.Name);
-			var result = await RegisterUrlsAsync(till.TillNumber, ct);
+			logger.LogInformation("[C2B][RegisterAllTills] Registering StoreNumber={StoreNumber} ({Name})",
+				till.StoreNumber, till.Name);
+			var result = await RegisterUrlsAsync(till.StoreNumber, ct);
 			results.Add(result);
 		}
 		return results;
