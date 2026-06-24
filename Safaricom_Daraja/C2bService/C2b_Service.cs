@@ -302,9 +302,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 			if (byShortCode is not null)
 			{
-				logger.LogInformation(
-					"[C2B][ResolveTill] Matched via BusinessShortCode='{BSC}' → Till={Till} ({Name})",
-					request.BusinessShortCode, byShortCode.TillNumber, byShortCode.Name);
+				logger.LogInformation("[C2B][ResolveTill] Matched via BusinessShortCode='{BSC}' → Till={Till} ({Name})",request.BusinessShortCode, byShortCode.TillNumber, byShortCode.Name);
 				return byShortCode;
 			}
 
@@ -326,9 +324,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 			if (byRef is not null)
 			{
-				logger.LogInformation(
-					"[C2B][ResolveTill] Matched via BillRefNumber='{Ref}' → Till={Till} ({Name})",
-					targetRef, byRef.TillNumber, byRef.Name);
+				logger.LogInformation("[C2B][ResolveTill] Matched via BillRefNumber='{Ref}' → Till={Till} ({Name})",targetRef, byRef.TillNumber, byRef.Name);
 				return byRef;
 			}
 		}
@@ -344,16 +340,11 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 			if (byTextSearch is not null)
 			{
-				logger.LogInformation(
-					"[C2B][ResolveTill] Matched via text extraction from payloads ('{Text}') → Till={Till} ({Name})",
-					combinedText, byTextSearch.TillNumber, byTextSearch.Name);
+				logger.LogInformation("[C2B][ResolveTill] Matched via text extraction from payloads ('{Text}') → Till={Till} ({Name})",combinedText, byTextSearch.TillNumber, byTextSearch.Name);
 				return byTextSearch;
 			}
 
-			logger.LogWarning(
-				"[C2B][ResolveTill] No till matched BSC='{BSC}' or combined payload strings '{Text}'. " +
-				"Check DiagnosticDump RAW JSON output for a till-identifying field not yet mapped onto C2BConfirmationRequest.",
-				request.BusinessShortCode, combinedText);
+			logger.LogWarning("[C2B][ResolveTill] No till matched BSC='{BSC}' or combined payload strings '{Text}'. " +"Check DiagnosticDump RAW JSON output for a till-identifying field not yet mapped onto C2BConfirmationRequest.",request.BusinessShortCode, combinedText);
 		}
 
 		return null;
@@ -383,10 +374,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		var byShortCode = _cfg.Tills.FirstOrDefault(t =>
 			string.Equals(t.TillNumber, request.BusinessShortCode, StringComparison.OrdinalIgnoreCase));
 
-		var byRef = !string.IsNullOrWhiteSpace(request.BillRefNumber)
-			? _cfg.Tills.FirstOrDefault(t =>
-				string.Equals(t.AccountReference, request.BillRefNumber.Trim(), StringComparison.OrdinalIgnoreCase))
-			: null;
+		var byRef = !string.IsNullOrWhiteSpace(request.BillRefNumber) ? _cfg.Tills.FirstOrDefault(t => string.Equals(t.AccountReference, request.BillRefNumber.Trim(), StringComparison.OrdinalIgnoreCase)) : null;
 
 		Console.WriteLine($"Would match via BusinessShortCode → {(byShortCode is not null ? $"{byShortCode.TillNumber} ({byShortCode.Name})" : "NO MATCH")}");
 		Console.WriteLine($"Would match via BillRefNumber      → {(byRef is not null ? $"{byRef.TillNumber} ({byRef.Name})" : "NO MATCH")}");
@@ -404,10 +392,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 	private static DateTime ParseTransTime(string? value, DateTime eatFallback)
 	{
-		if (value?.Length == 14 &&
-			DateTime.TryParseExact(
-				value, "yyyyMMddHHmmss", null,
-				System.Globalization.DateTimeStyles.None, out var dt))
+		if (value?.Length == 14 && DateTime.TryParseExact(value, "yyyyMMddHHmmss", null,System.Globalization.DateTimeStyles.None, out var dt))
 		{
 			return dt;
 		}
