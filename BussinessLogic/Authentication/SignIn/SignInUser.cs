@@ -791,6 +791,7 @@ namespace BussinessLogic.Authentication.SignIn
 		{
 			try
 			{
+				phoneNumber = _messagingService.NormalizePhoneNumber(phoneNumber);
 				var otpEntity = await _context.Otps
 					.Where(o => o.PhoneNumber == phoneNumber
 							 && o.OTPCode == otp
