@@ -11,7 +11,6 @@ using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
 
 namespace Safaricom_Daraja.Stk_Push;
-
 public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<StkPushService> logger,OTOContext context) : IStkPushService
 {
 	private readonly DarajaConfig _cfg = options.Value;
