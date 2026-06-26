@@ -79,16 +79,17 @@ public class DarajaController(IStkPushService stkPushService,
 	[AllowAnonymous]
 	public async Task<IActionResult> StkResult(string checkoutRequestId, CancellationToken ct)
 	{
-		var tx = await stkPushService.GetMpesaTransaction(checkoutRequestId, ct); ;
+		var tx = await stkPushService.GetMpesaTransaction(checkoutRequestId, ct);
 
-		if (tx is null) return NotFound();
+		if (tx is null)
+			return Ok(new { ResultCode = "pending", TransID = "", Amount = "0" });
 
-		return Ok(new
+		return tx.Status switch
 		{
-			ResultCode = "0",
-			TransID = tx.TransID,
-			Amount = tx.TransAmount.ToString()
-		});
+			1 => Ok(new { ResultCode = "0", TransID = tx.TransID, Amount = tx.TransAmount.ToString("F2") }),
+			2 => Ok(new { ResultCode = "failed", TransID = tx.TransID, Amount = "0" }),
+			_ => Ok(new { ResultCode = "pending", TransID = "", Amount = "0" })
+		};
 	}
 
 	// ─────────────────────────────────────────────
