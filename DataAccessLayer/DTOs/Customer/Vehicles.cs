@@ -12,13 +12,13 @@ namespace BusinessLogic.CustomerService
         public string CustomerCode { get; set; } = string.Empty;
         [Required, StringLength(10), Unicode(false)]
         public string VehicleRegistrationNumber { get; set; } = string.Empty;
-        [Required, StringLength(30), Unicode(false)]
+        [StringLength(30), Unicode(false)]
         public string VehicleMake { get; set; } = string.Empty;
-        [Required, StringLength(30), Unicode(false)]
+        [StringLength(30), Unicode(false)]
         public string VehicleModel { get; set; } = string.Empty;
         public int TankCapacity { get; set; }
-        [Required, StringLength(2), Unicode(false)]
-        public string ProductCode { get; set; } = string.Empty;
+		[StringLength(2), Unicode(false)]
+		public string ProductCode { get; set; } = "02";
 		[StringLength(20), Unicode(false)]
 		public string PhoneNumber { get; set; } = string.Empty;
 		public decimal RoyaltyPointPerLitre { get; set; } = 0m;

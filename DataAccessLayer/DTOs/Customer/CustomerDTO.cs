@@ -18,7 +18,7 @@ namespace DataAccessLayer.DTOs.Customer
 
 		public string CustomerEmail { get; set; } = string.Empty;
 
-		public OrganisationType OrganisationType { get; set; } 
+		public OrganisationType OrganisationType { get; set; } = OrganisationType.Individual;
 		public string OrganisationCode { get; set; } = string.Empty;
 
 		private string _krapin = string.Empty;
