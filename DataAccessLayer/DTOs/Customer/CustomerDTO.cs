@@ -23,8 +23,6 @@ namespace DataAccessLayer.DTOs.Customer
 		public string OrganisationCode { get; set; } = string.Empty;
 
 		private string _krapin = string.Empty;
-
-		[RegularExpression(@"^[A-Z]{1}[0-9]{9}[A-Z]{1}$",ErrorMessage = "KRA PIN must be 11 characters long (e.g., A123456789B).")]
 		public string Krapin { get => _krapin;set => _krapin = value?.Trim().ToUpper() ?? string.Empty;}
 		public string IdentificationNumber { get; set; } = string.Empty;
 		public bool IsCreditCustomer { get; set; } = false;
