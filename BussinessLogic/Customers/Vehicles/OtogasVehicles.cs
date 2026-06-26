@@ -611,7 +611,7 @@ namespace BussinessLogic.Customers.Vehicles
 
 			var customer = await _context.Customers
 			.AsNoTracking()
-			.Where(x => x.CustomerCode == vehicle.CustomerCode && x.IsCreditCustomer == true)
+			.Where(x => x.CustomerCode == vehicle.CustomerCode)
 			.Select(x => new
 			{
 				x.CreditLimit,
