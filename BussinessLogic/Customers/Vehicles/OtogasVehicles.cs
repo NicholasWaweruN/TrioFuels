@@ -1020,7 +1020,7 @@ namespace BussinessLogic.Customers.Vehicles
 				ConversionDate = DateTime.UtcNow,
 				ConversionStation = string.Empty,
 				VehicleMake = vehicle.VehicleMake,
-				ProductCode = vehicle.ProductCode,
+				ProductCode = "03",
 				TankCapacity = vehicle.TankCapacity,
 				Status = VehicleStatus.Active,
 				VehicleRegistrationNumber = vehicle.VehicleRegistrationNumber,
