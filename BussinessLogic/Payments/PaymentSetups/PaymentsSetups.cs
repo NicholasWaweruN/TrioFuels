@@ -315,8 +315,9 @@ namespace BussinessLogic.Payments.PaymentSetups
             Mp.""TransactionType"",
             Mp.""FirstName"" || ' ' || Mp.""LastName"" || ' ' || Mp.""MiddName"" AS ""Name"",
             CASE
-                WHEN Mp.""Status"" = 0 THEN 'Has Usage Balance'
-                WHEN Mp.""Status"" = 1 THEN 'Fully Used'
+                WHEN Mp.""Status"" = 0 THEN 'Fully Used'
+                WHEN Mp.""Status"" = 1 THEN 'Has Usage Balance'
+				WHEN Mp.""Status"" = 2 THEN 'Partially Used'
                 WHEN Mp.""Status"" = 3 THEN 'Blocked'
                 ELSE ''
             END AS ""Status""
@@ -505,7 +506,8 @@ namespace BussinessLogic.Payments.PaymentSetups
 					{
 						0 => "Fully Used",
 						1 => "Has Usage Balance",
-						2 => "Blocked",
+						2 => "Partially Use",
+						3 => "Blocked",
 						_ => "Unknown"
 					};
 				}
