@@ -622,7 +622,7 @@ namespace BussinessLogic.Authentication.SignIn
 				var otpEntity = await _context.Otps
 					.Where(o => o.OTPCode == reset.OTP
 							 && o.PhoneNumber == reset.PhoneNumber
-							 && o.OTPStatus == false
+							 && o.OTPStatus == true
 							 && o.DateCreated >= DateTime.UtcNow.AddMinutes(-10))
 
 					.OrderByDescending(o => o.DateCreated)
@@ -639,7 +639,7 @@ namespace BussinessLogic.Authentication.SignIn
 						"You have used this password before. Please choose a different password.", null);
 
 				// Consume OTP immediately to prevent replay
-				otpEntity.OTPStatus = true;
+				otpEntity.OTPStatus = false;
 				_context.Otps.Update(otpEntity);
 
 				var token = await _userManager.GeneratePasswordResetTokenAsync(user);
