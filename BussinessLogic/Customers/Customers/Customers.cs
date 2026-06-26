@@ -62,10 +62,6 @@ namespace BusinessLogic.CustomerService
 				if (!_messaging.IsValidPhoneNumber(customerDTO.CustomerPhone))
 					return ServiceResponse<object>.Information("The phone number provided is not valid", null);
 
-				// Email validation
-				if (string.IsNullOrWhiteSpace(customerDTO.CustomerEmail) || !customerDTO.CustomerEmail.Contains('@'))
-					return ServiceResponse<object>.Information("The email provided is not valid", null);
-
 				customerDTO.CustomerEmail = customerDTO.CustomerEmail.Trim().ToLower();
 
 				// KRA PIN validation
