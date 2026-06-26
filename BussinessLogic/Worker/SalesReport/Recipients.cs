@@ -29,7 +29,7 @@ namespace BusinessLogic.Worker.SalesReport
 			}
 
 			// Default recipients (could be moved to config)
-			const string defaultRecipient = "wawerun@protoenergy.com";
+			const string defaultRecipient = "nicholaswawerunjeri@gmail.com";
 
 			try
 			{
