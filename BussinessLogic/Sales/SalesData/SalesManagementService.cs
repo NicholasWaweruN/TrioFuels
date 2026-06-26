@@ -10,6 +10,7 @@ using DataAccessLayer.DTOs.Transactions;
 using DataAccessLayer.EntityModels.Db_Views;
 using DataAccessLayer.EntityModels.Personal_Wallet;
 using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.Helpers;
 using DocumentFormat.OpenXml.Bibliography;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -605,9 +606,7 @@ namespace BussinessLogic.Sales.SalesData
 
 				salesQuery = salesQuery.AsNoTracking();
 
-				// Exclude test stations
-				salesQuery = salesQuery.Where(q => q.StationName != "TEST STATION");
-
+				salesQuery = salesQuery.Where(s => !s.StationName.Contains("TEST"));
 				// Apply filters
 				if (!string.IsNullOrEmpty(stationCode))
 					salesQuery = salesQuery.Where(q => q.StationCode == stationCode);
@@ -627,7 +626,7 @@ namespace BussinessLogic.Sales.SalesData
 				// If startDate and endDate are null, default to the current date
 				if (!startDate.HasValue && !endDate.HasValue)
 				{
-					var currentDate = DateTime.UtcNow;
+					var currentDate = EatTime.Now;
 					startDate = currentDate.AddDays(-3);
 					endDate = currentDate;
 				}
