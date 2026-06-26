@@ -86,7 +86,7 @@ public class DarajaController(IStkPushService stkPushService,
 
 		return tx.Status switch
 		{
-			1 => Ok(new { ResultCode = "0", TransID = tx.TransID, Amount = tx.TransAmount.ToString("F2") }),
+			1 => Ok(new { ResultCode = "0", tx.TransID, Amount = tx.TransAmount.ToString("F2") }),
 			2 => Ok(new { ResultCode = "failed", TransID = tx.TransID, Amount = "0" }),
 			_ => Ok(new { ResultCode = "pending", TransID = "", Amount = "0" })
 		};

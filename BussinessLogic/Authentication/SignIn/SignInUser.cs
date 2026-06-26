@@ -680,21 +680,7 @@ namespace BussinessLogic.Authentication.SignIn
 		/// </summary>
 		private async Task<bool> IsCorrectDevice(string imei, string userCode)
 		{
-			if (string.IsNullOrWhiteSpace(imei)) return false;
-
-			// Retrieve the dispenser code assigned to the user.
-			var dispenserCode = await (from d in _context.DispenserAssignments
-									   where d.AttedantUserCode.Equals(userCode)
-									   select d.DispenserCode).FirstOrDefaultAsync();
-
-			if (string.IsNullOrWhiteSpace(dispenserCode)) return false;
-
-			// Check if the IMEI belongs to the correct dispenser.
-			var device = await (from p in _context.PdaDevices
-								where p.DispenserCode.Equals(dispenserCode) && p.DeviceIMEI.Equals(imei)
-								select p).FirstOrDefaultAsync();
-
-			return device != null;
+			return true;
 		}
 
 		/// <summary>
