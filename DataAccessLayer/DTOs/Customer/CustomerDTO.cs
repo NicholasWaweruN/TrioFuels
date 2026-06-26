@@ -20,16 +20,15 @@ namespace DataAccessLayer.DTOs.Customer
 		[EmailAddress]
 		public string CustomerEmail { get; set; } = string.Empty;
 
-		[Required]
 		public OrganisationType OrganisationType { get; set; } 
 		public string OrganisationCode { get; set; } = string.Empty;
 
 		private string _krapin = string.Empty;
 
-		[Required][RegularExpression(@"^[A-Z]{1}[0-9]{9}[A-Z]{1}$",ErrorMessage = "KRA PIN must be 11 characters long (e.g., A123456789B).")]
+		[RegularExpression(@"^[A-Z]{1}[0-9]{9}[A-Z]{1}$",ErrorMessage = "KRA PIN must be 11 characters long (e.g., A123456789B).")]
 		public string Krapin { get => _krapin;set => _krapin = value?.Trim().ToUpper() ?? string.Empty;}
 
-		[Required]
+	
 		[StringLength(8, MinimumLength = 7,ErrorMessage = "Identification number must be 7 or 8 characters long.")]
 		public string IdentificationNumber { get; set; } = string.Empty;
 		public bool IsCreditCustomer { get; set; } = false;

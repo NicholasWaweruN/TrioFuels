@@ -242,15 +242,14 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		}
 
 		var till = await ResolveTill(request);
-		var eatNow = TimeZoneInfo.ConvertTimeFromUtc(EatTime.Now, EatTimeZone);
-
+		
 		var transaction = new MpesaTransaction
 		{
 			TransactionType = request.TransactionType ?? "C2B",
 			TransID = request.TransactionId,
 			MpesaReceiptNumber = request.TransactionId,
 			TransAmount = transAmount,
-			TransTime = ParseTransTime(request.TransTime, eatNow),
+			TransTime = ParseTransTime(request.TransTime, EatTime.Now),
 			BusinessShortCode = request.BusinessShortCode ?? string.Empty,
 			TillNumber = till?.TillNumber ?? "UNMATCHED",
 			TillName = till?.TillName ?? "UNMATCHED",
@@ -261,10 +260,10 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			LastName = request.LastName ?? string.Empty,
 			OrgAccountBalance = orgBalance,
 			UsageBalance = transAmount,
-			Status = till is not null ? 1 : 2,
-			DateTimeStamp = eatNow,
-			DateModified = eatNow,
-			DateCreated = eatNow,
+			Status = till is not null ? 1 : 0,
+			DateTimeStamp = EatTime.Now,
+			DateModified = EatTime.Now,
+			DateCreated = EatTime.Now,
 			UserCode = "Mpesa",
 			CheckoutRequestID = string.Empty,
 			MerchantRequestID = string.Empty,
