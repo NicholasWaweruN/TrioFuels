@@ -795,7 +795,7 @@ namespace BussinessLogic.Authentication.SignIn
 				var otpEntity = await _context.Otps
 					.Where(o => o.PhoneNumber == phoneNumber
 							 && o.OTPCode == otp
-							 && o.OTPStatus == false
+							 && o.OTPStatus == true
 							 && o.ExpiryDate >= EatTime.Now)
 					.OrderByDescending(o => o.DateCreated)
 					.FirstOrDefaultAsync();
@@ -804,7 +804,7 @@ namespace BussinessLogic.Authentication.SignIn
 					return ServiceResponse<object>.Information("Invalid or expired OTP", null);
 
 				// Consume OTP to prevent replay
-				otpEntity.OTPStatus = true;
+				otpEntity.OTPStatus = false;
 				_context.Otps.Update(otpEntity);
 				await _context.SaveChangesAsync();
 
