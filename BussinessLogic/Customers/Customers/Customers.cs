@@ -69,29 +69,18 @@ namespace BusinessLogic.CustomerService
 				customerDTO.CustomerEmail = customerDTO.CustomerEmail.Trim().ToLower();
 
 				// KRA PIN validation
-				static bool IsValidKRAPinFormat(string pin)
-					=> !string.IsNullOrWhiteSpace(pin) && Regex.IsMatch(pin, @"^[A-Z]{1}\d{9}[A-Z]{1}$");
 
-				if (!IsValidKRAPinFormat(customerDTO.Krapin))
-					return ServiceResponse<object>.Information($"{customerDTO.Krapin?.ToUpper()} is an invalid KRA PIN format.", null);
+
 
 				// ---------------- DUPLICATE CHECK ----------------
 
 				var existingCustomer = await _context.Customers.AsNoTracking().FirstOrDefaultAsync(x =>
-					   x.CustomerEmail == customerDTO.CustomerEmail
-					|| x.CustomerPhone == customerDTO.CustomerPhone
-					|| x.KRAPin == customerDTO.Krapin);
+					 x.CustomerPhone == customerDTO.CustomerPhone);
 
 				if (existingCustomer != null)
 				{
-					if (existingCustomer.CustomerEmail.Equals(customerDTO.CustomerEmail, StringComparison.OrdinalIgnoreCase))
-						return ServiceResponse<object>.Information($"Customer email {customerDTO.CustomerEmail} already exists", null);
-
 					if (existingCustomer.CustomerPhone == customerDTO.CustomerPhone)
 						return ServiceResponse<object>.Information($"Customer phone number {customerDTO.CustomerPhone} already exists", null);
-
-					if (existingCustomer.KRAPin == customerDTO.Krapin)
-						return ServiceResponse<object>.Information($"Customer KRA PIN {customerDTO.Krapin} already exists", null);
 				}
 
 				// ---------------- GENERATE CUSTOMER CODE ----------------
