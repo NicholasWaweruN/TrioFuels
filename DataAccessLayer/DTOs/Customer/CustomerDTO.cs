@@ -16,7 +16,6 @@ namespace DataAccessLayer.DTOs.Customer
 		[RegularExpression(@"^((\+2547\d{8})|(07\d{8})|(\+2541\d{8})|(01\d{8}))$",ErrorMessage = "Enter a valid Kenyan phone number (e.g., 0712345678 or +254712345678).")]
 		public string CustomerPhone { get => _customerPhone; set => _customerPhone = value?.Trim() ?? string.Empty; }
 
-		[EmailAddress]
 		public string CustomerEmail { get; set; } = string.Empty;
 
 		public OrganisationType OrganisationType { get; set; } 
