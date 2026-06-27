@@ -62,6 +62,7 @@ using BussinessLogic.Worker.StockReports;
 
 // ── External ───────────────────────────────────────────────────────────────
 using DataAccessLayer.DTOs.Messaging;
+using Safaricom_Daraja.Helpers;
 using Syncfusion.Pdf;
 
 namespace FuelFlow.Extensions;
@@ -177,7 +178,7 @@ public static class BusinessServicesExtensions
 
 		// Program.cs
 	
-
+		services.AddScoped<IShiftResolver,ShiftResolver>();
 	
 
 

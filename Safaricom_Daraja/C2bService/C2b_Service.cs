@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja.DarajaTokenService;
+using Safaricom_Daraja.Helpers;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -21,11 +22,11 @@ public interface IC2BService
 	Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default);
 }
 
-public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<C2BService> logger,OTOContext context) : IC2BService
+public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<C2BService> logger,OTOContext context, IShiftResolver _shiftResolver) : IC2BService
 {
 	private readonly DarajaConfig _cfg = options.Value;
 	private static readonly TimeZoneInfo EatTimeZone = TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "E. Africa Standard Time" : "Africa/Nairobi");
-
+	private readonly IShiftResolver shiftResolver = _shiftResolver;
 	// ── Registration ──────────────────────────────────────────────────────────
 
 	/// <summary>
@@ -243,7 +244,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		}
 
 		var till = await ResolveTill(request);
-		
+		var shiftNumber = await shiftResolver.GetCurrentShiftByTill(till!.TillNumber);
 
 		var transaction = new MpesaTransaction
 		{
@@ -269,7 +270,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			UserCode = "Mpesa",
 			CheckoutRequestID = string.Empty,
 			MerchantRequestID = string.Empty,
-			ShiftNumber = string.Empty
+			ShiftNumber = shiftNumber.ResponseObject!
 		};
 
 		try
