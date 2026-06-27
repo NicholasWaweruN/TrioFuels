@@ -12,7 +12,7 @@ public static class ViewInitializer
 	  @"DROP VIEW IF EXISTS ""vw_SalesData"" CASCADE;");
 
 		await context.Database.ExecuteSqlRawAsync(
-			@"DROP VIEW IF EXISTS ""vw_PaymentsView"" CASCADE;");
+	  @"DROP VIEW IF EXISTS ""vw_PaymentsView"" CASCADE;");
 
 		// Create vw_PaymentsView first
 		await context.Database.ExecuteSqlRawAsync(@"
