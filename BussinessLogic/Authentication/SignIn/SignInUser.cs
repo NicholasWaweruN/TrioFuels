@@ -2,6 +2,7 @@
 using BusinessLogic.EmailService;
 using BussinessLogic.Authentication.AddUsers;
 using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.Messaging;
 using BussinessLogic.Setup;
 using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;

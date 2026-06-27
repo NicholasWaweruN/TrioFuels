@@ -38,130 +38,177 @@ namespace BussinessLogic.Stock.VarianceReport
 		{
 			try
 			{
-				// Fetch variances from database
-				var variances = await (from ss in _context.StockTakeSummaries
-									   join n in _context.Nozzles on ss.NozzleCode equals n.NozzleCode
-									   join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
-									   join s in _context.Stations on d.StationCode equals s.StationCode
-									   join u in _context.Users on ss.UserCode equals u.UserCode
-									   join sft in _context.Shifts on ss.ShiftNumber equals sft.ShiftNumber
-									   where ss.ShiftNumber == shiftNumber
-									   select new VarianceDto
-									   {
-										   ShiftId = sft.Id,
-										   DispenserCode = d.DispenserCode,
-										   ShiftNumber = ss.ShiftNumber,
-										   UserCode = ss.UserCode,
-										   NozzleCode = ss.NozzleCode,
-										   OpeningReading = ss.OpeningReading,
-										   ExpectedOpeningReading = ss.ExpectedOpeningReading,
-										   ClosingReading = ss.ClosingReading,
-										   ExpectedClosingReading = ss.ExpectedClosingReading,
-										   Variance = ss.ClosingVariance + ss.OpeningVariance,
-										   QuantitySold = ss.QuantitySold,
-										   Status = ss.VarianceStatus == 2 ? "VARIANCE" : "CLOSED",
-										   DateCreated = ss.DateCreated,
-										   NozzleName = n.NozzleName,
-										   DispenserName = d.DispenserName,
-										   StationName = s.StationName,
-										   StationCode = s.StationCode,
-										   PayrollNumber = u.PayrollNumber,
-										   Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
-									   }).AsNoTracking().ToListAsync();
+				// ── 1. Fetch variance data ────────────────────────────────────────────
+				var variances = await (
+					from ss in _context.StockTakeSummaries
+					join n in _context.Nozzles on ss.NozzleCode equals n.NozzleCode
+					join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
+					join s in _context.Stations on d.StationCode equals s.StationCode
+					join u in _context.Users on ss.UserCode equals u.UserCode
+					join sft in _context.Shifts on ss.ShiftNumber equals sft.ShiftNumber
+					where ss.ShiftNumber == shiftNumber
+					select new VarianceDto
+					{
+						ShiftId = sft.Id,
+						DispenserCode = d.DispenserCode,
+						ShiftNumber = ss.ShiftNumber,
+						UserCode = ss.UserCode,
+						NozzleCode = ss.NozzleCode,
+						OpeningReading = ss.OpeningReading,
+						ExpectedOpeningReading = ss.ExpectedOpeningReading,
+						ClosingReading = ss.ClosingReading,
+						ExpectedClosingReading = ss.ExpectedClosingReading,
+						Variance = ss.ClosingVariance + ss.OpeningVariance,
+						QuantitySold = ss.QuantitySold,
+						Status = ss.VarianceStatus == 2 ? "VARIANCE" : "CLOSED",
+						DateCreated = ss.DateCreated,
+						NozzleName = n.NozzleName,
+						DispenserName = d.DispenserName,
+						StationName = s.StationName,
+						StationCode = s.StationCode,
+						PayrollNumber = u.PayrollNumber,
+						Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
+					}
+				).AsNoTracking().ToListAsync();
 
 				if (variances.Count == 0)
-				{
 					return ServiceResponse<object>.Information("No variances found for the specified shift.", null);
-				}
 
-				// Populate DataTable for variances
-				var dataTable = new DataTable("VarianceReport");
-				dataTable.Columns.AddRange(
+				// ── 2. Fetch sales summary grouped by payment type ────────────────────
+				var salesSummary = await (
+					from qt in _context.QuantityTransactions
+					join p in _context.PaymentTypes on qt.PaymentTypeCode equals p.PaymentTypeId
+					join sh in _context.Shifts on qt.ShiftNumber equals sh.ShiftNumber
+					join su in _context.Users on sh.UserCode equals su.UserCode
+					where qt.ShiftNumber == shiftNumber
+					group new { qt, p, su } by new
+					{
+						qt.ShiftNumber,
+						PaymentTypeName = p.PaymentTypeName,
+						AttendantName = (su.FirstName ?? "") + " " + (su.LastName ?? ""),
+					}
+					into g
+					select new
+					{
+						g.Key.ShiftNumber,
+						g.Key.PaymentTypeName,
+						g.Key.AttendantName,
+						ShiftDate = g.Min(x => x.qt.DateCreated),
+						TotalLitres = g.Sum(x => x.qt.QuantityCredit - x.qt.QuantityDebit),
+						TotalAmount = g.Sum(x => x.qt.AmountCredit - x.qt.AmountDebit),
+					}
+				).AsNoTracking().OrderBy(x => x.PaymentTypeName).ToListAsync();
+
+				// ── 3. Build variance DataTable (Sheet 1) ─────────────────────────────
+				var varianceTable = new DataTable("Variance Report");
+				varianceTable.Columns.AddRange(
 				[
-					new("ShiftId", typeof(int)),
-			new("DispenserCode", typeof(string)),
-			new("ShiftNumber", typeof(string)),
-			new("UserCode", typeof(string)),
-			new("NozzleCode", typeof(string)),
-			new("OpeningReading", typeof(decimal)),
+					new("ShiftId",                typeof(int)),
+			new("DispenserCode",          typeof(string)),
+			new("ShiftNumber",            typeof(string)),
+			new("UserCode",               typeof(string)),
+			new("NozzleCode",             typeof(string)),
+			new("OpeningReading",         typeof(decimal)),
 			new("ExpectedOpeningReading", typeof(decimal)),
-			new("ClosingReading", typeof(decimal)),
+			new("ClosingReading",         typeof(decimal)),
 			new("ExpectedClosingReading", typeof(decimal)),
-			new("Variance", typeof(decimal)),
-			new("QuantitySold", typeof(decimal)),
-			new("Status", typeof(string)),
-			new("DateCreated", typeof(DateTime)),
-			new("NozzleName", typeof(string)),
-			new("DispenserName", typeof(string)),
-			new("StationName", typeof(string)),
-			new("StationCode", typeof(string)),
-			new("PayrollNumber", typeof(string)),
-			new("Name", typeof(string))
-				]);
+			new("Variance",               typeof(decimal)),
+			new("QuantitySold",           typeof(decimal)),
+			new("Status",                 typeof(string)),
+			new("DateCreated",            typeof(DateTime)),
+			new("NozzleName",             typeof(string)),
+			new("DispenserName",          typeof(string)),
+			new("StationName",            typeof(string)),
+			new("StationCode",            typeof(string)),
+			new("PayrollNumber",          typeof(string)),
+			new("Name",                   typeof(string)),
+		]);
 
-				foreach (var variance in variances)
+				foreach (var v in variances)
 				{
-					dataTable.Rows.Add(
-						variance.ShiftId,
-						variance.DispenserCode,
-						variance.ShiftNumber,
-						variance.UserCode,
-						variance.NozzleCode,
-						variance.OpeningReading,
-						variance.ExpectedOpeningReading,
-						variance.ClosingReading,
-						variance.ExpectedClosingReading,
-						variance.Variance,
-						variance.QuantitySold,
-						variance.Status,
-						variance.DateCreated,
-						variance.NozzleName,
-						variance.DispenserName,
-						variance.StationName,
-						variance.StationCode,
-						variance.PayrollNumber,
-						variance.Name ?? string.Empty
+					varianceTable.Rows.Add(
+						v.ShiftId, v.DispenserCode, v.ShiftNumber, v.UserCode,
+						v.NozzleCode, v.OpeningReading, v.ExpectedOpeningReading,
+						v.ClosingReading, v.ExpectedClosingReading, v.Variance,
+						v.QuantitySold, v.Status, v.DateCreated, v.NozzleName,
+						v.DispenserName, v.StationName, v.StationCode,
+						v.PayrollNumber, v.Name ?? string.Empty
 					);
 				}
 
-				// Calculate totals
+				// ── 4. Build sales summary DataTable (Sheet 2) ────────────────────────
+				var salesTable = new DataTable("Sales Summary");
+				salesTable.Columns.AddRange(
+				[
+					new("ShiftNumber",    typeof(string)),
+			new("ShiftDate",      typeof(DateTime)),
+			new("ShiftType",      typeof(string)),
+			new("AttendantName",  typeof(string)),
+			new("PaymentType",    typeof(string)),
+			new("TotalLitres",    typeof(decimal)),
+			new("TotalAmount",    typeof(decimal)),
+		]);
+
+				foreach (var row in salesSummary)
+				{
+					var shiftDate = row.ShiftDate;
+					var shiftType = shiftDate.Hour >= 7 && shiftDate.Hour < 19
+									? "Day Shift"
+									: "Night Shift";
+
+					salesTable.Rows.Add(
+						row.ShiftNumber,
+						shiftDate,
+						shiftType,
+						row.AttendantName,
+						row.PaymentTypeName,
+						row.TotalLitres,
+						row.TotalAmount
+					);
+				}
+
+				// Totals row
+				salesTable.Rows.Add(
+					"TOTAL", DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value,
+					salesSummary.Sum(x => x.TotalLitres),
+					salesSummary.Sum(x => x.TotalAmount)
+				);
+
+				// ── 5. Totals for subject line ────────────────────────────────────────
 				var totalVariance = variances.Sum(x => x.Variance);
 				var litresSold = await _context.QuantityTransactions
-					.Where(q => q.ShiftNumber == shiftNumber)
-					.SumAsync(x => x.QuantityCredit - x.QuantityDebit);
+										.Where(q => q.ShiftNumber == shiftNumber)
+										.SumAsync(x => x.QuantityCredit - x.QuantityDebit);
 
-				// Email subject and body
-				var subject = $"{variances.First().StationName} {variances.First().DispenserName} Variance Shift: {variances.First().ShiftNumber} (ShiftId: {variances.First().ShiftId})" +
+				// ── 6. Email subject + body ───────────────────────────────────────────
+				var first = variances.First();
+				var subject = $"{first.StationName} {first.DispenserName} " +
+							  $"Variance Shift: {first.ShiftNumber} (ShiftId: {first.ShiftId})" +
 							  (totalVariance == 0 ? " - Variance Cleared Automatically" : "");
+
 				var body = CreateEmailBody(variances, totalVariance, litresSold, totalVariance == 0);
 
-				// Fetch and validate email recipients
+				// ── 7. Fetch recipients ───────────────────────────────────────────────
 				var result = await GetEmailRecipients("001");
 				var realResult = result.ResponseObject;
+
 				if (realResult?.To == null || !realResult.To.Any())
-				{
 					return ServiceResponse<object>.Information("No email recipients found", null);
-				}
+
 				var emailsTo = realResult.To.Split(',').ToArray();
 				var emailsToCC = realResult.ToCC.Split(',').ToArray();
 
-				var emailsTonew = realResult.To.Split(',').ToList();
-				var emailsToCCnew = realResult.ToCC.Split(',').ToList();
+				// ── 8. Send — two DataTables, two sheets in one workbook ──────────────
+				await _emails.SendEmailWithExcelAttachmentAsync(
+				emailsTo,
+				emailsToCC,
+				DateTime.UtcNow,
+				subject,
+				body,
+				varianceTable,   // → Sheet 1
+				salesTable       // → Sheet 2
+			);
 
-				// Send email with Excel attachment
-				//await _workflow.SendEmailAsync(emailsTonew,emailsToCCnew,subject,body,dataTable);
-				//var conversation =  await _workflow.GetLatestEmailAsync(subject);
-				
-				//var shift = await _context.Shifts.FirstOrDefaultAsync(s => s.ShiftNumber == shiftNumber);
-				//if (shift != null && conversation is not null)
-				//{
-				//	shift.EmailConversationId = conversation.ConversationId ?? string.Empty;
-				//	shift.IsReplySent = false;
-				//	_context.Shifts.Update(shift);
-				//	await _context.SaveChangesAsync();
-				//}
-
-			    await _emails.SendEmailWithExcelAttachmentAsync(emailsTo, emailsToCC, DateTime.UtcNow, subject, body, dataTable);
 				return ServiceResponse<object>.Success("Variance report generated successfully", null);
 			}
 			catch (Exception ex)

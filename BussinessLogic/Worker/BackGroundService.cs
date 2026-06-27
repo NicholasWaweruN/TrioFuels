@@ -1,4 +1,5 @@
-﻿using BusinessLogic.EmailService;
+﻿using Azure;
+using BusinessLogic.EmailService;
 using BusinessLogic.Worker.SalesReport;
 using BussinessLogic.Messaging;
 using BussinessLogic.Sales.Sales_ForeCast;
@@ -11,8 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph.Models.IdentityGovernance;
-using Microsoft.IdentityModel.Tokens;
+
 
 
 namespace BussinessLogic.Worker;
@@ -246,11 +246,13 @@ public class EmailBackgroundService : BackgroundService
 
 		foreach (var variance in varianceShifts)
 		{
-			await varianceReport.GetVarianceReport(variance.ShiftNumber);
-
-			variance.IsEmailSent = true;
-			dbContext.Update(variance);
-			await dbContext.SaveChangesAsync();
+			var result = await varianceReport.GetVarianceReport(variance.ShiftNumber);
+			if (result.ResponseCode == 1)
+			{
+				variance.IsEmailSent = true;
+				dbContext.Update(variance);
+				await dbContext.SaveChangesAsync();
+			}
 
 			
 		}

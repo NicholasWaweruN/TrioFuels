@@ -1,4 +1,5 @@
 ﻿using DataAccessLayer.Common;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using ServiceStack.DataAnnotations;
 using System;
@@ -127,6 +128,8 @@ namespace DataAccessLayer.EntityModels.Transactions
 		[StringLength(100)]
 		public string? MerchantRequestID { get; set; }
 
+
+
 		// ─── Receipt ──────────────────────────────────────────────────────────────
 
 		[StringLength(50)]
@@ -160,7 +163,9 @@ namespace DataAccessLayer.EntityModels.Transactions
 
 		public DateTime DateTimeStamp { get; set; }
 
-		public DateTime DateModified { get; set; } = DateTime.UtcNow;
+		public DateTime DateModified { get; set; } = EatTime.Now;
+		[StringLength(30)]
+		public string ShiftNumber { get; set; } = string.Empty;
 	}
 	public class Settings
 	{

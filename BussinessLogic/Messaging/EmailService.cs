@@ -1,27 +1,24 @@
 ﻿using BussinessLogic.Messaging;
-using DataAccessLayer.DTOs.Messaging;
-using MailKit.Net.Smtp;
-using MailKit.Security;
+using ClosedXML.Excel;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MimeKit;
+using Resend;
 using System.Data;
-using System.Text;
-
 
 public class EmailService : IEmailService
 {
-	private readonly SmtpSettings _smtp;
+	private readonly IResend _resend;
+	private readonly IConfiguration _config;
 	private readonly ILogger<EmailService> _logger;
 
-	public EmailService(IOptions<SmtpSettings> smtp, ILogger<EmailService> logger)
+	public EmailService(IResend resend, IConfiguration config, ILogger<EmailService> logger)
 	{
-		_smtp = smtp.Value;
+		_resend = resend;
+		_config = config;
 		_logger = logger;
 	}
 
-	// ── Simple send (Refactored to async Task to fix timeouts) ───────────────────
-
+	// ── Simple send ───────────────────────────────────────────────────────────
 	public async Task SendEmail(string toEmail, string? ccEmail, string subject, string body)
 	{
 		if (string.IsNullOrWhiteSpace(toEmail) ||
@@ -31,105 +28,191 @@ public class EmailService : IEmailService
 
 		try
 		{
-			var message = BuildBaseMessage(subject, body);
-			message.To.Add(MailboxAddress.Parse(toEmail));
+			var toList = new EmailAddressList();
+			toList.Add(toEmail);
+
+			var message = new EmailMessage
+			{
+				From = FromAddress(),
+				To = toList,
+				Subject = subject,
+				HtmlBody = body,
+			};
 
 			if (!string.IsNullOrWhiteSpace(ccEmail))
-				message.Cc.Add(MailboxAddress.Parse(ccEmail));
+			{
+				var ccList = new EmailAddressList();
+				ccList.Add(ccEmail);
+				message.Cc = ccList;
+			}
 
-			await ExecuteSendAsync(message);
+
+			await _resend.EmailSendAsync(message);
 			_logger.LogInformation("Email sent to {To}", toEmail);
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error sending email via MailKit to {To}", toEmail);
+			_logger.LogError(ex, "Error sending email via Resend to {To}", toEmail);
 			throw;
 		}
 	}
 
-	// ── Send with CSV attachment ────────────────────────────────
-
+	// ── Send with Excel attachment ────────────────────────────────────────────
 	public async Task SendEmailWithExcelAttachmentAsync(
 		string[] toEmails,
 		string[] ccEmails,
 		DateTime reportDate,
 		string subject,
 		string body,
-		DataTable data)
+		params DataTable[] tables)
 	{
-		using var csvStream = DataTableToCsvStream(data);
-		var filename = $"Report{reportDate:ddMMyyyy}.csv";
+		try
+		{
+			var filename = $"Report_{reportDate:ddMMyyyy}.xlsx";
 
-		var message = BuildBaseMessage(subject, body);
+			using var excelStream = DataTablesToExcelStream(tables);
+			var excelBytes = excelStream.ToArray();
 
-		foreach (var to in toEmails.Where(e => !string.IsNullOrWhiteSpace(e)))
-			message.To.Add(MailboxAddress.Parse(to));
+			var toList = new EmailAddressList();
+			toList.AddRange((IEnumerable<EmailAddress>)toEmails.Where(e => !string.IsNullOrWhiteSpace(e)));
 
-		foreach (var cc in ccEmails.Where(e => !string.IsNullOrWhiteSpace(e)))
-			message.Cc.Add(MailboxAddress.Parse(cc));
+			var ccList = new EmailAddressList();
+			ccList.AddRange((IEnumerable<EmailAddress>)ccEmails.Where(e => !string.IsNullOrWhiteSpace(e)));
 
-		// Create the multi-part body to append the attachment safely
-		var bodyBuilder = new BodyBuilder { HtmlBody = body };
+			var message = new EmailMessage
+			{
+				From = FromAddress(),
+				To = toList,
+				Cc = ccList,
+				Subject = subject,
+				HtmlBody = body,
+				Attachments =
+				[
+					new()
+		{
+			Filename    = filename,
+			Content     = excelBytes,
+			ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		}
+				]
+			};
 
-		// Reset stream position just in case before loading
-		csvStream.Position = 0;
-		bodyBuilder.Attachments.Add(filename, csvStream.ToArray(), ContentType.Parse("text/csv"));
-		message.Body = bodyBuilder.ToMessageBody();
+			var response = await _resend.EmailSendAsync(message);
 
-		await ExecuteSendAsync(message);
-		_logger.LogInformation("Attachment email sent ({File}) to {Count} recipients", filename, toEmails.Length);
+			_logger.LogInformation(
+				"Excel sent via Resend ({File}, {Sheets} sheet(s)) to {Count} recipient(s). Id: {Id}",
+				filename, tables.Length, toEmails.Length, response.Content);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Failed to send Excel email: {Message}", ex.Message);
+			throw;
+		}
 	}
 
-	// ── Private helpers ─────────────────────────────────────────
-
-	private MimeMessage BuildBaseMessage(string subject, string body)
+	// ── Helpers ───────────────────────────────────────────────────────────────
+	private string FromAddress()
 	{
-		var message = new MimeMessage();
-		message.From.Add(new MailboxAddress(_smtp.DisplayName, _smtp.Username));
-		message.Subject = subject;
-
-		// Default simple text/html body configuration
-		var bodyBuilder = new BodyBuilder { HtmlBody = body };
-		message.Body = bodyBuilder.ToMessageBody();
-
-		return message;
+		var name = _config["ResendSettings:FromName"] ?? "FuelFlow Reports";
+		var email = _config["ResendSettings:FromEmail"] ?? throw new InvalidOperationException(
+						"ResendSettings:FromEmail is not configured.");
+		return $"{name} <{email}>";
 	}
 
-	private async Task ExecuteSendAsync(MimeMessage message)
+	private static MemoryStream DataTablesToExcelStream(DataTable[] tables)
 	{
-		using var client = new SmtpClient();
+		var workbook = new XLWorkbook();
 
-		// Automatically choose secure socket options based on port
-		SecureSocketOptions options = _smtp.Port == 465
-			? SecureSocketOptions.SslOnConnect
-			: SecureSocketOptions.StartTls;
+		foreach (var dt in tables)
+		{
+			var sheetName = string.IsNullOrWhiteSpace(dt.TableName) ? "Sheet" : dt.TableName;
+			var ws = workbook.Worksheets.Add(sheetName);
 
-		// Connect, Authenticate, Send, and Disconnect cleanly
-		await client.ConnectAsync(_smtp.Host, _smtp.Port, options);
-		await client.AuthenticateAsync(_smtp.Username, _smtp.Password);
-		await client.SendAsync(message);
-		await client.DisconnectAsync(true);
-	}
+			// ── Header row ────────────────────────────────────────────────
+			for (int col = 0; col < dt.Columns.Count; col++)
+			{
+				var cell = ws.Cell(1, col + 1);
+				cell.Value = dt.Columns[col].ColumnName;
+				cell.Style.Font.Bold = true;
+				cell.Style.Font.FontColor = XLColor.White;
+				cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1F3864");
+				cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+				cell.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+				cell.Style.Border.BottomBorderColor = XLColor.FromHtml("#2E75B6");
+			}
 
-	private static MemoryStream DataTableToCsvStream(DataTable table)
-	{
-		var sb = new StringBuilder();
+			// ── Data rows ─────────────────────────────────────────────────
+			for (int row = 0; row < dt.Rows.Count; row++)
+			{
+				bool isTotal = dt.Rows[row][0]?.ToString() == "TOTAL";
+				bool isAltRow = row % 2 != 0;
+				XLColor rowBg = isTotal ? XLColor.FromHtml("#FFF2CC")
+								 : isAltRow ? XLColor.FromHtml("#F2F2F2")
+								 : XLColor.White;
 
-		sb.AppendLine(string.Join(",", table.Columns
-			.Cast<DataColumn>()
-			.Select(c => CsvEscape(c.ColumnName))));
+				for (int col = 0; col < dt.Columns.Count; col++)
+				{
+					var cell = ws.Cell(row + 2, col + 1);
+					var value = dt.Rows[row][col];
 
-		foreach (DataRow row in table.Rows)
-			sb.AppendLine(string.Join(",", row.ItemArray
-				.Select(v => CsvEscape(v?.ToString() ?? ""))));
+					cell.Value = value == DBNull.Value || value is null
+						? Blank.Value
+						: XLCellValue.FromObject(value);
 
-		return new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
-	}
+					cell.Style.Fill.BackgroundColor = rowBg;
+					cell.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+					cell.Style.Border.BottomBorderColor = XLColor.FromHtml("#D9D9D9");
 
-	private static string CsvEscape(string value)
-	{
-		if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
-			return $"\"{value.Replace("\"", "\"\"")}\"";
-		return value;
+					if (isTotal)
+					{
+						cell.Style.Font.Bold = true;
+						cell.Style.Font.FontColor = XLColor.FromHtml("#1F3864");
+					}
+
+					var colName = dt.Columns[col].ColumnName;
+
+					if (value is decimal or double or float)
+					{
+						bool isAmount = colName.Contains("Amount", StringComparison.OrdinalIgnoreCase)
+									 || colName.Contains("Price", StringComparison.OrdinalIgnoreCase);
+						bool isLitres = colName.Contains("Litre", StringComparison.OrdinalIgnoreCase)
+									 || colName.Contains("Qty", StringComparison.OrdinalIgnoreCase)
+									 || colName.Contains("Quantity", StringComparison.OrdinalIgnoreCase);
+
+						cell.Style.NumberFormat.Format = isAmount || isLitres ? "#,##0.00" : "0.00";
+						cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+					}
+					else if (value is DateTime)
+					{
+						cell.Style.NumberFormat.Format = "dd/MM/yyyy";
+						cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+					}
+					else
+					{
+						cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+					}
+				}
+			}
+
+			// ── Freeze + auto-fit ──────────────────────────────────────────
+			ws.SheetView.FreezeRows(1);
+			ws.Columns().AdjustToContents(minWidth: 10, maxWidth: 40);
+
+			// ── Total row accent border ────────────────────────────────────
+			for (int row = 0; row < dt.Rows.Count; row++)
+			{
+				if (dt.Rows[row][0]?.ToString() != "TOTAL") continue;
+				var totalRow = ws.Row(row + 2);
+				totalRow.Style.Border.TopBorder = XLBorderStyleValues.Medium;
+				totalRow.Style.Border.TopBorderColor = XLColor.FromHtml("#1F3864");
+				break;
+			}
+		}
+
+		var stream = new MemoryStream();
+		workbook.SaveAs(stream);
+		workbook.Dispose();
+		stream.Position = 0;
+		return stream;
 	}
 }

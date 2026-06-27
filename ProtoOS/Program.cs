@@ -5,8 +5,10 @@ using DataAccessLayer.DTOs.Messaging;
 using FuelFlow.Extensions;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OnfonSms;
 using Resend;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,25 +57,23 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
-builder.Services.Configure<SmtpSettings>(
-builder.Configuration.GetSection("SmtpSettings"));
+// Remove this:
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 
-
-builder.Services.Configure<SmtpSettings>(
-	builder.Configuration.GetSection("SmtpSettings"));
-
-
-builder.Services.Configure<ResendClientOptions>(
-	builder.Configuration.GetSection("Resend"));
-
+// Add this:
 builder.Services.AddHttpClient<IResend, ResendClient>((sp, client) =>
 {
-	var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ResendClientOptions>>().Value;
-
+	var options = sp.GetRequiredService<IOptions<ResendClientOptions>>().Value;
 	client.BaseAddress = new Uri("https://api.resend.com");
 	client.DefaultRequestHeaders.Authorization =
-		new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiToken);
+		new AuthenticationHeaderValue("Bearer", options.ApiToken);
 });
+
+builder.Services.Configure<ResendClientOptions>(o =>
+	o.ApiToken = builder.Configuration["ResendSettings:ApiKey"]!
+);
+
+
 
 // ── Build ───────────────────────────────────────────────────────────────────
 var app = builder.Build();

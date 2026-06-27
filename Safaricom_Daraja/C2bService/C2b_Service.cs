@@ -59,6 +59,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		return results;
 	}
 
+	
 	public async Task<DarajaResult<C2BRegisterResponse>> RegisterUrlsAsync(string shortCode, CancellationToken ct = default)
 	{
 		logger.LogInformation("[C2B][RegisterUrls] Called. ShortCode={SC}", shortCode);
@@ -243,6 +244,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 		var till = await ResolveTill(request);
 		
+
 		var transaction = new MpesaTransaction
 		{
 			TransactionType = request.TransactionType ?? "C2B",
@@ -267,6 +269,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			UserCode = "Mpesa",
 			CheckoutRequestID = string.Empty,
 			MerchantRequestID = string.Empty,
+			ShiftNumber = string.Empty
 		};
 
 		try
