@@ -86,19 +86,7 @@ namespace BussinessLogic.Sales.NewSales
 			if (precheck.ResponseCode == Response.Information)
 				return precheck;
 
-			// ── Split payment — more than one payment type present ────────
-			var distinctTypes = sales.PaymentDetails
-				.Select(p => p.PaymentTypeCode)
-				.Distinct()
-				.ToList();
-
-			if (distinctTypes.Count > 1)
-				return await HandleSplitPaymentAsync(sales, saleId);
-
-			// ── Single payment type — existing routing ─────────────────────
-			var primaryCode = distinctTypes.FirstOrDefault();
-
-			return primaryCode switch
+			return sales.PaymentTypeCode switch
 			{
 				PaymetMethod.Mpesa => await HandleMpesaAsync(sales, saleId),
 				PaymetMethod.Wallet => await HandleWalletAsync(sales, saleId),
@@ -112,6 +100,7 @@ namespace BussinessLogic.Sales.NewSales
 			};
 		}
 
+	
 
 
 
@@ -262,176 +251,6 @@ namespace BussinessLogic.Sales.NewSales
 		// Payment handlers
 		// =====================================================================
 
-		private async Task<ServiceResponse<object>> HandleSplitPaymentAsync(AddsaleDto sales, string saleId)
-		{
-			var strategy = _context.Database.CreateExecutionStrategy();
-
-			return await strategy.ExecuteAsync(async () =>
-			{
-				await using var tx = await _context.Database.BeginTransactionAsync();
-				_context.Database.AutoSavepointsEnabled = false;
-
-				try
-				{
-					var ctx = await ResolveSaleContextAsync(sales, saleId);
-
-					if (!ValidateTransactionAmount(ctx.Calculated, ctx.Requested))
-						return Info("Transaction amount does not match Quantity x Price");
-
-					// ── Validate and process each payment type ────────────────
-					var mpesaStoreNumber = string.Empty;
-					var hasMpesa = sales.PaymentDetails
-						.Any(p => p.PaymentTypeCode == PaymetMethod.Mpesa);
-
-					if (hasMpesa)
-					{
-						var station = await GetStationAsync(sales.DispenserCode);
-						mpesaStoreNumber = station.StoreNumber;
-
-						var mpesaCodes = sales.PaymentDetails
-							.Where(p => p.PaymentTypeCode == PaymetMethod.Mpesa
-									 && !string.IsNullOrWhiteSpace(p.TransactionReference))
-							.Select(p => p.TransactionReference!)
-							.ToList();
-
-						var balResult = await GetTotalUsableMpesaAsync(
-							mpesaCodes, ctx.Station.TillNumber);
-
-						if (balResult.ResponseCode != Response.Success)
-							return Info(balResult.ResponseMessage!);
-
-						var mpesaTotal = sales.PaymentDetails
-							.Where(p => p.PaymentTypeCode == PaymetMethod.Mpesa)
-							.Sum(p => p.TransactionAmount);
-
-						if (balResult.ResponseObject < (decimal)mpesaTotal)
-							return Info("Insufficient M-Pesa funds for the M-Pesa portion");
-					}
-
-					var hasCredit = sales.PaymentDetails
-						.Any(p => p.PaymentTypeCode == PaymetMethod.Credit);
-
-					if (hasCredit)
-					{
-						var customer = await _context.Customers
-							.Where(c => c.CustomerCode == ctx.Customer.CustomerCode
-									 && c.IsCreditCustomer)
-							.FirstOrDefaultAsync();
-
-						if (customer is null)
-							return Info("This customer is not approved for credit purchases.");
-
-						var creditAmount = sales.PaymentDetails
-							.Where(p => p.PaymentTypeCode == PaymetMethod.Credit)
-							.Sum(p => p.TransactionAmount);
-
-						var outstanding = await GetOutstandingCreditAsync(customer.CustomerCode);
-						var newExposure = outstanding + (decimal)creditAmount;
-
-						if (newExposure > customer.CreditLimit)
-							return ServiceResponse<object>.Information(
-								$"Credit limit exceeded. Limit: {customer.CreditLimit:N2}, " +
-								$"Outstanding: {outstanding:N2}, Credit portion: {creditAmount:N2}",
-								new { customer.CreditLimit, Outstanding = outstanding });
-
-						_context.CreditTransactions.Add(new CreditTransactions
-						{
-							CustomerCode = customer.CustomerCode,
-							Credit = 0,
-							Debit = (decimal)creditAmount,
-							SaleId = saleId,
-							TransactionReference = ctx.TransactionRef,
-							VehicleCode = sales.VehicleCode,
-							StationCode = ctx.Station.StationCode,
-							DateCreated = EatTime.Now,
-							UserCode = _authentication.Usercode()
-						});
-					}
-
-					// ── Build receipt label from all payment types used ───────
-					var paymentLabel = BuildSplitPaymentLabel(sales.PaymentDetails);
-
-					StageReceipt(ctx, sales, paymentLabel);
-
-					// ── Persist — PersistSaleAsync handles per-payment rows ───
-					var mpesaRefs = await PersistSaleAsync(sales, ctx, saleId,
-						mpesaStoreNumber: string.IsNullOrWhiteSpace(mpesaStoreNumber)
-							? null
-							: mpesaStoreNumber);
-
-					// ── Store PaymentTypeCode on QuantityTransaction as primary type
-					// (already set in BuildQuantityTransaction via sales.PaymentTypeCode
-					//  which returns first payment's code — acceptable for split)
-
-					await _context.SaveChangesAsync();
-					await tx.CommitAsync();
-
-					_context.ChangeTracker.Clear();
-
-					foreach (var transId in mpesaRefs)
-						await ReconcileAndUpdateUsageBalanceAsync(transId);
-
-					if (mpesaRefs.Count > 0)
-						await _context.SaveChangesAsync();
-
-					await WriteAuditTrailAsync(ctx, sales, "SPLIT SALE", saleId);
-
-					if (sales.IsLoyalCustomer)
-						await SafeAwardPointsAsync(sales, saleId);
-
-					// ── SMS ───────────────────────────────────────────────────
-					var smsBody = BuildSplitSms(ctx, sales);
-					StageQueuedSms(ctx.Vehicle.PhoneNumber, smsBody);
-
-					return ServiceResponse<object>.Success(
-						"Split payment sale completed successfully", null);
-				}
-				catch (Exception ex)
-				{
-					await tx.RollbackAsync();
-					Console.WriteLine($"[SplitPayment] ❌ {ex.Message}");
-					return ServiceResponse<object>.Error(
-						"An error occurred while processing the split payment.", null);
-				}
-			});
-		}
-
-		// ── Builds receipt label e.g. "Cash / M-Pesa" ────────────────────────────
-		private string BuildSplitPaymentLabel(List<PaymentDetailDto> payments)
-		{
-			var labels = payments
-				.Select(p => p.PaymentTypeCode switch
-				{
-					PaymetMethod.Mpesa => "M-Pesa",
-					PaymetMethod.Wallet => "Wallet",
-					PaymetMethod.Personal_Wallet => "Personal Wallet",
-					PaymetMethod.Cash => "Cash",
-					PaymetMethod.Credit => "Credit",
-					PaymetMethod.Loyalty => "Loyalty Points",
-					PaymetMethod.PDQ => "PDQ",
-					PaymetMethod.Voucher => "Voucher",
-					_ => "Payment"
-				})
-				.Distinct();
-
-			return string.Join(" / ", labels);
-		}
-
-		// ── Builds SMS listing each payment portion ───────────────────────────────
-		private string BuildSplitSms(SaleContext ctx, AddsaleDto sales)
-		{
-			var portions = sales.PaymentDetails
-				.Select(p => $"{BuildSplitPaymentLabel([p])} KES {p.TransactionAmount:N2}")
-				.ToList();
-
-			var breakdown = string.Join(", ", portions);
-
-			return BuildSms(ctx,
-				$"a split payment sale of KES {ctx.Calculated:N2} for {sales.Quantity:N2} litres " +
-				$"has been recorded for vehicle {ctx.Vehicle.VehicleRegistration} " +
-				$"at {ctx.Station.StationName} on {UtcStamp()}. " +
-				$"Payments: {breakdown}.");
-		}
 		private Task<ServiceResponse<object>> HandleCashAsync(AddsaleDto sales, string saleId)
 		{
 			return ExecuteSaleAsync(
@@ -808,7 +627,7 @@ namespace BussinessLogic.Sales.NewSales
 
 				_context.PaymentTransactions.Add(new PaymentTransactions
 				{
-					PaymentRefrence = pay!.TransactionReference!,
+					PaymentRefrence = pay.TransactionReference,
 					TransactionAmount = alloc,
 					DateCreated = EatTime.Now,
 					UserCode = _authentication.Usercode(),
@@ -941,33 +760,23 @@ namespace BussinessLogic.Sales.NewSales
 			if (sales?.PaymentDetails is null || sales.PaymentDetails.Count == 0)
 				return Info("Invalid sales payload");
 
-			// M-Pesa limit — max 2 M-Pesa codes even in a split payment
-			var mpesaCount = sales.PaymentDetails
-				.Count(p => p.PaymentTypeCode == PaymetMethod.Mpesa);
-
-			if (mpesaCount > 2)
+			if (sales.PaymentTypeCode == PaymetMethod.Mpesa && sales.PaymentDetails.Count > 2)
 				return Info(
 					$"Hi {_authentication.Username().Split(',')[0]}, " +
-					$"more than two M-Pesa codes is not allowed");
-
-			// Validate all payment type codes exist
-			var paymentTypeCodes = sales.PaymentDetails
-				.Select(p => p.PaymentTypeCode)
-				.Distinct()
-				.ToList();
-
-			foreach (var code in paymentTypeCodes)
-			{
-				if (!await _context.PaymentTypes.AnyAsync(x => x.PaymentTypeId == code))
-					return Info($"Payment type {code} does not exist");
-			}
+					$"more than two Mpesa codes is not allowed");
 
 			(string msg, IQueryable<bool> query)[] checks =
 			[
-				("Shift does not exist",_context.Shifts.Where(x => x.ShiftNumber == sales.ShiftNumber).Select(_ => true)),
-				("Vehicle does not exist",_context.Vehicles.Where(x => x.VehicleCode == sales.VehicleCode).Select(_ => true)),
-				("Nozzle does not exist",_context.Nozzles.Where(x => x.NozzleCode == sales.NozzleCode).Select(_ => true)),
-				("Dispenser does not exist",_context.Dispensers.Where(x => x.DispenserCode == sales.DispenserCode).Select(_ => true)),
+				("Shift does not exist",
+					_context.Shifts.Where(x => x.ShiftNumber == sales.ShiftNumber).Select(_ => true)),
+				("Vehicle does not exist",
+					_context.Vehicles.Where(x => x.VehicleCode == sales.VehicleCode).Select(_ => true)),
+				("Nozzle does not exist",
+					_context.Nozzles.Where(x => x.NozzleCode == sales.NozzleCode).Select(_ => true)),
+				("Payment type does not exist",
+					_context.PaymentTypes.Where(x => x.PaymentTypeId == sales.PaymentTypeCode).Select(_ => true)),
+				("Dispenser does not exist",
+					_context.Dispensers.Where(x => x.DispenserCode == sales.DispenserCode).Select(_ => true)),
 			];
 
 			foreach (var (msg, query) in checks)
@@ -976,6 +785,7 @@ namespace BussinessLogic.Sales.NewSales
 
 			return ServiceResponse<object>.Success("Data is valid", null);
 		}
+
 		// ── Allow up to 1 KES rounding tolerance ─────────────────────────────
 		private static bool ValidateTransactionAmount(decimal calculated, decimal entered)
 			=> entered >= calculated || Math.Abs(entered - calculated) <= 1.00m;
