@@ -37,18 +37,7 @@ namespace BussinessLogic.Authentication.SignIn
 
 
 		// Constructor to initialize dependencies.
-		public SignInUser(
-			OTOContext context,
-			UserManager<ApplicationUser> userManager,
-			ICommonSetups setups,
-			IMessagingService messagingService,
-			IEmailService emailService,
-			ILogger<RegisterUsers> logger,
-			IAuthCommonTasks authentication,
-			ITokenManagement token,
-			IHttpContextAccessor httpContextAccessor,
-			ISmsService sms
-			)
+		public SignInUser(OTOContext context,UserManager<ApplicationUser> userManager,ICommonSetups setups,IMessagingService messagingService,IEmailService emailService,ILogger<RegisterUsers> logger,IAuthCommonTasks authentication,ITokenManagement token,IHttpContextAccessor httpContextAccessor,ISmsService sms)
 		{
 			_context = context;
 			_userManager = userManager;
@@ -60,7 +49,6 @@ namespace BussinessLogic.Authentication.SignIn
 			_token = token;
 			_httpContextAccessor = httpContextAccessor;
 			_sms = sms;
-
 		}
 
 		/// <summary>
@@ -79,9 +67,7 @@ namespace BussinessLogic.Authentication.SignIn
 		private async Task<ServiceResponse<object>> SignInUserByEmailAsync(EmailLoginModel signIn)
 		{
 			var user = await _userManager.FindByEmailAsync(signIn.UserName);
-			return user == null
-				? HandleInvalidUserName(signIn.UserName)
-				: await ValidateUserCredentialsAsync(user, signIn.Password, signIn.AppCode, signIn.PdaDeviceImei, signIn.VersionCode);
+				return user == null ? HandleInvalidUserName(signIn.UserName) : await ValidateUserCredentialsAsync(user, signIn.Password, signIn.AppCode, signIn.PdaDeviceImei, signIn.VersionCode);
 		}
 
 		/// <summary>
@@ -97,9 +83,7 @@ namespace BussinessLogic.Authentication.SignIn
 
 			// Check if user exists with the provided phone number.
 			var user = await _context.Users.FirstOrDefaultAsync(x => x.PhoneNumber == signIn.UserName);
-			return user == null
-				? HandleInvalidUserName(signIn.UserName)
-				: await ValidateUserCredentialsAsync(user, signIn.Password, signIn.AppCode, signIn.PdaDeviceImei, signIn.VersionCode);
+			return user == null ? HandleInvalidUserName(signIn.UserName) : await ValidateUserCredentialsAsync(user, signIn.Password, signIn.AppCode, signIn.PdaDeviceImei, signIn.VersionCode);
 		}
 
 		/// <summary>
@@ -509,11 +493,7 @@ namespace BussinessLogic.Authentication.SignIn
 </body>
 </html>";
 
-				await _emailService.SendEmail(
-				  email,
-				  null,
-				  "OTP Verification Code",
-				  body);
+				await _emailService.SendEmail(email,null,"OTP Verification Code", body);
 
 				return ServiceResponse<object>.Success("OTP sent successfully", otp);
 
@@ -823,7 +803,7 @@ namespace BussinessLogic.Authentication.SignIn
 	/// <summary>
 	/// 
 	/// </summary>
-	public class ResetPassword
+	public class ResetPassword 
 	{
 		[Required]
 		[EmailAddress(ErrorMessage = "Invalid email address.")]

@@ -134,9 +134,18 @@ public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenSe
 		return await _context.MpesaTransactions.FirstOrDefaultAsync(x => x.CheckoutRequestID == checkoutRequestId, ct);
 	}
 
-	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(
-		string checkoutRequestId,
-		CancellationToken ct = default)
+	public async Task<MpesaTransaction?> GetMpesaTransactionByReceipt(string checkoutRequestId, CancellationToken ct = default)
+	{
+		var stkTx = await _context.StkTransactions
+			.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutRequestId, ct);
+
+		if (stkTx?.MpesaReceiptNumber is null)
+			return null;
+
+		return await _context.MpesaTransactions.FirstOrDefaultAsync(x => x.MpesaReceiptNumber == stkTx.MpesaReceiptNumber, ct);
+	}
+
+	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId,CancellationToken ct = default)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(checkoutRequestId);
 
@@ -284,4 +293,5 @@ public interface IStkPushService
 	/// <param name="ct">Cancellation token.</param>
 	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId,CancellationToken ct = default);
 	Task<MpesaTransaction?> GetMpesaTransaction(string checkoutRequestId, CancellationToken ct = default);
+	Task<MpesaTransaction?> GetMpesaTransactionByReceipt(string checkoutRequestId, CancellationToken ct = default);
 }

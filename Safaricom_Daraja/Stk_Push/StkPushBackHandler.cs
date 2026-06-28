@@ -28,10 +28,7 @@ public sealed class StkCallbackHandler(
 
 		var checkoutId = data.CheckoutRequestId;
 
-		logger.LogInformation(
-			"[STK][Callback] ▶ CheckoutRequestID={CID} MerchantRequestID={MID} " +
-			"ResultCode={RC} ResultDesc={RD}",
-			checkoutId, data.MerchantRequestId, data.ResultCode, data.ResultDesc);
+		logger.LogInformation("[STK][Callback] ▶ CheckoutRequestID={CID} MerchantRequestID={MID} " +"ResultCode={RC} ResultDesc={RD}",checkoutId, data.MerchantRequestId, data.ResultCode, data.ResultDesc);
 
 		// ── FIX 1: Always update StkTransaction status regardless of result ─────
 		var stkTx = await context.StkTransactions
@@ -59,8 +56,7 @@ public sealed class StkCallbackHandler(
 				stkTx.DateCompleted = DateTime.UtcNow;
 				await context.SaveChangesAsync(ct);
 
-				logger.LogInformation(
-					"[STK][Callback] StkTransaction updated → Status=Failed CheckoutID={CID}", checkoutId);
+				logger.LogInformation("[STK][Callback] StkTransaction updated → Status=Failed CheckoutID={CID}", checkoutId);
 			}
 
 			return;
@@ -74,19 +70,35 @@ public sealed class StkCallbackHandler(
 		var transDate = Get(meta, "TransactionDate");
 		var balance = Get(meta, "Balance");
 
-		logger.LogInformation(
-			"[STK][Callback] Metadata — Receipt={R} Amount={A} Phone={P} TransDate={D} Balance={B}",
-			receipt, amount, phone, transDate, balance);
+		logger.LogInformation("[STK][Callback] Metadata — Receipt={R} Amount={A} Phone={P} TransDate={D} Balance={B}",receipt, amount, phone, transDate, balance);
 
 		// ── DUPLICATE PROTECTION ──────────────────────────────────────────────────
 		var exists = await context.MpesaTransactions
-			.AnyAsync(x => x.MpesaReceiptNumber == receipt, ct);
+			.FirstOrDefaultAsync(x => x.MpesaReceiptNumber == receipt, ct);
 
-		if (exists)
+		if (exists is not null)
 		{
-			logger.LogWarning(
-				"[STK][Callback] ⚠️ Duplicate — Receipt={Receipt} already in MpesaTransactions. Ignored.",
-				receipt);
+			// C2B won the race — backfill the STK fields so polling can resolve
+			exists.CheckoutRequestID = checkoutId;
+			exists.MerchantRequestID = data.MerchantRequestId;
+			exists.TransactionType = "STK";
+			exists.PaymentMethod = "STK";
+			exists.MSISDN = phone;
+			exists.Status = 1;
+			exists.DateModified = EatTime.Now;
+
+			if (stkTx is not null)
+			{
+				stkTx.Status = "Completed";
+				stkTx.MpesaReceiptNumber = receipt;
+				stkTx.ResultCode = "0";
+				stkTx.ResultDescription = data.ResultDesc ?? "Success";
+				stkTx.DateCompleted = DateTime.UtcNow;
+			}
+
+			await context.SaveChangesAsync(ct);
+
+			logger.LogInformation("[STK][Callback] ✅ Backfilled C2B record — Receipt={R} CheckoutID={CID}",receipt, checkoutId);
 			return;
 		}
 
@@ -105,9 +117,7 @@ public sealed class StkCallbackHandler(
 			tillName = till ?? string.Empty;
 		}
 
-		logger.LogInformation(
-			"[STK][Callback] Till resolved from StkTransaction — TillNumber={TN} TillName={Name}",
-			tillNumber, tillName);
+		logger.LogInformation("[STK][Callback] Till resolved from StkTransaction — TillNumber={TN} TillName={Name}",tillNumber, tillName);
 
 		// ── WRITE LEDGER ──────────────────────────────────────────────────────────
 		var transaction = new MpesaTransaction
@@ -150,10 +160,7 @@ public sealed class StkCallbackHandler(
 
 		await context.SaveChangesAsync(ct);
 
-		logger.LogInformation(
-			"[STK][Callback] ✅ Ledger saved — Receipt={Receipt} Amount={Amount} " +
-			"Phone={Phone} Till={TN} ({TillName})",
-			receipt, amount, phone, tillNumber, tillName);
+		logger.LogInformation("[STK][Callback] ✅ Ledger saved — Receipt={Receipt} Amount={Amount} " +"Phone={Phone} Till={TN} ({TillName})",receipt, amount, phone, tillNumber, tillName);
 	}
 
 	private static string Get(List<StkCallbackItem> items, string name)
