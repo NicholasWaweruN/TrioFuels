@@ -79,38 +79,16 @@ public class DarajaController(IStkPushService stkPushService,
 	[AllowAnonymous]
 	public async Task<IActionResult> StkResult(string checkoutRequestId, CancellationToken ct)
 	{
-		// 1. Check DB first (fast, no Safaricom round trip)
 		var tx = await stkPushService.GetMpesaTransaction(checkoutRequestId, ct)
 			  ?? await stkPushService.GetMpesaTransactionByReceipt(checkoutRequestId, ct);
 
-		if (tx is not null)
-		{
-			return tx.Status switch
-			{
-				1 => Ok(new { ResultCode = "0", tx.TransID, Amount = tx.TransAmount.ToString("F2") }),
-				2 => Ok(new { ResultCode = "failed", tx.TransID, Amount = "0" }),
-				_ => Ok(new { ResultCode = "pending", TransID = "", Amount = "0" })
-			};
-		}
-
-		// 2. Fallback — ask Safaricom directly
-		var query = await stkPushService.QueryStatusAsync(checkoutRequestId, ct);
-
-		if (!query.Success)
+		if (tx is null)
 			return Ok(new { ResultCode = "pending", TransID = "", Amount = "0" });
 
-		return query.Data?.ResultCode switch
+		return tx.Status switch
 		{
-			"0" => Ok(new { ResultCode = "0", TransID = "", Amount = "0" }), // Success
-			"1" => Ok(new { ResultCode = "1", TransID = "", Amount = "0" }), // Insufficient balance
-			"1001" => Ok(new { ResultCode = "1001", TransID = "", Amount = "0" }), // Unable to lock subscriber
-			"1019" => Ok(new { ResultCode = "1019", TransID = "", Amount = "0" }), // Transaction expired
-			"1025" => Ok(new { ResultCode = "1025", TransID = "", Amount = "0" }), // Internal error
-			"1032" => Ok(new { ResultCode = "1032", TransID = "", Amount = "0" }), // Cancelled by user
-			"1036" => Ok(new { ResultCode = "1036", TransID = "", Amount = "0" }), // Request timeout
-			"1037" => Ok(new { ResultCode = "1037", TransID = "", Amount = "0" }), // DS timeout — user never responded
-			"2001" => Ok(new { ResultCode = "2001", TransID = "", Amount = "0" }), // Wrong PIN
-			"9999" => Ok(new { ResultCode = "9999", TransID = "", Amount = "0" }), // Unresolved — generic failure
+			1 => Ok(new { ResultCode = "0", tx.TransID, Amount = tx.TransAmount.ToString("F2") }),
+			2 => Ok(new { ResultCode = "failed", tx.TransID, Amount = "0" }),
 			_ => Ok(new { ResultCode = "pending", TransID = "", Amount = "0" })
 		};
 	}
