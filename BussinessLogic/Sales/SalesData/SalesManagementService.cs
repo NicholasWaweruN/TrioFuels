@@ -605,7 +605,7 @@ namespace BussinessLogic.Sales.SalesData
 
 				salesQuery = salesQuery.AsNoTracking();
 
-				salesQuery = salesQuery.Where(s => !s.StationName.Contains("TEST"));
+				//salesQuery = salesQuery.Where(s => !s.StationName.Contains("TEST"));
 
 				// Apply filters
 				if (!string.IsNullOrEmpty(stationCode))
