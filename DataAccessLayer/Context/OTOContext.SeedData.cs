@@ -148,7 +148,7 @@ namespace DataAccessLayer.Context
 		private static void SeedDispenser(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Dispenser>().HasData(
-				new Dispenser { Id = 1, DateCreated = EatTime.Now, IsActive = true, StationCode = "S001", UserCode = "00001", DispenserCode = "D01", DispenserName = "D1", StorageLocation = "kenya", TillNumber = "5617668", PetroleumCode = "01"}
+				new Dispenser { Id = 1, DateCreated = EatTime.Now, IsActive = true, StationCode = "S001", UserCode = "00001", DispenserCode = "D01", DispenserName = "D1", StorageLocation = "kenya", TillNumber = "5617668" }
 			);
 		}
 
@@ -189,8 +189,8 @@ namespace DataAccessLayer.Context
 		private static void SeedNozzles(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<Nozzle>().HasData(
-				new Nozzle { Id = 1, DateCreated = EatTime.Now, IsActive = true, NozzleCode = "N01", UserCode = "00001", DispenserCode = "D01", NozzleName = "N01" },
-				new Nozzle { Id = 2, DateCreated = EatTime.Now, IsActive = true, NozzleCode = "N02", UserCode = "00001", DispenserCode = "D01", NozzleName = "N02" }
+				new Nozzle { Id = 1, DateCreated = EatTime.Now, IsActive = true, NozzleCode = "N01", UserCode = "00001", DispenserCode = "D01", NozzleName = "N01", PetroleumCode = "03" },
+				new Nozzle { Id = 2, DateCreated = EatTime.Now, IsActive = true, NozzleCode = "N02", UserCode = "00001", DispenserCode = "D01", NozzleName = "N02",PetroleumCode = "01" }
 			);
 		}
 

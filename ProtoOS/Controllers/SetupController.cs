@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using static BusinessLogic.SetupService.UserSetups;
+using static BussinessLogic.Setup.UserSetups;
 
 namespace FuelFlow.Controllers 
 {
@@ -37,6 +37,7 @@ namespace FuelFlow.Controllers
 			var response = await _setupService.AddPrice(updatePrices);
 			return CreateResponse(response);
 		}
+
 		#endregion
 
 		#region Payment Management
@@ -67,6 +68,15 @@ namespace FuelFlow.Controllers
 			var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value);
 			var response = await _setupService.GetProducts();
 			return CreateResponse(response);
+		}
+
+		[HttpGet]
+		[Authorize]
+		[Route("PriceInfo")]
+		public async Task<IActionResult> GetPrice(string nozzleCode)
+		{
+			var response = await _setupService.GetPriceInfo(nozzleCode);
+			return CreateResponse(response); 
 		}
 
 		[HttpGet]

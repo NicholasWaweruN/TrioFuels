@@ -43,7 +43,8 @@ namespace BussinessLogic.Reports.Shifts_Clossing
 			var stationInfo = await (
 				from sta in _context.Stations
 				join d in _context.Dispensers on sta.StationCode equals d.StationCode
-				join p in _context.PetroleumProducts on d.PetroleumCode equals p.PetroleumCode into pj
+				join n in _context.Nozzles on d.DispenserCode equals n.DispenserCode
+				join p in _context.PetroleumProducts on n.NozzleCode equals p.PetroleumCode into pj
 				from product in pj.DefaultIfEmpty()
 				where d.DispenserCode == dispenserCode
 				select new

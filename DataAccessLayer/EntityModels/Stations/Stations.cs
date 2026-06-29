@@ -51,8 +51,6 @@ namespace DataAccessLayer.EntityModels.Stations
 		[Required, StringLength(20), Unicode(false)]
 		public string TillNumber { get; set; } = string.Empty; // FK to Till
 		public bool IsActive { get; set; }
-		[Required, StringLength(20), Unicode(false)]
-		public string PetroleumCode  { get; set; } = string.Empty;
 
 		[Required, StringLength(20), Unicode(false)]
 		public string StorageLocation { get; set; } = string.Empty;
@@ -74,7 +72,8 @@ namespace DataAccessLayer.EntityModels.Stations
 
 		[Required, StringLength(10), Unicode(false)]
 		public string NozzleCode { get; set; } = string.Empty;
-
+		[Required, StringLength(10), Unicode(false)]
+		public string PetroleumCode { get; set; } = string.Empty;
 		public bool IsActive { get; set; }
 	}
 

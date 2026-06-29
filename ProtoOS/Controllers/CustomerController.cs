@@ -141,11 +141,19 @@ namespace ProtoOS.Controllers
 		}
 
 
+		//[HttpGet("SearchVehicle")]
+		//[Authorize(Roles = "can search vehicle")]
+		//public async Task<IActionResult> SearchVehicle(string vehicleRegNo)
+		//{
+		//	var response = await _vehicles.SearchVehicle(vehicleRegNo);
+		//	return CreateResponse(response);
+		//}
+
 		[HttpGet("SearchVehicle")]
 		[Authorize(Roles = "can search vehicle")]
-		public async Task<IActionResult> SearchVehicle(string vehicleRegNo)
+		public async Task<IActionResult> SearchVehicle(string phoneNumber)
 		{
-			var response = await _vehicles.SearchVehicle(vehicleRegNo);
+			var response = await _vehicles.SearchCustomerByPhone(phoneNumber);
 			return CreateResponse(response);
 		}
 

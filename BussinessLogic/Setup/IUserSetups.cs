@@ -1,4 +1,5 @@
 ﻿using BusinessLogic.Worker.PriceScheduler;
+using BussinessLogic.Setup;
 using DataAccessLayer.Common;
 using DataAccessLayer.DTOs.Setups;
 
@@ -17,5 +18,6 @@ namespace BusinessLogic.SetupService
 		Task<ServiceResponse<object>> RegisterPDA(string deviceName, string deviceIMEI, string deviceSerialNumber, string deviceModel, string dispensercode);
 		Task<ServiceResponse<object>> RemoveEmailRecipients(string email, string reportCode);
 		List<UserSetups.Report> Reports();
+		Task<ServiceResponse<object>> GetPriceInfo(string nozzleCode);
 	}
 }

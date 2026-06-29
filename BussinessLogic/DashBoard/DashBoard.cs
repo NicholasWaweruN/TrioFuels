@@ -96,20 +96,20 @@ namespace BussinessLogic.DashBoard
 			var quantitiesQuery = _context.QuantityTransactions.Where(x => x.DateCreated.Date >= lastWeek.Date);
 
 			var quantitiesDiesel = await (from q in _context.QuantityTransactions
-										  join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
-										  join pp in _context.PetroleumProducts on d.PetroleumCode equals pp.PetroleumCode
+										  join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
+										  join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
 										  where pp.PetroleumName == "Diesel" && q.DateCreated.Date == today
 										  select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
 
 			var quantitiesPetrol = await (from q in _context.QuantityTransactions
-										  join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
-										  join pp in _context.PetroleumProducts on d.PetroleumCode equals pp.PetroleumCode
+										  join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
+										  join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
 										  where pp.PetroleumName == "Petrol" && q.DateCreated.Date == today
 										  select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
 
 			var quantitiesLpg = await (from q in _context.QuantityTransactions
-									   join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
-									   join pp in _context.PetroleumProducts on d.PetroleumCode equals pp.PetroleumCode
+									   join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
+									   join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
 									   where pp.PetroleumName == "Autogas" && q.DateCreated.Date == today
 									   select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
 

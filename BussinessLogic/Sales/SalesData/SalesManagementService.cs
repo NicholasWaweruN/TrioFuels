@@ -583,7 +583,7 @@ namespace BussinessLogic.Sales.SalesData
 								 join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
 								 join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
 								 join s in _context.Stations on d.StationCode equals s.StationCode
-								 join pp in _context.PetroleumProducts on d.PetroleumCode equals pp.PetroleumCode
+								 join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
 								 join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
 								 from v in _context.Vehicles.Where(v => v.VehicleCode == q.VehicleCode).DefaultIfEmpty()
 								 select new SaleTransactionDto

@@ -582,11 +582,10 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 		}
 
+	
+
 		// Private method to search for a vehicle within a specific station and calculate its wallet balance.
-		private async Task<ServiceResponse<object>> SearchVehicleByStation(
-		string vehicleRegNo,
-		string stationCode,
-		string? shiftNumber)
+		private async Task<ServiceResponse<object>> SearchVehicleByStation(string vehicleRegNo,string stationCode,string? shiftNumber)
 		{
 			vehicleRegNo = vehicleRegNo.Replace(" ", "").ToUpper();
 
@@ -740,6 +739,81 @@ namespace BussinessLogic.Customers.Vehicles
 			return ServiceResponse<object>.Success("Vehicle retrieved successfully", result);
 		}
 		// Transfers a vehicle to a new customer and saves the previous customer as part of transfer history.
+
+
+		// Attendant-facing: resolves stationCode from their dispenser assignment
+		
+
+		// Station/shift-aware overload
+		
+
+		// Private worker
+
+
+		public async Task<ServiceResponse<object>> SearchCustomerByPhone(string phoneNumber)
+		{
+			try 
+			{
+				if (string.IsNullOrWhiteSpace(phoneNumber))
+					return ServiceResponse<object>.Error("Phone number is required", null);
+
+				phoneNumber = phoneNumber.Trim().Replace(" ", "");
+
+				// Strip country code to get local 07xx format
+				if (phoneNumber.StartsWith("254") && phoneNumber.Length == 12)
+					phoneNumber = "0" + phoneNumber[3..];
+				else if (phoneNumber.StartsWith("+254") && phoneNumber.Length == 13)
+					phoneNumber = "0" + phoneNumber[4..];
+
+				// 1️⃣ Resolve customer
+				var customer = await _context.Customers
+					.AsNoTracking()
+					.Where(c => c.CustomerPhone == phoneNumber)
+					.Select(c => new
+					{
+						c.CustomerCode,
+						c.CustomerName,
+						c.CustomerPhone,
+						c.CreditLimit,
+						c.IsCreditCustomer,
+					})
+					.FirstOrDefaultAsync();
+
+				if (customer == null)
+					return ServiceResponse<object>.WalkInCustomer("No customer found for that phone number", null);
+
+				// 3️⃣ Loyalty balance
+				var loyaltyBalance = await _context.RoyaltyPoints
+					.Where(p => p.CustomerCode == customer.CustomerCode)
+					.SumAsync(x => (decimal?)x.PointsCredit - x.PointsDebit) ?? 0;
+
+				// 4️⃣ Outstanding credit
+				var outstandingCredit = await _context.CreditTransactions
+					.Where(c => c.CustomerCode == customer.CustomerCode)
+					.SumAsync(c => c.Debit - c.Credit);
+
+				var result = new
+				{
+					customer.CustomerName,
+					customer.CustomerPhone,
+					customer.CustomerCode,
+					customer.CreditLimit,
+					customer.IsCreditCustomer,
+					OutstandingCredit = outstandingCredit,
+					AvailableCredit = customer.CreditLimit - outstandingCredit,
+					HasLoyaltySubscription = loyaltyBalance > 0 ? true : false,
+					LoyaltyBalance = loyaltyBalance,
+				};
+
+				return ServiceResponse<object>.Success("Customer retrieved successfully", result);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error searching customer by phone number");
+				return ServiceResponse<object>.Error("Customer not retrieved", null);
+			}
+		}
+
 		public async Task<ServiceResponse<object>> TransferVehicle(TransferVehicleDto transferVehicle)
 		{
 			try

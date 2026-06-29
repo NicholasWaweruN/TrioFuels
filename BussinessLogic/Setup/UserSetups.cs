@@ -8,9 +8,9 @@ using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using Products = DataAccessLayer.EntityModels.SetUps.Products;
-using BussinessLogic.Setup;
+using BusinessLogic.SetupService;
 
-namespace BusinessLogic.SetupService
+namespace BussinessLogic.Setup
 {
 	public class UserSetups : IUserSetups
 	{
@@ -292,6 +292,44 @@ namespace BusinessLogic.SetupService
 			{
 				return ServiceResponse<object>.Error("An error occurred while updating price", null);
 			}
+		}
+
+		public async Task<ServiceResponse<object>> GetPriceInfo(string nozzleCode)
+		{
+			var nozzle = await _context.Nozzles
+				.AsNoTracking()
+				.Where(x => x.NozzleCode == nozzleCode)
+				.Select(x => new { x.PetroleumCode})
+				.FirstOrDefaultAsync();
+
+
+			if (nozzle == null)
+				return ServiceResponse<object>.Information("Nozzle not found", null);
+
+			var priceInfo = await _context.Prices
+				.AsNoTracking()
+				.Where(p => p.ProductCode == nozzle.PetroleumCode)
+				.Select(p => new { p.Amount, p.Discount })
+				.FirstOrDefaultAsync();
+
+			var product = await _context.PetroleumProducts.Where(x => x.PetroleumCode == nozzle.PetroleumCode).FirstOrDefaultAsync();
+
+			if (product is null)
+				return ServiceResponse<object>.Information("Product does not exist", null);
+
+			if (priceInfo == null)
+				return ServiceResponse<object>.Information("Price not configured for this nozzle", null);
+
+			var result = new
+			{
+				nozzle.PetroleumCode,
+				Price = priceInfo.Amount,
+				Discount = priceInfo.Discount,
+				ProductName = product.PetroleumName,
+				FinalPrice = Math.Max(priceInfo.Amount - priceInfo.Discount, 0)
+			};
+
+			return ServiceResponse<object>.Success("", result);
 		}
 		public async Task<ServiceResponse<object>> AddRecipients(int type, string reportCode, string email)
 		{
