@@ -4,6 +4,7 @@ using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ServiceStack.Configuration;
 
 namespace Safaricom_Daraja.Stk_Push;
 
@@ -12,9 +13,7 @@ public interface IStkCallbackHandler
 	Task HandleAsync(StkCallback callback, CancellationToken ct = default);
 }
 
-public sealed class StkCallbackHandler(
-	OTOContext context,
-	ILogger<StkCallbackHandler> logger) : IStkCallbackHandler
+public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHandler> logger) : IStkCallbackHandler
 {
 	public async Task HandleAsync(StkCallback callback, CancellationToken ct = default)
 	{
@@ -36,17 +35,13 @@ public sealed class StkCallbackHandler(
 
 		if (stkTx is null)
 		{
-			logger.LogWarning(
-				"[STK][Callback] ⚠️ No StkTransaction found for CheckoutRequestID={CID} — " +
-				"was InitiateAsync called first?", checkoutId);
+			logger.LogWarning("[STK][Callback] ⚠️ No StkTransaction found for CheckoutRequestID={CID} — " + "was InitiateAsync called first?", checkoutId);
 		}
 
 		// ── FAIL CASE — update StkTransaction, do NOT write ledger ──────────────
 		if (data.ResultCode != 0)
 		{
-			logger.LogWarning(
-				"[STK][Callback] ❌ Payment FAILED — CheckoutID={CID} ResultCode={RC} Desc={Desc}",
-				checkoutId, data.ResultCode, data.ResultDesc);
+			logger.LogWarning("[STK][Callback] ❌ Payment FAILED — CheckoutID={CID} ResultCode={RC} Desc={Desc}",checkoutId, data.ResultCode, data.ResultDesc);
 
 			if (stkTx is not null)
 			{
@@ -54,6 +49,7 @@ public sealed class StkCallbackHandler(
 				stkTx.ResultCode = data.ResultCode.ToString();
 				stkTx.ResultDescription = data.ResultDesc ?? string.Empty;
 				stkTx.DateCompleted = DateTime.UtcNow;
+
 				await context.SaveChangesAsync(ct);
 
 				logger.LogInformation("[STK][Callback] StkTransaction updated → Status=Failed CheckoutID={CID}", checkoutId);
@@ -118,6 +114,7 @@ public sealed class StkCallbackHandler(
 		}
 
 		logger.LogInformation("[STK][Callback] Till resolved from StkTransaction — TillNumber={TN} TillName={Name}",tillNumber, tillName);
+
 
 		// ── WRITE LEDGER ──────────────────────────────────────────────────────────
 		var transaction = new MpesaTransaction

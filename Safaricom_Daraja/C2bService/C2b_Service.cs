@@ -22,9 +22,10 @@ public interface IC2BService
 	Task HandleConfirmationAsync(C2BConfirmationRequest request, CancellationToken ct = default);
 }
 
-public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<C2BService> logger,OTOContext context) : IC2BService
+public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<C2BService> logger,OTOContext context,IShiftResolver resolver) : IC2BService
 {
 	private readonly DarajaConfig _cfg = options.Value;
+	private readonly IShiftResolver _resolver = resolver;
 	private static readonly TimeZoneInfo EatTimeZone = TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "E. Africa Standard Time" : "Africa/Nairobi");
 	
 	// ── Registration ──────────────────────────────────────────────────────────
@@ -244,7 +245,9 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 		}
 
 		var till = await ResolveTill(request);
-		
+		var shifts = await _resolver.GetCurrentShiftByTill(till!.TillNumber);
+		var shiftNumber = shifts.ResponseObject;
+
 		var transaction = new MpesaTransaction
 		{
 			TransactionType = request.TransactionType ?? "C2B",
@@ -269,7 +272,8 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			UserCode = "Mpesa",
 			CheckoutRequestID = string.Empty,
 			MerchantRequestID = string.Empty,
-			
+			ShiftNumber = shiftNumber is not null ? shiftNumber : string.Empty,
+
 		};
 
 		try

@@ -216,12 +216,12 @@ public class DarajaController(IStkPushService stkPushService,
 }
 
 	#endregion
-	// ─────────────────────────────────────────────
-	// DTOs
-	// ─────────────────────────────────────────────
-	public record StkPushApiRequest(
+// ─────────────────────────────────────────────
+// DTOs
+// ─────────────────────────────────────────────
+public record StkPushApiRequest(
 	string Phone,
-	long Amount,
+	int Amount,
 	string? TillNumber,
 	string? TillReference,
 	string? Description);
