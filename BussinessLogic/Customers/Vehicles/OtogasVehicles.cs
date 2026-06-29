@@ -700,7 +700,7 @@ namespace BussinessLogic.Customers.Vehicles
 				join p in _context.PaymentTypes on t.PaymentTypeCode equals p.PaymentTypeId
 				where t.DateCreated >= today &&
 					  t.DateCreated < today.AddDays(1) &&
-					  t.VehicleCode == vehicle.VehicleCode
+					  t.VehicleRegistrationNumber == vehicleRegNo
 				select new
 				{
 					s.StationName,

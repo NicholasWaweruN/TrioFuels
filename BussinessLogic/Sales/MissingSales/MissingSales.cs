@@ -320,7 +320,7 @@ namespace BusinessLogic.Sales.MissingSales
             {
                 ShiftNumber = sales.ShiftNumber,
                 UserCode = _authentication.Usercode(),
-                VehicleCode = sales.VehicleCode,
+                VehicleRegistrationNumber = sales.VehicleCode,
                 QuantityCredit = sales.Quantity,
                 DispenserCode = sales.DispenserCode,
                 NozzleCode = sales.NozzleCode,

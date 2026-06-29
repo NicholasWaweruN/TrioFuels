@@ -218,8 +218,8 @@ namespace DataAccessLayer.Context
 		private static void SeedQuantityTransactions(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<QuantityTransactions>().HasData(
-				new QuantityTransactions { Id = 1, NozzleCode = "N01", AmountCredit = 0, AmountDebit = 0, ShiftNumber = "", DateCreated = EatTime.Now, Discount = 0, DispenserCode = "D01", IsReversed = false, OtpUsed = "", PaymentTypeCode = 99, Price = 0, QuantityCredit = 50, RoundedDate = EatTime.Now, QuantityDebit = 0, SaleId = "", StationCode = "S001", UserCode = "99999", Vat_Amount = 0, VehicleCode = "" },
-				new QuantityTransactions { Id = 2, NozzleCode = "N02", AmountCredit = 0, AmountDebit = 0, ShiftNumber = "", DateCreated = EatTime.Now, Discount = 0, DispenserCode = "D01", IsReversed = false, OtpUsed = "", PaymentTypeCode = 99, Price = 0, QuantityCredit = 50, RoundedDate = EatTime.Now, QuantityDebit = 0, SaleId = "", StationCode = "S001", UserCode = "99999", Vat_Amount = 0, VehicleCode = "" }
+				new QuantityTransactions { Id = 1, NozzleCode = "N01", AmountCredit = 0, AmountDebit = 0, ShiftNumber = "", DateCreated = EatTime.Now, Discount = 0, DispenserCode = "D01", IsReversed = false, OtpUsed = "", PaymentTypeCode = 99, Price = 0, QuantityCredit = 50, RoundedDate = EatTime.Now, QuantityDebit = 0, SaleId = "", StationCode = "S001", UserCode = "99999", Vat_Amount = 0, VehicleRegistrationNumber = "" },
+				new QuantityTransactions { Id = 2, NozzleCode = "N02", AmountCredit = 0, AmountDebit = 0, ShiftNumber = "", DateCreated = EatTime.Now, Discount = 0, DispenserCode = "D01", IsReversed = false, OtpUsed = "", PaymentTypeCode = 99, Price = 0, QuantityCredit = 50, RoundedDate = EatTime.Now, QuantityDebit = 0, SaleId = "", StationCode = "S001", UserCode = "99999", Vat_Amount = 0, VehicleRegistrationNumber = "" }
 			);
 		}
 

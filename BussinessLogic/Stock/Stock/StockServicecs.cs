@@ -965,7 +965,7 @@ namespace BussinessLogic.Stock.Stock
 						SaleId = transactionToMove.SaleId,
 						QuantityDebit = transactionToMove.QuantityDebit,
 						StationCode = transactionToMove.StationCode,
-						VehicleCode = transactionToMove.VehicleCode,
+						VehicleCode = transactionToMove.VehicleRegistrationNumber,
 					});
 
 					_context.QuantityTransactions.Update(transactionToMove);

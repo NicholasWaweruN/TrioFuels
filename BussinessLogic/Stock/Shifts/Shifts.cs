@@ -200,7 +200,7 @@ namespace BussinessLogic.Stock.Shifts
 			//get user current shift
 			var ShiftNumber = await _context.Shifts.Where(x => x.UserCode == _authentication.Usercode() && x.ShiftStatus == ShiftStatus.Open).Select(x => x.ShiftNumber).FirstOrDefaultAsync();
 			var shiftSales = await (from qt in _context.QuantityTransactions
-									join v in _context.Vehicles on qt.VehicleCode equals v.VehicleCode
+									join v in _context.Vehicles on qt.VehicleRegistrationNumber equals v.VehicleCode
 									where qt.ShiftNumber == ShiftNumber
 									select new
 									{

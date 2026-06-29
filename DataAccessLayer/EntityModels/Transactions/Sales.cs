@@ -19,7 +19,7 @@ namespace DataAccessLayer.EntityModels.Transactions
 		[Required, StringLength(8), Unicode(false)]
 		public string StationCode { get; set; } = string.Empty;
 		[Required, StringLength(15), Unicode(false)]
-		public string VehicleCode { get; set; } = string.Empty;
+		public string VehicleRegistrationNumber  { get; set; } = string.Empty;
 		[Precision(18, 2)] public decimal QuantityCredit { get; set; }
 		[Precision(18, 2)] public decimal QuantityDebit { get; set; }
 		[Precision(18, 2)] public decimal AmountCredit { get; set; }

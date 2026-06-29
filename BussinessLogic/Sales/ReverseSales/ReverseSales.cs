@@ -78,7 +78,7 @@ namespace BussinessLogic.Sales.ReverseSales
 
 					// --- Stage domain changes (no SaveChanges yet) ------------------------------
 					if (sale.PaymentTypeCode == PaymetMethod.Wallet)
-					AddCustomerTransactionIfVehiclePresent(sale.VehicleCode, sale.AmountDebit, transactionCode);
+					AddCustomerTransactionIfVehiclePresent(sale.VehicleRegistrationNumber, sale.AmountDebit, transactionCode);
 
 					AddReversedQuantityTransactionAndMarkOriginal(sale, transactionCode);
 					await AddReversedPaymentTransactionsAsync(sale);
@@ -248,7 +248,7 @@ namespace BussinessLogic.Sales.ReverseSales
 			{
 				ShiftNumber = sale.ShiftNumber,
 				UserCode = _authentication.Usercode(),
-				VehicleCode = sale.VehicleCode,
+				VehicleRegistrationNumber = sale.VehicleRegistrationNumber,
 				DispenserCode = sale.DispenserCode,
 				NozzleCode = sale.NozzleCode,
 				StationCode = sale.StationCode,
@@ -341,7 +341,7 @@ namespace BussinessLogic.Sales.ReverseSales
 		private async Task<string> BuildReverseSaleMessage(QuantityTransactions sale)
 		{
 			var (stationName, nozzleName, numberPlate) = await GetStationAndNozzleNames(
-				sale.StationCode, sale.NozzleCode, sale.VehicleCode);
+				sale.StationCode, sale.NozzleCode, sale.VehicleRegistrationNumber);
 
 			return $"User '{_authentication.Name()}' (Code: {_authentication.Usercode()}) reversed sale [SaleId={sale.SaleId}] " +
 				   $"on Shift [{sale.ShiftNumber}] for Station [{stationName}] (Code: {sale.StationCode}), " +

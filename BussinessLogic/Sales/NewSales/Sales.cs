@@ -9,7 +9,6 @@ using DataAccessLayer.DTOs.Sales;
 using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Messaging;
-using DataAccessLayer.EntityModels.Personal_Wallet;
 using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
@@ -24,13 +23,13 @@ namespace BussinessLogic.Sales.NewSales
 
 	internal sealed record SaleContext(
 		StationData Station,
-		Vehicle Vehicle,
-		Customer Customer,
+		CustomerInfo Customer,
 		decimal UnitPrice,
 		decimal Discount,
-		decimal Calculated,    // effective amount — what gets recorded
-		decimal Requested,     // what the customer actually paid
-		string TransactionRef
+		decimal Calculated,
+		decimal Requested,
+		string TransactionRef,
+		string VehicleRegistration   // just the string the user entered
 	);
 
 	internal delegate Task<ServiceResponse<object>?> PaymentStepAsync(
@@ -89,9 +88,6 @@ namespace BussinessLogic.Sales.NewSales
 			return sales.PaymentTypeCode switch
 			{
 				PaymetMethod.Mpesa => await HandleMpesaAsync(sales, saleId),
-				PaymetMethod.Wallet => await HandleWalletAsync(sales, saleId),
-				PaymetMethod.Voucher => await HandleVoucherAsync(sales, saleId),
-				PaymetMethod.Personal_Wallet => await HandlePersonalWalletAsync(sales, saleId),
 				PaymetMethod.Cash => await HandleCashAsync(sales, saleId),
 				PaymetMethod.Credit => await HandleCreditAsync(sales, saleId),
 				PaymetMethod.Loyalty => await HandleLoyaltyAsync(sales, saleId),
@@ -99,10 +95,6 @@ namespace BussinessLogic.Sales.NewSales
 				_ => Info("Feature Coming Soon"),
 			};
 		}
-
-	
-
-
 
 		// =====================================================================
 		// Unified pipeline — standard payment methods
@@ -142,22 +134,10 @@ namespace BussinessLogic.Sales.NewSales
 					StageReceipt(ctx, sales, receiptPaymentMethod,
 						stationNameOverride: receiptStationOverride);
 
-					var mpesaRefs = await PersistSaleAsync(sales, ctx, saleId);
+					await PersistSaleAsync(sales, ctx, saleId);
 
 					await _context.SaveChangesAsync();
 					await tx.CommitAsync();
-
-					// ── Clear tracker so reconcile reads fresh committed data ──
-					_context.ChangeTracker.Clear();
-
-					foreach (var transId in mpesaRefs)
-						await ReconcileAndUpdateUsageBalanceAsync(transId);
-
-					if (mpesaRefs.Count > 0)
-					{
-						var saved = await _context.SaveChangesAsync();
-						Console.WriteLine($"[Reconcile] SaveChangesAsync saved {saved} rows");
-					}
 
 					await WriteAuditTrailAsync(ctx, sales, operationType, saleId);
 
@@ -226,10 +206,7 @@ namespace BussinessLogic.Sales.NewSales
 						await ReconcileAndUpdateUsageBalanceAsync(transId);
 
 					if (mpesaRefs.Count > 0)
-					{
-						var saved = await _context.SaveChangesAsync();
-						Console.WriteLine($"[Reconcile] SaveChangesAsync saved {saved} rows");
-					}
+						await _context.SaveChangesAsync();
 
 					await WriteAuditTrailAsync(ctx, sales, operationType, saleId);
 
@@ -263,7 +240,6 @@ namespace BussinessLogic.Sales.NewSales
 			);
 		}
 
-
 		private Task<ServiceResponse<object>> HandlePDQAsync(AddsaleDto sales, string saleId)
 		{
 			return ExecuteSaleRawRefAsync(
@@ -273,16 +249,17 @@ namespace BussinessLogic.Sales.NewSales
 				awardLoyalty: true,
 				paymentStep: (_, ctx, _) =>
 				{
-					StageQueuedSms(ctx.Vehicle.PhoneNumber, BuildSms(ctx,
+					StageQueuedSms(sales.PhoneNumber, BuildSms(ctx,
 						$"a PDQ (card) payment of KES {ctx.Calculated:N2} " +
 						$"for {sales.Quantity:N2} litres has been recorded " +
-						$"for vehicle {ctx.Vehicle.VehicleRegistration} " +
+						$"for vehicle {sales.RegistrationNumber} " +
 						$"at {ctx.Station.StationName} on {UtcStamp()}."));
 
 					return Task.FromResult<ServiceResponse<object>?>(null);
 				}
 			);
 		}
+
 		private Task<ServiceResponse<object>> HandleCreditAsync(AddsaleDto sales, string saleId)
 		{
 			return ExecuteSaleAsync(
@@ -293,165 +270,37 @@ namespace BussinessLogic.Sales.NewSales
 				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
 				paymentStep: async (s, ctx, sid) =>
 				{
-					var customer = await _context.Customers
-						.Where(c => c.CustomerCode == ctx.Customer.CustomerCode
-								 && c.IsCreditCustomer)
-						.FirstOrDefaultAsync();
-
-					if (customer is null)
+					if (!ctx.Customer.IsCreditCustomer)
 						return Info("This customer is not approved for credit purchases.");
 
-					var outstanding = await GetOutstandingCreditAsync(customer.CustomerCode);
+					var outstanding = await GetOutstandingCreditAsync(ctx.Customer.CustomerCode);
 					var newExposure = outstanding + ctx.Calculated;
 
-					if (newExposure > customer.CreditLimit)
+					if (newExposure > ctx.Customer.CreditLimit)
 						return ServiceResponse<object>.Information(
-							$"Credit limit exceeded. Limit: {customer.CreditLimit:N2}, " +
+							$"Credit limit exceeded. Limit: {ctx.Customer.CreditLimit:N2}, " +
 							$"Outstanding: {outstanding:N2}, This sale: {ctx.Calculated:N2}",
-							new { customer.CreditLimit, Outstanding = outstanding });
+							new { ctx.Customer.CreditLimit, Outstanding = outstanding });
 
 					_context.CreditTransactions.Add(new CreditTransactions
 					{
-						CustomerCode = customer.CustomerCode,
+						CustomerCode = ctx.Customer.CustomerCode,
 						Credit = 0,
 						Debit = ctx.Calculated,
 						SaleId = sid,
 						TransactionReference = ctx.TransactionRef,
-						VehicleCode = s.VehicleCode,
+						VehicleCode = s.RegistrationNumber,
 						StationCode = ctx.Station.StationCode,
 						DateCreated = EatTime.Now,
 						UserCode = _authentication.Usercode()
 					});
 
-					var remainingCredit = customer.CreditLimit - newExposure;
-					StageQueuedSms(ctx.Vehicle.PhoneNumber, BuildSms(ctx,
+					var remainingCredit = ctx.Customer.CreditLimit - newExposure;
+					StageQueuedSms(sales.PhoneNumber, BuildSms(ctx,
 						$"a credit sale of KES {ctx.Calculated:N2} for {s.Quantity:N2} litres " +
-						$"has been recorded for vehicle {ctx.Vehicle.VehicleRegistration} " +
+						$"has been recorded for vehicle {sales.RegistrationNumber} " +
 						$"at {ctx.Station.StationName} on {UtcStamp()}. " +
 						$"Remaining credit: KES {remainingCredit:N2}."));
-
-					return null;
-				}
-			);
-		}
-
-		private Task<ServiceResponse<object>> HandleWalletAsync(AddsaleDto sales, string saleId)
-		{
-			return ExecuteSaleAsync(
-				sales, saleId,
-				operationType: "WALLET SALE",
-				receiptPaymentMethod: "Wallet",
-				awardLoyalty: true,
-				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
-				paymentStep: async (s, ctx, sid) =>
-				{
-					if (await IsWalletDormantAsync(
-						_context.CustomerTransactions.Where(w => w.VehicleCode == s.VehicleCode)))
-						return Info(DormantWalletMessage);
-
-					var effectiveBal = await GetCustomerBalanceAsync(s.VehicleCode)
-									 + ctx.Vehicle.CreditLimit;
-
-					if (effectiveBal < ctx.Requested)
-						return ServiceResponse<object>.Information("Insufficient balance.", effectiveBal);
-
-					await AddCustomerTransactionAsync(s.VehicleCode, ctx.Requested, sid, s.DispenserCode);
-
-					var newBalance = await GetCustomerBalanceAsync(s.VehicleCode);
-					StageQueuedSms(ctx.Vehicle.PhoneNumber, BuildSms(ctx,
-						$"{ctx.Requested:N2} KES has been deducted from the wallet " +
-						$"for {s.Quantity:N2} litres at {ctx.Station.StationName} " +
-						$"on {UtcStamp()}. New balance: {newBalance:N2}."));
-
-					return null;
-				}
-			);
-		}
-
-		private Task<ServiceResponse<object>> HandlePersonalWalletAsync(AddsaleDto sales, string saleId)
-		{
-			return ExecuteSaleAsync(
-				sales, saleId,
-				operationType: "WALLET SALE",
-				receiptPaymentMethod: "Wallet",
-				awardLoyalty: false,
-				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
-				paymentStep: async (s, ctx, sid) =>
-				{
-					if (await IsWalletDormantAsync(
-						_context.Wallet_Transactions_Personal.Where(w => w.VehicleCode == s.VehicleCode)))
-						return Info(DormantWalletMessage);
-
-					var walletBalance = await GetPersonalWalletBalanceAsync(s.WalletId ?? string.Empty);
-					var effectiveBal = walletBalance + ctx.Vehicle.CreditLimit;
-
-					if (effectiveBal < ctx.Calculated)
-						return ServiceResponse<object>.Information("Insufficient wallet balance", effectiveBal);
-
-					_context.Wallet_Transactions_Personal.Add(new Wallet_Transactions_Personal
-					{
-						Credit = 0,
-						Debit = ctx.Requested,
-						TransactionType = "0",
-						TransactionCode = await _setups.GetCodeGenerator("TransactionId"),
-						WalletId = s.WalletId ?? string.Empty,
-						DateCreated = EatTime.Now,
-						UserCode = _authentication.Usercode(),
-						Description = $"Fuel purchase at {ctx.Station.StationName}",
-						SaleId = ctx.TransactionRef,
-						VehicleCode = s.VehicleCode,
-						PhoneNumber = ctx.Vehicle.PhoneNumber ?? string.Empty
-					});
-
-					var newBalance = await GetCustomerBalanceAsync(s.VehicleCode);
-					StageQueuedSms(ctx.Vehicle.PhoneNumber, BuildSms(ctx,
-						$"KES {ctx.Requested:N2} has been deducted from your wallet " +
-						$"for {s.Quantity:N2} litres at {ctx.Station.StationName} " +
-						$"on {UtcStamp()} for vehicle {ctx.Vehicle.VehicleRegistration}. " +
-						$"New balance: KES {newBalance:N2}. Thank you!"));
-
-					return null;
-				}
-			);
-		}
-
-		private Task<ServiceResponse<object>> HandleVoucherAsync(AddsaleDto sales, string saleId)
-		{
-			return ExecuteSaleAsync(
-				sales, saleId,
-				operationType: "VOUCHER SALE",
-				receiptPaymentMethod: "Voucher",
-				awardLoyalty: true,
-				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
-				paymentStep: async (s, ctx, _) =>
-				{
-					var voucherNo = s.PaymentDetails.First().TransactionReference?.Trim();
-					var voucher = await _context.Vouchers
-						.FirstOrDefaultAsync(v => v.VoucherNo == voucherNo);
-
-					if (voucher is null) return Info("Invalid voucher number.");
-					if (voucher.IsUsed) return Info("This voucher has already been used.");
-					if (voucher.ExpiryDate < EatTime.Now) return Info("This voucher has expired.");
-					if (voucher.VehicleCode != s.VehicleCode) return Info("This voucher is not valid for this vehicle.");
-					if (voucher.Amount != ctx.Requested) return Info("The voucher must be used once for the full amount.");
-
-					voucher.IsUsed = true;
-
-					var loyaltySub = await _context.LoyaltySubscriptions
-						.FirstOrDefaultAsync(sub =>
-							sub.VehicleCode == s.VehicleCode
-							&& !sub.IsRewardClaimed
-							&& sub.OtpCode == voucherNo);
-
-					if (loyaltySub is not null)
-					{
-						loyaltySub.IsRewardClaimed = true;
-						loyaltySub.RewardClaimedDate = EatTime.Now;
-					}
-
-					StageQueuedSms(ctx.Vehicle.PhoneNumber,
-						$"A voucher sale of {s.Quantity:N2} litres for {ctx.Requested:N2} Ksh " +
-						$"was completed using voucher {voucher.VoucherNo} at {ctx.Station.StationName}.");
 
 					return null;
 				}
@@ -493,17 +342,13 @@ namespace BussinessLogic.Sales.NewSales
 					if (balResult.ResponseObject < ctx.Requested)
 						return Info("Insufficient funds, cannot complete the transaction");
 
-					if (ctx.Vehicle.ProductCode is "04" or "05")
-					{
-						var name = _setups.SentenceCase(
-							ctx.Customer.CustomerName?.Split(' ').FirstOrDefault() ?? "Customer");
-						StageQueuedSms(ctx.Customer.CustomerPhone,
-							$"Dear {name}, your M-Pesa payment of {ctx.Requested:N2} " +
+					StageQueuedSms(ctx.Customer.CustomerPhone,
+						BuildSms(ctx,
+							$"your M-Pesa payment of KES {ctx.Requested:N2} " +
 							$"has been received for {s.Quantity:N2} litres for vehicle " +
-							$"{ctx.Vehicle.VehicleRegistration} at " +
+							$"{sales.RegistrationNumber} at " +
 							$"{_setups.SentenceCase(ctx.Station.StationName)} " +
-							$"on {EatTime.Now:yyyy-MMM-dd} at {EatTime.Now:HH:mm}. Thank you!");
-					}
+							$"on {EatTime.Now:yyyy-MMM-dd} at {EatTime.Now:HH:mm}. Thank you!"));
 
 					return null;
 				}
@@ -554,10 +399,10 @@ namespace BussinessLogic.Sales.NewSales
 					var remainingPoints = pointsBalance - pointsToDeduct;
 					var remainingValue = remainingPoints * ctx.UnitPrice;
 
-					StageQueuedSms(ctx.Vehicle.PhoneNumber, BuildSms(ctx,
+					StageQueuedSms(sales.PhoneNumber, BuildSms(ctx,
 						$"a loyalty points redemption of {pointsToDeduct:N2} points " +
 						$"(KES {ctx.Calculated:N2}) for {s.Quantity:N2} litres " +
-						$"has been processed for vehicle {ctx.Vehicle.VehicleRegistration} " +
+						$"has been processed for vehicle {sales.RegistrationNumber} " +
 						$"at {ctx.Station.StationName} on {UtcStamp()}. " +
 						$"Remaining points: {remainingPoints:N2} (KES {remainingValue:N2})."));
 
@@ -566,34 +411,34 @@ namespace BussinessLogic.Sales.NewSales
 			);
 		}
 
+		private Task<decimal> GetLoyaltyPointsBalanceAsync(string customerCode)
+		=> _loyalty.GetPointsBalance(customerCode);
+
 		// =====================================================================
 		// Context resolution
 		// =====================================================================
 
+		// ResolveSaleContextAsync — simplified
 		private async Task<SaleContext> ResolveSaleContextAsync(AddsaleDto sales, string transactionRef)
 		{
 			var station = await GetStationAsync(sales.DispenserCode);
-			var vehicle = await GetVehicleAsync(sales.VehicleCode);
-			var customer = await GetCustomerAsync(sales.VehicleCode);
-			var (unitPrice, disc) = await GetPriceAsync(
-				sales.ProductCode, station.StationCode, sales.VehicleCode);
+			var customer = await GetCustomerByPhoneAsync(sales.PhoneNumber);
+			var (unitPrice, disc) = await GetPriceByNozzleAsync(sales.NozzleCode);
 
 			var requested = Math.Round(sales.PaymentDetails.Sum(x => x.TransactionAmount), 2);
 			var calculated = Math.Round(unitPrice * sales.Quantity, 2);
 
-			// Round requested to nearest whole KES — mirrors Android Math.round()
 			var roundedRequested = Math.Round(requested, 0, MidpointRounding.AwayFromZero);
-
-			// If within 1 KES, take the full requested amount (e.g. 2001 when fuel = 2000)
 			var effective = Math.Abs(roundedRequested - calculated) <= 1.00m
 				? roundedRequested
 				: calculated;
 
 			return new SaleContext(
-				station, vehicle, customer, unitPrice, disc,
+				station, customer, unitPrice, disc,
 				Calculated: effective,
 				Requested: roundedRequested,
-				TransactionRef: transactionRef
+				TransactionRef: transactionRef,
+				VehicleRegistration: sales.RegistrationNumber
 			);
 		}
 
@@ -602,8 +447,8 @@ namespace BussinessLogic.Sales.NewSales
 		// =====================================================================
 
 		private async Task<List<string>> PersistSaleAsync(
-	AddsaleDto sales, SaleContext ctx, string saleId,
-	string? mpesaStoreNumber = null)
+			AddsaleDto sales, SaleContext ctx, string saleId,
+			string? mpesaStoreNumber = null)
 		{
 			_context.QuantityTransactions.Add(
 				BuildQuantityTransaction(sales, ctx, saleId));
@@ -635,7 +480,6 @@ namespace BussinessLogic.Sales.NewSales
 					TransactionAmountDebit = 0
 				});
 
-				// ── Only queue for reconciliation if this is an M-Pesa payment ──
 				if (!string.IsNullOrWhiteSpace(pay.TransactionReference)
 					&& !string.IsNullOrWhiteSpace(mpesaStoreNumber))
 					mpesaRefs.Add(pay.TransactionReference);
@@ -645,8 +489,9 @@ namespace BussinessLogic.Sales.NewSales
 
 			return mpesaRefs;
 		}
+
 		// =====================================================================
-		// M-Pesa usage balance reconciliation — runs AFTER SaveChanges + Commit
+		// M-Pesa reconciliation — runs AFTER SaveChanges + Commit
 		// =====================================================================
 
 		private async Task ReconcileAndUpdateUsageBalanceAsync(string transId)
@@ -666,23 +511,17 @@ namespace BussinessLogic.Sales.NewSales
 				.Distinct()
 				.ToListAsync();
 
-			Console.WriteLine($"[Reconcile] TransID={transId} SaleIds=[{string.Join(",", saleIds)}]");
-
 			var totalUsed = saleIds.Count == 0
 				? 0m
 				: await _context.QuantityTransactions
 					.Where(q => saleIds.Contains(q.SaleId) && !q.IsReversed)
 					.SumAsync(q => q.AmountCredit);
 
-			Console.WriteLine($"[Reconcile] TransAmount={mpesaTx.TransAmount} TotalUsed={totalUsed}");
-
 			mpesaTx.UsageBalance = Math.Max(0, mpesaTx.TransAmount - totalUsed);
 			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
 			mpesaTx.DateModified = EatTime.Now;
 
 			_context.Entry(mpesaTx).State = EntityState.Modified;
-
-			Console.WriteLine($"[Reconcile] ✅ NewUsageBalance={mpesaTx.UsageBalance} Status={mpesaTx.Status}");
 		}
 
 		// =====================================================================
@@ -696,11 +535,11 @@ namespace BussinessLogic.Sales.NewSales
 			_context.TransactionReceipts.Add(new TransactionReceipts
 			{
 				CustomerName = ctx.Customer.CustomerName,
-				PhoneNumber = ctx.Vehicle.PhoneNumber ?? string.Empty,
+				PhoneNumber = ctx.Customer.CustomerPhone,
 				TotalAmount = (double)ctx.Requested,
 				DateCreated = EatTime.Now,
 				Duplicate = 0,
-				VehicleReg = ctx.Vehicle.VehicleRegistration,
+				VehicleReg = sales.RegistrationNumber,
 				ReceiptNumber = ctx.TransactionRef,
 				PaymentMethod = paymentMethod,
 				PricePerLitre = (double)ctx.UnitPrice,
@@ -744,7 +583,8 @@ namespace BussinessLogic.Sales.NewSales
 				$"Qty={sales.Quantity:0.00}L | UnitPrice={ctx.UnitPrice:0.00} | " +
 				$"SaleTotal={ctx.Calculated:0.00} | EnteredTotal={ctx.Requested:0.00} | " +
 				$"Shift={sales.ShiftNumber} | Dispenser={sales.DispenserCode} | " +
-				$"Nozzle={sales.NozzleCode} | Vehicle={ctx.Vehicle.VehicleRegistration} | " +
+				$"Nozzle={sales.NozzleCode} | Vehicle={sales.RegistrationNumber} | " +
+				$"Customer={ctx.Customer.CustomerName}({ctx.Customer.CustomerCode}) | " +
 				$"Refs={refsStr} | At={EatTime.Now:yyyy/MM/dd HH:mm:ss} | " +
 				$"User={_authentication.Usercode()}";
 
@@ -767,16 +607,10 @@ namespace BussinessLogic.Sales.NewSales
 
 			(string msg, IQueryable<bool> query)[] checks =
 			[
-				("Shift does not exist",
-					_context.Shifts.Where(x => x.ShiftNumber == sales.ShiftNumber).Select(_ => true)),
-				("Vehicle does not exist",
-					_context.Vehicles.Where(x => x.VehicleCode == sales.VehicleCode).Select(_ => true)),
-				("Nozzle does not exist",
-					_context.Nozzles.Where(x => x.NozzleCode == sales.NozzleCode).Select(_ => true)),
-				("Payment type does not exist",
-					_context.PaymentTypes.Where(x => x.PaymentTypeId == sales.PaymentTypeCode).Select(_ => true)),
-				("Dispenser does not exist",
-					_context.Dispensers.Where(x => x.DispenserCode == sales.DispenserCode).Select(_ => true)),
+				("Shift does not exist",        _context.Shifts.Where(x => x.ShiftNumber == sales.ShiftNumber).Select(_ => true)),
+				("Nozzle does not exist",       _context.Nozzles.Where(x => x.NozzleCode == sales.NozzleCode).Select(_ => true)),
+				("Payment type does not exist", _context.PaymentTypes.Where(x => x.PaymentTypeId == sales.PaymentTypeCode).Select(_ => true)),
+				("Dispenser does not exist",    _context.Dispensers.Where(x => x.DispenserCode == sales.DispenserCode).Select(_ => true)),
 			];
 
 			foreach (var (msg, query) in checks)
@@ -786,7 +620,6 @@ namespace BussinessLogic.Sales.NewSales
 			return ServiceResponse<object>.Success("Data is valid", null);
 		}
 
-		// ── Allow up to 1 KES rounding tolerance ─────────────────────────────
 		private static bool ValidateTransactionAmount(decimal calculated, decimal entered)
 			=> entered >= calculated || Math.Abs(entered - calculated) <= 1.00m;
 
@@ -796,7 +629,7 @@ namespace BussinessLogic.Sales.NewSales
 
 			var exists = await _context.QuantityTransactions.AnyAsync(p =>
 				p.NozzleCode == sales.NozzleCode
-				&& p.VehicleCode == sales.VehicleCode
+				&& p.VehicleRegistrationNumber == sales.RegistrationNumber
 				&& p.QuantityCredit == sales.Quantity
 				&& p.DateCreated >= cutoff);
 
@@ -805,38 +638,24 @@ namespace BussinessLogic.Sales.NewSales
 				: ServiceResponse<bool>.Success("No duplicate payment found.", true);
 		}
 
-		private static async Task<bool> IsWalletDormantAsync<T>(IQueryable<T> q) where T : class
-		{
-			var last = await q
-				.OrderByDescending(w => EF.Property<DateTime>(w, "DateCreated"))
-				.Select(w => (DateTime?)EF.Property<DateTime>(w, "DateCreated"))
-				.FirstOrDefaultAsync();
-
-			return last.HasValue && last.Value < EatTime.Now.AddDays(-30);
-		}
-
 		// =====================================================================
 		// Pricing & M-Pesa validation
 		// =====================================================================
 
-		public async Task<(decimal NewPrice, decimal Discount)> GetPriceAsync(
-			string productCode, string stationCode, string vehicleCode)
+		private async Task<(decimal Price, decimal Discount)> GetPriceByNozzleAsync(string nozzleCode)
 		{
-			var basePrice = await _context.Prices
-				.Where(p => p.ProductCode == productCode && p.StationCode == stationCode)
-				.Select(p => p.Amount)
-				.FirstOrDefaultAsync();
+			var price = await (
+				from n in _context.Nozzles
+				join p in _context.Prices on n.PetroleumCode equals p.ProductCode
+				where n.NozzleCode == nozzleCode
+				select p.Amount
+			).FirstOrDefaultAsync();
 
-			var discount = await _context.Vehicles
-				.Where(v => v.VehicleCode == vehicleCode)
-				.Select(v => v.Discount)
-				.FirstOrDefaultAsync();
-
-			return (basePrice - discount, discount);
+			return (price, 0m);
 		}
 
-
-		public async Task<ServiceResponse<MpesaManualConfirmationDto?>> ConfirmMpesaManualAsync(string transId, CancellationToken ct)
+		public async Task<ServiceResponse<MpesaManualConfirmationDto?>> ConfirmMpesaManualAsync(
+			string transId, CancellationToken ct)
 		{
 			var tx = await _context.MpesaTransactions
 				.Where(t => t.TransID == transId && t.Status == 1)
@@ -846,7 +665,8 @@ namespace BussinessLogic.Sales.NewSales
 				return ServiceResponse<MpesaManualConfirmationDto?>.Information(
 					"Transaction not found or already used", null);
 
-			return ServiceResponse<MpesaManualConfirmationDto?>.Success("Transaction verified successfully",
+			return ServiceResponse<MpesaManualConfirmationDto?>.Success(
+				"Transaction verified successfully",
 				new MpesaManualConfirmationDto(
 					TransID: tx.TransID,
 					Amount: tx.UsageBalance.ToString(),
@@ -854,8 +674,9 @@ namespace BussinessLogic.Sales.NewSales
 					Phone: tx.MSISDN
 				));
 		}
+
 		private async Task<ServiceResponse<decimal>> GetTotalUsableMpesaAsync(
-		IEnumerable<string?> transIds, string storeNumber)
+			IEnumerable<string?> transIds, string storeNumber)
 		{
 			decimal total = 0m;
 
@@ -903,8 +724,7 @@ namespace BussinessLogic.Sales.NewSales
 		}
 
 		private async Task<UsageBalanceDto?> GetUsageBalanceAsync(string transId)
-		{
-			return await _context.MpesaTransactions
+			=> await _context.MpesaTransactions
 				.Where(t => t.TransID == transId && t.Status == 1)
 				.Select(t => new UsageBalanceDto
 				{
@@ -912,7 +732,6 @@ namespace BussinessLogic.Sales.NewSales
 					StoreNumber = t.TillNumber
 				})
 				.FirstOrDefaultAsync();
-		}
 
 		private Task<decimal> GetOutstandingCreditAsync(string customerCode)
 			=> _context.CreditTransactions
@@ -942,48 +761,33 @@ namespace BussinessLogic.Sales.NewSales
 			return s ?? new StationData();
 		}
 
-		private async Task<Vehicle> GetVehicleAsync(string vehicleCode)
+		private async Task<VehicleInfo> GetVehicleByRegAsync(string registrationNumber)
 			=> await _context.Vehicles
-				.Where(v => v.VehicleCode == vehicleCode)
-				.Select(v => new Vehicle
+				.Where(v => v.VehicleRegistrationNumber == registrationNumber)
+				.Select(v => new VehicleInfo
 				{
-					ProductCode = v.ProductCode,
 					VehicleRegistration = v.VehicleRegistrationNumber,
-					CreditLimit = v.CreditLimit,
 					PhoneNumber = v.PhoneNumber,
-					PhoneNumber2 = v.PhoneNumber2,
-					Discount = v.Discount
+					PhoneNumber2 = v.PhoneNumber2
 				})
-				.FirstOrDefaultAsync() ?? new Vehicle();
+				.FirstOrDefaultAsync()
+			?? new VehicleInfo { VehicleRegistration = registrationNumber };
 
-		private async Task<Customer> GetCustomerAsync(string vehicleCode)
-			=> await (
-				from cust in _context.Customers
-				join v in _context.Vehicles on cust.CustomerCode equals v.CustomerCode
-				where v.VehicleCode == vehicleCode
-				select new Customer
+		private async Task<CustomerInfo> GetCustomerByPhoneAsync(string phone)
+			=> await _context.Customers
+				.Where(c => c.CustomerPhone == phone)
+				.Select(c => new CustomerInfo
 				{
-					CustomerName = cust.CustomerName,
-					CustomerPhone = cust.CustomerPhone,
-					CustomerEmail = cust.CustomerEmail,
-					Receive_Receipts = cust.Receive_Receipts,
-					CustomerCode = cust.CustomerCode,
-					Receive_Statements = cust.Receive_Statements
-				}
-			).FirstOrDefaultAsync() ?? new Customer();
-
-		private Task<decimal> GetCustomerBalanceAsync(string vehicleCode)
-			=> _context.CustomerTransactions
-				.Where(x => x.VehicleCode == vehicleCode)
-				.SumAsync(x => x.Credit - x.Debit);
-
-		private Task<decimal> GetPersonalWalletBalanceAsync(string walletId)
-			=> _context.Wallet_Transactions_Personal
-				.Where(x => x.WalletId == walletId)
-				.SumAsync(x => x.Credit - x.Debit);
-
-		private Task<decimal> GetLoyaltyPointsBalanceAsync(string customerCode)
-			=> _loyalty.GetPointsBalance(customerCode);
+					CustomerName = c.CustomerName,
+					CustomerPhone = c.CustomerPhone,
+					CustomerEmail = c.CustomerEmail,
+					CustomerCode = c.CustomerCode,
+					Receive_Receipts = c.Receive_Receipts,
+					Receive_Statements = c.Receive_Statements,
+					IsCreditCustomer = c.IsCreditCustomer,
+					CreditLimit = c.CreditLimit
+				})
+				.FirstOrDefaultAsync() ?? new CustomerInfo();
 
 		// =====================================================================
 		// Entity builder
@@ -995,7 +799,7 @@ namespace BussinessLogic.Sales.NewSales
 			{
 				ShiftNumber = sales.ShiftNumber,
 				UserCode = _authentication.Usercode(),
-				VehicleCode = sales.VehicleCode,
+				VehicleRegistrationNumber = sales.RegistrationNumber,
 				QuantityCredit = sales.Quantity,
 				QuantityDebit = 0,
 				AmountCredit = ctx.Calculated,
@@ -1012,23 +816,6 @@ namespace BussinessLogic.Sales.NewSales
 				Discount = ctx.Discount,
 				OtpUsed = sales.OtpUsed ?? string.Empty
 			};
-
-		// =====================================================================
-		// Customer wallet debit
-		// =====================================================================
-
-		private async Task AddCustomerTransactionAsync(
-			string vehicleCode, decimal debitAmount,
-			string saleId, string dispenserCode)
-		{
-			var station = await GetStationAsync(dispenserCode);
-
-			await _context.Database.ExecuteSqlRawAsync(
-				"EXEC InsertCustomerTransaction @p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9",
-				vehicleCode, 0, debitAmount, saleId, EatTime.Now,
-				string.Empty, _authentication.Usercode(), 2, 0,
-				$"Fueled at {station.StationName} station");
-		}
 
 		// =====================================================================
 		// Loyalty
@@ -1068,10 +855,6 @@ namespace BussinessLogic.Sales.NewSales
 
 		private static ServiceResponse<object> Info(string message)
 			=> ServiceResponse<object>.Information(message, null);
-
-		private const string DormantWalletMessage =
-			"This wallet account has been dormant for more than 30 days. " +
-			"Please contact your supervisor for support.";
 	}
 
 	// =========================================================================
@@ -1086,19 +869,28 @@ namespace BussinessLogic.Sales.NewSales
 		public string StoreNumber { get; set; } = string.Empty;
 	}
 
-	public class Vehicle
+	public class VehicleInfo
 	{
-		public string ProductCode { get; set; } = string.Empty;
 		public string VehicleRegistration { get; set; } = string.Empty;
-		[Precision(18, 2)] public decimal CreditLimit { get; set; }
 		public string PhoneNumber { get; set; } = string.Empty;
 		public string PhoneNumber2 { get; set; } = string.Empty;
-		[Precision(18, 2)] public decimal Discount { get; set; }
+	}
+
+	public class CustomerInfo
+	{
+		public string CustomerName { get; set; } = string.Empty;
+		public string CustomerPhone { get; set; } = string.Empty;
+		public string CustomerEmail { get; set; } = string.Empty;
+		public string CustomerCode { get; set; } = string.Empty;
+		public bool Receive_Receipts { get; set; }
+		public bool Receive_Statements { get; set; }
+		public bool IsCreditCustomer { get; set; }
+		public decimal CreditLimit { get; set; }
 	}
 
 	public record MpesaManualConfirmationDto(
-	string TransID,
-	string Amount,
-	string TillNumber,
-	string Phone);
+		string TransID,
+		string Amount,
+		string TillNumber,
+		string Phone);
 }

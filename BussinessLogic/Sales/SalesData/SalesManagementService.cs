@@ -410,7 +410,7 @@ namespace BussinessLogic.Sales.SalesData
 			(filter.ShiftNumber == null || q.ShiftNumber == filter.ShiftNumber) &&
 			(filter.StationCode == null || q.StationCode == filter.StationCode) &&
 			(filter.DispenserCode == null || q.DispenserCode == filter.DispenserCode) &&
-			(filter.VehicleCode == null || q.VehicleCode == filter.VehicleCode) &&
+			(filter.VehicleCode == null || q.VehicleRegistrationNumber == filter.VehicleCode) &&
 			(filter.NozzleCode == null || q.NozzleCode == filter.NozzleCode) &&
 			(filter.TransactionCode == null || q.SaleId == filter.TransactionCode));
 
@@ -585,13 +585,12 @@ namespace BussinessLogic.Sales.SalesData
 								 join s in _context.Stations on d.StationCode equals s.StationCode
 								 join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
 								 join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
-								 from v in _context.Vehicles.Where(v => v.VehicleCode == q.VehicleCode).DefaultIfEmpty()
 								 select new SaleTransactionDto
 								 {
 									 StationName = s.StationName,
 									 NozzleCode = q.NozzleCode,
 									 Quantity = q.QuantityCredit == 0 ? -q.QuantityDebit : q.QuantityCredit,
-									 VehicleRegistrationNumber = v == null ? p.PaymentTypeName : v.VehicleRegistrationNumber,
+									 VehicleRegistrationNumber = q.VehicleRegistrationNumber,
 									 DispenserName = d.DispenserName,
 									 NozzleName = n.NozzleName,
 									 PaymentTypeName = p.PaymentTypeName,
@@ -925,15 +924,14 @@ namespace BussinessLogic.Sales.SalesData
 								   join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
 								   join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
 								   join s in _context.Stations on d.StationCode equals s.StationCode
-								   join v in _context.Vehicles on q.VehicleCode equals v.VehicleCode
 								   join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
-								   where q.VehicleCode == vehicleCode
+								   where q.VehicleRegistrationNumber == vehicleCode
 								   select new
 								   {
 									   s.StationName,
 									   q.NozzleCode,
 									   Quantity = q.QuantityCredit == 0 ? -q.QuantityDebit : q.QuantityCredit,
-									   v.VehicleRegistrationNumber,
+									   q.VehicleRegistrationNumber,
 									   d.DispenserName,
 									   n.NozzleName,
 									   p.PaymentTypeName,
@@ -984,7 +982,7 @@ namespace BussinessLogic.Sales.SalesData
 								   join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
 								   join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
 								   join s in _context.Stations on d.StationCode equals s.StationCode
-								   join v in _context.Vehicles on q.VehicleCode equals v.VehicleCode
+								   join v in _context.Vehicles on q.VehicleRegistrationNumber equals v.VehicleCode
 								   join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
 								   where q.ShiftNumber == shiftNumber
 								   select new
@@ -1082,7 +1080,7 @@ namespace BussinessLogic.Sales.SalesData
 				var salesSummary = await (from q in _context.QuantityTransactions
 										  join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
 										  join s in _context.Stations on d.StationCode equals s.StationCode
-										  join v in _context.Vehicles on q.VehicleCode equals v.VehicleCode
+										  join v in _context.Vehicles on q.VehicleRegistrationNumber equals v.VehicleCode
 										  join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
 										  group q by new { q.ShiftNumber, s.StationName } into g
 										  select new
@@ -1123,7 +1121,7 @@ namespace BussinessLogic.Sales.SalesData
 				var salesSummary = await (from q in _context.QuantityTransactions
 										  join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
 										  join s in _context.Stations on d.StationCode equals s.StationCode
-										  join v in _context.Vehicles on q.VehicleCode equals v.VehicleCode
+										  join v in _context.Vehicles on q.VehicleRegistrationNumber equals v.VehicleCode
 										  join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
 										  where q.DateCreated.Month == DateTime.UtcNow.Month
 										  group q by new { q.DateCreated.Date, s.StationName } into g
@@ -1166,7 +1164,7 @@ namespace BussinessLogic.Sales.SalesData
 				var salesForecast = await (from q in _context.QuantityTransactions
 										   join d in _context.Dispensers on q.DispenserCode equals d.DispenserCode
 										   join s in _context.Stations on d.StationCode equals s.StationCode
-										   join v in _context.Vehicles on q.VehicleCode equals v.VehicleCode
+										   join v in _context.Vehicles on q.VehicleRegistrationNumber equals v.VehicleCode
 										   join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
 										   where q.DateCreated >= DateTime.UtcNow.Date && q.DateCreated <= DateTime.UtcNow.AddDays(7).Date
 										   group q by new { q.DateCreated.Date, s.StationName } into g
@@ -1548,12 +1546,12 @@ namespace BussinessLogic.Sales.SalesData
 							join s in _context.Stations.AsNoTracking()
 								on d.StationCode equals s.StationCode
 							join v in _context.Vehicles.AsNoTracking()
-								on q.VehicleCode equals v.VehicleCode
+								on q.VehicleRegistrationNumber equals v.VehicleCode
 							// ✅ Left join — payment type may not always be set
 							join p in _context.PaymentTypes.AsNoTracking()
 								on q.PaymentTypeCode equals p.PaymentTypeId into paymentGroup
 							from p in paymentGroup.DefaultIfEmpty()
-							where q.VehicleCode == vehicleCode
+							where q.VehicleRegistrationNumber == vehicleCode
 							orderby q.DateCreated descending
 							select new
 							{

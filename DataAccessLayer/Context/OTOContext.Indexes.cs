@@ -45,7 +45,7 @@ namespace DataAccessLayer.Context
 
             // --- QuantityTransactions column config ---
             modelBuilder.Entity<QuantityTransactions>()
-                .Property(e => e.VehicleCode)
+                .Property(e => e.VehicleRegistrationNumber)
                 .IsRequired().HasMaxLength(10).IsUnicode(false);
 
             modelBuilder.Entity<QuantityTransactions>()

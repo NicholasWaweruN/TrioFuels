@@ -613,7 +613,7 @@ namespace BussinessLogic.Sales.MissingSales
 			{
 				ShiftNumber = sales.ShiftNumber,
 				UserCode = _authentication.Usercode(),
-				VehicleCode = sales.VehicleCode,
+				VehicleRegistrationNumber = sales.VehicleCode,
 				QuantityCredit = sales.Quantity,
 				QuantityDebit = 0,
 				DispenserCode = sales.DispenserCode,
