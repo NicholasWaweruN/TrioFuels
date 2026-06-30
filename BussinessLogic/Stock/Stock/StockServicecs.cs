@@ -650,17 +650,7 @@ namespace BussinessLogic.Stock.Stock
 		}
 		//auto clear variance if the sum of closing variance for the shift is less than 5 plus or minus  that dispenser insert the record in QuantityTransaction Table and PaymentTransaction and update the StockTakeSummary Table
 
-		private async Task<Vehicle> GetVehicleAsync(string vehicleCode)
-		{
-			return await _context.Vehicles
-				.Where(v => v.VehicleCode == vehicleCode)
-				.Select(v => new Vehicle
-				{
-					ProductCode = v.ProductCode,
-					VehicleRegistration = v.VehicleRegistrationNumber,
-					CreditLimit = v.CreditLimit,
-				}).FirstOrDefaultAsync() ?? new Vehicle();
-		}
+	
 
 		public async Task<ServiceResponse<object>> GetTotalizerReadings()
 		{

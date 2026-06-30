@@ -11,7 +11,5 @@ namespace BussinessLogic.Sales.MissingSales
 		Task<ServiceResponse> ReconcileStockSummaries(string shiftNumber);
 		Task<MisingSale.StationData> StationsName(string dispenserCode);
 		Task<string> StoreNumber(string dispenserCode);
-		Task<ServiceResponse<object>> ValidateVoucherAsync(string voucherNo);
-		Task<ServiceResponse<byte[]>> WalletTopUps(DateTime dateFrom, DateTime dateTo);
 	}
 }

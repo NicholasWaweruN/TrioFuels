@@ -31,6 +31,7 @@ namespace DataAccessLayer.DTOs.Sales
 	public class MisingSaleDto
     {
 
+		public string? CustomerCode { get; set; } = string.Empty;
 		public string? WalletId { get; set; } = string.Empty;
         public string VehicleCode  { get; set; } = string.Empty;
         [Required]
@@ -49,8 +50,9 @@ namespace DataAccessLayer.DTOs.Sales
 
         public List<PaymentDetails> PaymentDetails { get; set; } = [];
     }
+}
 
-	public class Personal_MisingSale 
+public class Personal_MisingSale 
 	{
 		[Required]
 		public string VehicleCode { get; set; } = string.Empty;
@@ -108,4 +110,4 @@ namespace DataAccessLayer.DTOs.Sales
          [Precision(18,2)] public decimal Reading { get; set; } = decimal.Zero;
     }
 
-}
+

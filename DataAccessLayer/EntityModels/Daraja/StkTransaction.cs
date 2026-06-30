@@ -18,6 +18,8 @@ namespace DataAccessLayer.EntityModels.Daraja
 
 		public string TillNumber { get; set; } = string.Empty;
 
+		public string BusinessShortCode { get; set; } = string.Empty; // ✅ NEW
+
 		public string AccountReference { get; set; } = string.Empty;
 
 		public string Status { get; set; } = "Pending";

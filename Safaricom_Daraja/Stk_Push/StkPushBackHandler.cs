@@ -13,8 +13,11 @@ public interface IStkCallbackHandler
 	Task HandleAsync(StkCallback callback, CancellationToken ct = default);
 }
 
-public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHandler> logger) : IStkCallbackHandler
+public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHandler> logger) : IStkCallbackHandler
 {
+	private const int MaxStkLookupAttempts = 3;
+	private static readonly TimeSpan StkLookupBackoffStep = TimeSpan.FromMilliseconds(500);
+
 	public async Task HandleAsync(StkCallback callback, CancellationToken ct = default)
 	{
 		var data = callback?.Body?.StkCallback;
@@ -27,21 +30,18 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 
 		var checkoutId = data.CheckoutRequestId;
 
-		logger.LogInformation("[STK][Callback] ▶ CheckoutRequestID={CID} MerchantRequestID={MID} " +"ResultCode={RC} ResultDesc={RD}",checkoutId, data.MerchantRequestId, data.ResultCode, data.ResultDesc);
+		logger.LogInformation("[STK][Callback] ▶ CheckoutRequestID={CID} MerchantRequestID={MID} " +
+			"ResultCode={RC} ResultDesc={RD}", checkoutId, data.MerchantRequestId, data.ResultCode, data.ResultDesc);
 
-		// ── FIX 1: Always update StkTransaction status regardless of result ─────
-		var stkTx = await context.StkTransactions
-			.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutId, ct);
-
-		if (stkTx is null)
-		{
-			logger.LogWarning("[STK][Callback] ⚠️ No StkTransaction found for CheckoutRequestID={CID} — " + "was InitiateAsync called first?", checkoutId);
-		}
+		// ── FIX 1: Resolve StkTransaction, retrying briefly to cover the race where
+		// Safaricom's callback arrives before InitiateAsync's SaveChangesAsync commits ──
+		var stkTx = await ResolveStkTransactionAsync(checkoutId, data.MerchantRequestId, ct);
 
 		// ── FAIL CASE — update StkTransaction, do NOT write ledger ──────────────
 		if (data.ResultCode != 0)
 		{
-			logger.LogWarning("[STK][Callback] ❌ Payment FAILED — CheckoutID={CID} ResultCode={RC} Desc={Desc}",checkoutId, data.ResultCode, data.ResultDesc);
+			logger.LogWarning("[STK][Callback] ❌ Payment FAILED — CheckoutID={CID} ResultCode={RC} Desc={Desc}",
+				checkoutId, data.ResultCode, data.ResultDesc);
 
 			if (stkTx is not null)
 			{
@@ -66,7 +66,38 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 		var transDate = Get(meta, "TransactionDate");
 		var balance = Get(meta, "Balance");
 
-		logger.LogInformation("[STK][Callback] Metadata — Receipt={R} Amount={A} Phone={P} TransDate={D} Balance={B}",receipt, amount, phone, transDate, balance);
+		logger.LogInformation("[STK][Callback] Metadata — Receipt={R} Amount={A} Phone={P} TransDate={D} Balance={B}",
+			receipt, amount, phone, transDate, balance);
+
+		// ── FIX 2: Resolve TillNumber, TillName, BusinessShortCode from StkTransaction ──
+		// StkTransaction was saved during InitiateAsync and has the till info.
+		var tillNumber = stkTx?.TillNumber ?? string.Empty;
+		var businessShortCode = stkTx?.BusinessShortCode ?? string.Empty; // was hardcoded to string.Empty
+		var tillName = string.Empty;
+
+		if (!string.IsNullOrEmpty(tillNumber))
+		{
+			var till = await context.Tills
+				.Where(t => t.TillNumber == tillNumber)
+				.Select(t => t.TillName)
+				.FirstOrDefaultAsync(ct);
+
+			tillName = till ?? string.Empty;
+		}
+
+		if (stkTx is null)
+		{
+			logger.LogError(
+				"[STK][Callback] ❌ StkTransaction still unresolved after retries — CheckoutID={CID} MerchantRequestID={MID}. " +
+				"Ledger row will be written WITHOUT TillNumber/TillName/BusinessShortCode and needs manual backfill.",
+				checkoutId, data.MerchantRequestId);
+		}
+		else
+		{
+			logger.LogInformation(
+				"[STK][Callback] Till/ShortCode resolved from StkTransaction — TillNumber={TN} BusinessShortCode={BSC} TillName={Name}",
+				tillNumber, businessShortCode, tillName);
+		}
 
 		// ── DUPLICATE PROTECTION ──────────────────────────────────────────────────
 		var exists = await context.MpesaTransactions
@@ -83,6 +114,16 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 			exists.Status = 1;
 			exists.DateModified = EatTime.Now;
 
+			// FIX 3: also backfill till/shortcode if the C2B row didn't already have them
+			if (string.IsNullOrEmpty(exists.TillNumber) && !string.IsNullOrEmpty(tillNumber))
+				exists.TillNumber = tillNumber;
+
+			if (string.IsNullOrEmpty(exists.TillName) && !string.IsNullOrEmpty(tillName))
+				exists.TillName = tillName;
+
+			if (string.IsNullOrEmpty(exists.BusinessShortCode) && !string.IsNullOrEmpty(businessShortCode))
+				exists.BusinessShortCode = businessShortCode;
+
 			if (stkTx is not null)
 			{
 				stkTx.Status = "Completed";
@@ -94,27 +135,10 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 
 			await context.SaveChangesAsync(ct);
 
-			logger.LogInformation("[STK][Callback] ✅ Backfilled C2B record — Receipt={R} CheckoutID={CID}",receipt, checkoutId);
+			logger.LogInformation("[STK][Callback] ✅ Backfilled C2B record — Receipt={R} CheckoutID={CID}",
+				receipt, checkoutId);
 			return;
 		}
-
-		// ── FIX 2: Pull TillNumber + TillName from StkTransaction ────────────────
-		// StkTransaction was saved during InitiateAsync and has the till info.
-		var tillNumber = stkTx?.TillNumber ?? string.Empty;
-		var tillName = string.Empty;
-
-		if (!string.IsNullOrEmpty(tillNumber))
-		{
-			var till = await context.Tills
-				.Where(t => t.TillNumber == tillNumber)
-				.Select(t => t.TillName)
-				.FirstOrDefaultAsync(ct);
-
-			tillName = till ?? string.Empty;
-		}
-
-		logger.LogInformation("[STK][Callback] Till resolved from StkTransaction — TillNumber={TN} TillName={Name}",tillNumber, tillName);
-
 
 		// ── WRITE LEDGER ──────────────────────────────────────────────────────────
 		var transaction = new MpesaTransaction
@@ -126,9 +150,9 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 			MerchantRequestID = data.MerchantRequestId,
 			TransAmount = decimal.TryParse(amount, out var amt) ? amt : 0,
 			TransTime = ParseDate(transDate),
-			BusinessShortCode = string.Empty,
-			TillNumber = tillNumber,          // ✅ FIX: filled from StkTransaction
-			TillName = tillName,            // ✅ FIX: filled from Tills table
+			BusinessShortCode = businessShortCode,   // ✅ FIX: filled from StkTransaction
+			TillNumber = tillNumber,                 // ✅ filled from StkTransaction
+			TillName = tillName,                     // ✅ filled from Tills table
 			PaymentMethod = "STK",
 			MSISDN = phone,
 			Status = 1,
@@ -145,7 +169,7 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 
 		context.MpesaTransactions.Add(transaction);
 
-		// ── FIX 3: Update StkTransaction to Completed ─────────────────────────────
+		// ── FIX 4: Update StkTransaction to Completed ─────────────────────────────
 		if (stkTx is not null)
 		{
 			stkTx.Status = "Completed";
@@ -157,7 +181,45 @@ public sealed class StkCallbackHandler(OTOContext context,ILogger<StkCallbackHan
 
 		await context.SaveChangesAsync(ct);
 
-		logger.LogInformation("[STK][Callback] ✅ Ledger saved — Receipt={Receipt} Amount={Amount} " +"Phone={Phone} Till={TN} ({TillName})",receipt, amount, phone, tillNumber, tillName);
+		logger.LogInformation("[STK][Callback] ✅ Ledger saved — Receipt={Receipt} Amount={Amount} " +
+			"Phone={Phone} Till={TN} ShortCode={BSC} ({TillName})",
+			receipt, amount, phone, tillNumber, businessShortCode, tillName);
+	}
+
+	/// <summary>
+	/// Looks up the StkTransaction by CheckoutRequestId, retrying with backoff to cover the
+	/// race where Safaricom's callback arrives before InitiateAsync's SaveChangesAsync commits.
+	/// Falls back to MerchantRequestId if CheckoutRequestId still doesn't resolve.
+	/// </summary>
+	private async Task<StkTransaction?> ResolveStkTransactionAsync(string checkoutId, string merchantRequestId, CancellationToken ct)
+	{
+		var stkTx = await context.StkTransactions
+			.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutId, ct);
+
+		for (var attempt = 1; attempt <= MaxStkLookupAttempts && stkTx is null; attempt++)
+		{
+			logger.LogWarning(
+				"[STK][Callback] ⚠️ No StkTransaction found for CheckoutRequestID={CID} — retry {Attempt}/{Max}",
+				checkoutId, attempt, MaxStkLookupAttempts);
+
+			await Task.Delay(StkLookupBackoffStep * attempt, ct);
+
+			stkTx = await context.StkTransactions
+				.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutId, ct);
+		}
+
+		if (stkTx is null && !string.IsNullOrEmpty(merchantRequestId))
+		{
+			stkTx = await context.StkTransactions
+				.FirstOrDefaultAsync(x => x.MerchantRequestId == merchantRequestId, ct);
+
+			if (stkTx is not null)
+				logger.LogInformation(
+					"[STK][Callback] ✅ Recovered StkTransaction via MerchantRequestID fallback — CheckoutRequestID={CID}",
+					checkoutId);
+		}
+
+		return stkTx;
 	}
 
 	private static string Get(List<StkCallbackItem> items, string name)

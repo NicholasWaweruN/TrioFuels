@@ -82,13 +82,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(result);
 		}
 
-		[HttpGet]
-		[Route("ValidateVoucher")]
-		public async Task<IActionResult> ValiDateVoucher(string VoucherNo)
-		{
-			var response = await _misingSale.ValidateVoucherAsync(VoucherNo);
-			return CreateResponse(response);
-		}
+	
 
 		[HttpPost]
 		[Route("DeferVariance")]
@@ -515,25 +509,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-		[HttpGet]
-		[Authorize(Roles = "can view wallet top ups")]
-		[Route("WalletTopUps")]
-		public async Task<IActionResult> WalletTopUps(DateTime dateFrom, DateTime dateTo)
-		{
-			string name = DateTime.UtcNow.ToString().Replace("/", "").Replace("-", "").Replace(" ", "");
-			var result = await _misingSale.WalletTopUps(dateFrom, dateTo);
-			if (result.ResponseCode != 1)
-			{
-				return NotFound(result.ResponseMessage);  // Return appropriate error response
-			}
 
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return BadRequest("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"WalletTopUps{name}.xlsx");
-		}
 
 		[HttpGet]
 		[Route("customer-transactions-pdf/{customerCode}")]

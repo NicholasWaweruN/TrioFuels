@@ -12,17 +12,18 @@ using DataAccessLayer.EntityModels.Transactions;
 using ServiceStack.Configuration;
 
 namespace Safaricom_Daraja.Stk_Push;
-public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<StkPushService> logger,OTOContext context) : IStkPushService
+
+public sealed class StkPushService(IHttpClientFactory httpFactory, IDarajaTokenService tokenService, IOptions<DarajaConfig> options, ILogger<StkPushService> logger, OTOContext context) : IStkPushService
 {
 	private readonly DarajaConfig _cfg = options.Value;
 	private readonly OTOContext _context = context;
-	
+
 
 	// ─────────────────────────────────────────────────────────────
 	// STK PUSH
 	// ─────────────────────────────────────────────────────────────
 
-	public async Task<DarajaResult<StkPushResponse>> InitiateAsync(string phone,long amount,string tillNumber,string accountReference,string description = "Payment",CancellationToken ct = default)
+	public async Task<DarajaResult<StkPushResponse>> InitiateAsync(string phone, long amount, string tillNumber, string accountReference, string description = "Payment", CancellationToken ct = default)
 	{
 		// ── VALIDATION ──────────────────────────────────────────
 		ArgumentException.ThrowIfNullOrWhiteSpace(phone);
@@ -77,7 +78,7 @@ public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenSe
 
 			if (!response.IsSuccessStatusCode)
 			{
-				logger.LogError("STK Push failed — Till={Till} Status={Status}",tillNumber, (int)response.StatusCode);
+				logger.LogError("STK Push failed — Till={Till} Status={Status}", tillNumber, (int)response.StatusCode);
 				return DarajaResult<StkPushResponse>.Fail($"Daraja HTTP {(int)response.StatusCode}");
 			}
 
@@ -100,6 +101,7 @@ public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenSe
 				PhoneNumber = sanitizedPhone,
 				Amount = amount,
 				TillNumber = tillNumber,
+				BusinessShortCode = payload.BusinessShortCode, // ✅ FIX: persist the shortcode actually sent to Daraja
 				AccountReference = safeRef,
 				Status = "Pending",
 				DateCreated = DateTime.UtcNow
@@ -108,7 +110,7 @@ public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenSe
 			_context.StkTransactions.Add(transaction);
 			await _context.SaveChangesAsync(ct);
 
-			logger.LogInformation("STK Push initiated ✅ — Phone={Phone} Amount=KES {Amount} Till={TillName} ({Till}) Ref={Ref} CheckoutId={Id}",sanitizedPhone, amount, till.TillName, tillNumber, safeRef, result.CheckoutRequestId);
+			logger.LogInformation("STK Push initiated ✅ — Phone={Phone} Amount=KES {Amount} Till={TillName} ({Till}) ShortCode={ShortCode} Ref={Ref} CheckoutId={Id}", sanitizedPhone, amount, till.TillName, tillNumber, payload.BusinessShortCode, safeRef, result.CheckoutRequestId);
 
 			return DarajaResult<StkPushResponse>.Ok(result);
 		}
@@ -147,7 +149,7 @@ public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenSe
 		return await _context.MpesaTransactions.FirstOrDefaultAsync(x => x.MpesaReceiptNumber == stkTx.MpesaReceiptNumber, ct);
 	}
 
-	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId,CancellationToken ct = default)
+	public async Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId, CancellationToken ct = default)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(checkoutRequestId);
 
@@ -210,7 +212,7 @@ public sealed class StkPushService(IHttpClientFactory httpFactory,IDarajaTokenSe
 				await _context.SaveChangesAsync(ct);
 			}
 
-			logger.LogInformation("STK Query ✅ — CheckoutId={Id} ResultCode={Code} Desc={Desc}",checkoutRequestId, result.ResultCode, result.ResultDesc);
+			logger.LogInformation("STK Query ✅ — CheckoutId={Id} ResultCode={Code} Desc={Desc}", checkoutRequestId, result.ResultCode, result.ResultDesc);
 
 			return DarajaResult<StkQueryResponse>.Ok(result);
 		}
@@ -293,7 +295,7 @@ public interface IStkPushService
 	/// </summary>
 	/// <param name="checkoutRequestId">CheckoutRequestID returned from InitiateAsync.</param>
 	/// <param name="ct">Cancellation token.</param>
-	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId,CancellationToken ct = default);
+	Task<DarajaResult<StkQueryResponse>> QueryStatusAsync(string checkoutRequestId, CancellationToken ct = default);
 	Task<MpesaTransaction?> GetMpesaTransaction(string checkoutRequestId, CancellationToken ct = default);
 	Task<MpesaTransaction?> GetMpesaTransactionByReceipt(string checkoutRequestId, CancellationToken ct = default);
 }

@@ -14,7 +14,7 @@ public static class ViewInitializer
 		await context.Database.ExecuteSqlRawAsync(
 	  @"DROP VIEW IF EXISTS ""vw_PaymentsView"" CASCADE;");
 
-		// Create vw_PaymentsView first
+
 		await context.Database.ExecuteSqlRawAsync(@"
 CREATE OR REPLACE VIEW ""vw_PaymentsView"" AS
 SELECT
@@ -25,7 +25,7 @@ WHERE pt.""PaymentRefrence"" IS NOT NULL
   AND pt.""PaymentRefrence"" <> ''
 GROUP BY pt.""SaleId"";
 ");
-
+		// Create vw_PaymentsView first
 		await context.Database.ExecuteSqlRawAsync(@"
 CREATE OR REPLACE VIEW ""vw_SalesData"" AS
 SELECT
@@ -49,6 +49,8 @@ SELECT
         ),
         '\s+', ' ', 'g'
     )) AS ""AttendantName"",
+
+    c.""CustomerName"",
 
     qt.""VehicleRegistrationNumber"" AS ""Vehicle"",
 
@@ -85,6 +87,9 @@ LEFT JOIN ""Shifts"" sh
 
 LEFT JOIN ""AspNetUsers"" su
     ON su.""UserCode"" = sh.""UserCode""
+
+LEFT JOIN ""Customers"" c
+    ON c.""CustomerCode"" = qt.""CustomerCode""
 
 LEFT JOIN ""Products"" pd
     ON pd.""ProductCode"" = z.""PetroleumCode""

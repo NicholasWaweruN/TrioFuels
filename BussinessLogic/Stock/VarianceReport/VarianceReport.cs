@@ -13,6 +13,7 @@ using BussinessLogic.PlateDetection;
 using Syncfusion.XlsIO.Implementation.Collections;
 using BussinessLogic.Messaging;
 using BussinessLogic.Setup;
+using DataAccessLayer.EntityModels.Customer;
 
 namespace BussinessLogic.Stock.VarianceReport
 {
@@ -282,7 +283,7 @@ namespace BussinessLogic.Stock.VarianceReport
 		{
 			try
 			{
-				var vehicle = GetVehicleAsync(shiftNumber);
+				//var vehicle = GetVehicleAsync(shiftNumber);
 				var vprice = await (from p in _context.Prices
 									where p.ProductCode.Equals("")
 									select p.Amount).FirstOrDefaultAsync();
@@ -359,16 +360,6 @@ namespace BussinessLogic.Stock.VarianceReport
 				return ServiceResponse<object>.Error(ex.Message, null);
 			}
 		}
-		private async Task<Vehicle> GetVehicleAsync(string vehicleCode)
-		{
-			return await _context.Vehicles
-				.Where(v => v.VehicleCode == vehicleCode)
-				.Select(v => new Vehicle
-				{
-					ProductCode = v.ProductCode,
-					VehicleRegistration = v.VehicleRegistrationNumber,
-					CreditLimit = v.CreditLimit,
-				}).FirstOrDefaultAsync() ?? new Vehicle();
-		}
+	
 	}
 }
