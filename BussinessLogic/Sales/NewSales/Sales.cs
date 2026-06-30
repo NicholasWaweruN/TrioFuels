@@ -317,9 +317,9 @@ namespace BussinessLogic.Sales.NewSales
 			if (mpesaCodes.Count == 0)
 				return Info("No valid M-Pesa codes provided");
 
-			var dupCheck = await CheckDuplicates(sales);
-			if (dupCheck.ResponseCode == Response.Information)
-				return Info("Duplicate M-Pesa codes found in the transaction");
+			//var dupCheck = await CheckDuplicates(sales);
+			//if (dupCheck.ResponseCode == Response.Information)
+			//	return Info("Duplicate M-Pesa codes found in the transaction");
 
 			var station = await GetStationAsync(sales.DispenserCode);
 
