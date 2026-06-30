@@ -814,7 +814,8 @@ namespace BussinessLogic.Sales.NewSales
 				Price = ctx.UnitPrice,
 				Vat_Amount = 0,
 				Discount = ctx.Discount,
-				OtpUsed = sales.OtpUsed ?? string.Empty
+				OtpUsed = sales.OtpUsed ?? string.Empty,
+				CustomerCode = sales.LoyaltyCustomerCode ?? string.Empty
 			};
 
 		// =====================================================================

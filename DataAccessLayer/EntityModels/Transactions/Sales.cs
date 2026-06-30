@@ -20,12 +20,18 @@ namespace DataAccessLayer.EntityModels.Transactions
 		public string StationCode { get; set; } = string.Empty;
 		[Required, StringLength(15), Unicode(false)]
 		public string VehicleRegistrationNumber  { get; set; } = string.Empty;
-		[Precision(18, 2)] public decimal QuantityCredit { get; set; }
-		[Precision(18, 2)] public decimal QuantityDebit { get; set; }
-		[Precision(18, 2)] public decimal AmountCredit { get; set; }
-		[Precision(18, 2)] public decimal AmountDebit { get; set; }
-		[Precision(18, 2)] public decimal Discount { get; set; }
-		[Precision(18, 2)] public decimal Vat_Amount { get; set; }
+		[Precision(18, 2)] 
+		public decimal QuantityCredit { get; set; }
+		[Precision(18, 2)]
+		public decimal QuantityDebit { get; set; }
+		[Precision(18, 2)]
+		public decimal AmountCredit { get; set; }
+		[Precision(18, 2)]
+		public decimal AmountDebit { get; set; }
+		[Precision(18, 2)]
+		public decimal Discount { get; set; }
+		[Precision(18, 2)]
+		public decimal Vat_Amount { get; set; }
 
 		[Required, StringLength(40), Unicode(false)]
 		public string SaleId { get; set; } = string.Empty;
@@ -37,6 +43,8 @@ namespace DataAccessLayer.EntityModels.Transactions
 		public DateTime? RoundedDate { get; set; }
 		[Required, StringLength(15), Unicode(false)]
 		public string OtpUsed { get; set; } = string.Empty;
+		[Required, StringLength(20), Unicode(false)]
+		public string CustomerCode { get; set; } = string.Empty;
 	}
 	public class Vouchers : BaseEntity
 	{
