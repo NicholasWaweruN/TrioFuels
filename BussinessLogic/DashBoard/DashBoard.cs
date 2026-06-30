@@ -98,19 +98,19 @@ namespace BussinessLogic.DashBoard
 			var quantitiesDiesel = await (from q in _context.QuantityTransactions
 										  join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
 										  join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
-										  where pp.PetroleumName == "Diesel" && q.DateCreated.Date == today
+										  where pp.PetroleumName == "Diesel" && q.DateCreated.Date == today && q.PaymentTypeCode != 99
 										  select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
 
 			var quantitiesPetrol = await (from q in _context.QuantityTransactions
 										  join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
 										  join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
-										  where pp.PetroleumName == "Petrol" && q.DateCreated.Date == today
+										  where pp.PetroleumName == "Petrol" && q.DateCreated.Date == today && q.PaymentTypeCode != 99
 										  select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
 
 			var quantitiesLpg = await (from q in _context.QuantityTransactions
 									   join n in _context.Nozzles on q.NozzleCode equals n.NozzleCode
 									   join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
-									   where pp.PetroleumName == "Autogas" && q.DateCreated.Date == today
+									   where pp.PetroleumName == "Autogas" && q.DateCreated.Date == today && q.PaymentTypeCode != 99
 									   select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
 
 			var depletedCredit = await (

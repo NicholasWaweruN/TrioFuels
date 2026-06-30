@@ -65,7 +65,6 @@ namespace FuelFlow.Controllers
 		[Route("GetProducts")]  
 		public async Task<IActionResult> GetProducts()
 		{
-			var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value);
 			var response = await _setupService.GetProducts();
 			return CreateResponse(response);
 		}
