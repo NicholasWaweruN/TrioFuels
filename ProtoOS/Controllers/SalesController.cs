@@ -12,9 +12,7 @@ using BussinessLogic.Sales.SalesData;
 using BussinessLogic.Sales.Wallet;
 using DataAccessLayer.DTOs.Sales;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Serilog.Core;
 using System.Globalization;
 using static BusinessLogic.Sales.Archive_data.Archive_Data;
 using static BussinessLogic.CouponsService.LoyaltyProgramSubscription;
@@ -61,7 +59,7 @@ namespace FuelFlow.Controllers
 			_coupons = coupons;
 		}
 
-		private IActionResult CreateResponse<T>(T response) => Ok(response);
+		private OkObjectResult CreateResponse<T>(T response) => Ok(response);
 
 		#region Sales Management Endpoints
 

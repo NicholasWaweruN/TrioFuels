@@ -212,17 +212,20 @@ namespace BussinessLogic.Stock.Shifts
 				};
 			}
 
-			var raw = await _context.QuantityTransactions
-				.Where(qt => qt.ShiftNumber == shiftNumber)
-				.OrderByDescending(qt => qt.Id)
-				.Select(qt => new
-				{
-					qt.VehicleRegistrationNumber,
-					qt.QuantityCredit,
-					qt.AmountCredit,
-					qt.DateCreated
-				})
-				.ToListAsync();
+			var raw = await (from qt in _context.QuantityTransactions
+							 join pt in _context.PaymentTypes
+								 on qt.PaymentTypeCode equals pt.PaymentTypeId into ptJoin
+							 from pt in ptJoin.DefaultIfEmpty() // left join, in case some rows have no payment type set
+							 where qt.ShiftNumber == shiftNumber
+							 orderby qt.DateCreated descending
+							 select new
+							 {
+								 qt.VehicleRegistrationNumber,
+								 qt.QuantityCredit,
+								 qt.AmountCredit,
+								 qt.DateCreated,
+								 PaymentTypeName = pt != null ? pt.PaymentTypeName : "Unknown"
+							 }).ToListAsync();
 
 			if (raw.Count == 0)
 			{
@@ -240,7 +243,8 @@ namespace BussinessLogic.Stock.Shifts
 				x.QuantityCredit,
 				x.AmountCredit,
 				x.DateCreated,
-				Time = x.DateCreated.ToString("HH:mm:ss")
+				Time = x.DateCreated.ToString("HH:mm:ss"),
+				x.PaymentTypeName
 			}).ToList();
 
 			return new ServiceResponse<object>

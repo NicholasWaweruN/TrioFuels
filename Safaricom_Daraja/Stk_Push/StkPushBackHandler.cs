@@ -4,6 +4,7 @@ using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Safaricom_Daraja.Helpers;
 using ServiceStack.Configuration;
 
 namespace Safaricom_Daraja.Stk_Push;
@@ -13,10 +14,11 @@ public interface IStkCallbackHandler
 	Task HandleAsync(StkCallback callback, CancellationToken ct = default);
 }
 
-public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHandler> logger) : IStkCallbackHandler
+public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHandler> logger,IShiftResolver resolver) : IStkCallbackHandler
 {
 	private const int MaxStkLookupAttempts = 3;
 	private static readonly TimeSpan StkLookupBackoffStep = TimeSpan.FromMilliseconds(500);
+	private readonly IShiftResolver _resolver = resolver;
 
 	public async Task HandleAsync(StkCallback callback, CancellationToken ct = default)
 	{
@@ -94,9 +96,7 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 		}
 		else
 		{
-			logger.LogInformation(
-				"[STK][Callback] Till/ShortCode resolved from StkTransaction — TillNumber={TN} BusinessShortCode={BSC} TillName={Name}",
-				tillNumber, businessShortCode, tillName);
+			logger.LogInformation("[STK][Callback] Till/ShortCode resolved from StkTransaction — TillNumber={TN} BusinessShortCode={BSC} TillName={Name}",tillNumber, businessShortCode, tillName);
 		}
 
 		// ── DUPLICATE PROTECTION ──────────────────────────────────────────────────
@@ -131,14 +131,17 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 				stkTx.ResultCode = "0";
 				stkTx.ResultDescription = data.ResultDesc ?? "Success";
 				stkTx.DateCompleted = DateTime.UtcNow;
+				
 			}
 
 			await context.SaveChangesAsync(ct);
 
-			logger.LogInformation("[STK][Callback] ✅ Backfilled C2B record — Receipt={R} CheckoutID={CID}",
-				receipt, checkoutId);
+			logger.LogInformation("[STK][Callback] ✅ Backfilled C2B record — Receipt={R} CheckoutID={CID}",receipt, checkoutId);
 			return;
 		}
+
+		var shift = await _resolver.GetCurrentShiftByTill(tillNumber);
+		var shiftNumber = shift.ResponseObject as string ?? string.Empty;
 
 		// ── WRITE LEDGER ──────────────────────────────────────────────────────────
 		var transaction = new MpesaTransaction
@@ -164,7 +167,8 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 			MiddName = string.Empty,
 			OrgAccountBalance = decimal.TryParse(balance, out var bal) ? bal : 0,
 			UsageBalance = decimal.TryParse(amount, out var usage) ? usage : 0,
-			UserCode = "Mpesa"
+			UserCode = "Mpesa",
+			ShiftNumber = shiftNumber
 		};
 
 		context.MpesaTransactions.Add(transaction);
@@ -181,9 +185,7 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 
 		await context.SaveChangesAsync(ct);
 
-		logger.LogInformation("[STK][Callback] ✅ Ledger saved — Receipt={Receipt} Amount={Amount} " +
-			"Phone={Phone} Till={TN} ShortCode={BSC} ({TillName})",
-			receipt, amount, phone, tillNumber, businessShortCode, tillName);
+		logger.LogInformation("[STK][Callback] ✅ Ledger saved — Receipt={Receipt} Amount={Amount} " +"Phone={Phone} Till={TN} ShortCode={BSC} ({TillName})",receipt, amount, phone, tillNumber, businessShortCode, tillName);
 	}
 
 	/// <summary>
@@ -193,14 +195,11 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 	/// </summary>
 	private async Task<StkTransaction?> ResolveStkTransactionAsync(string checkoutId, string merchantRequestId, CancellationToken ct)
 	{
-		var stkTx = await context.StkTransactions
-			.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutId, ct);
+		var stkTx = await context.StkTransactions.FirstOrDefaultAsync(x => x.CheckoutRequestId == checkoutId, ct);
 
 		for (var attempt = 1; attempt <= MaxStkLookupAttempts && stkTx is null; attempt++)
 		{
-			logger.LogWarning(
-				"[STK][Callback] ⚠️ No StkTransaction found for CheckoutRequestID={CID} — retry {Attempt}/{Max}",
-				checkoutId, attempt, MaxStkLookupAttempts);
+			logger.LogWarning("[STK][Callback] ⚠️ No StkTransaction found for CheckoutRequestID={CID} — retry {Attempt}/{Max}",checkoutId, attempt, MaxStkLookupAttempts);
 
 			await Task.Delay(StkLookupBackoffStep * attempt, ct);
 
@@ -214,9 +213,7 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 				.FirstOrDefaultAsync(x => x.MerchantRequestId == merchantRequestId, ct);
 
 			if (stkTx is not null)
-				logger.LogInformation(
-					"[STK][Callback] ✅ Recovered StkTransaction via MerchantRequestID fallback — CheckoutRequestID={CID}",
-					checkoutId);
+				logger.LogInformation("[STK][Callback] ✅ Recovered StkTransaction via MerchantRequestID fallback — CheckoutRequestID={CID}",checkoutId);
 		}
 
 		return stkTx;

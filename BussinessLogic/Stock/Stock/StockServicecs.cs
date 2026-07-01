@@ -181,6 +181,7 @@ namespace BussinessLogic.Stock.Stock
 									   join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
 									   join s in _context.Stations on d.StationCode equals s.StationCode
 									   join u in _context.Users on ss.UserCode equals u.UserCode
+									   join p in _context.Prices on n.PetroleumCode equals p.ProductCode
 									   where ss.VarianceStatus == ShiftStatus.Variance
 									   && ss.ShiftNumber == shift
 									   select new
@@ -192,6 +193,7 @@ namespace BussinessLogic.Stock.Stock
 										   ss.ClosingReading,
 										   ss.ExpectedClosingReading,
 										   Variance = ss.ClosingVariance + ss.OpeningVariance,
+										   VarianceValue = (ss.ClosingVariance + ss.OpeningVariance) * p.Amount,
 										   Status = ss.VarianceStatus,
 										   ss.DateCreated,
 										   n.NozzleName,
@@ -208,7 +210,6 @@ namespace BussinessLogic.Stock.Stock
 			catch (Exception ex)
 			{
 				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
-
 			}
 		}
 
@@ -588,9 +589,9 @@ namespace BussinessLogic.Stock.Stock
 
 								u.PayrollNumber,
 
-								FirstName = u.FirstName,
+							    u.FirstName,
 								MiddleName = u.MiddName,
-								LastName = u.LastName
+								u.LastName
 							};
 
 				// ✅ FIX: PostgreSQL-safe date filtering (no .Date)
@@ -737,7 +738,7 @@ namespace BussinessLogic.Stock.Stock
 
 					var stockTakes = await _context.StockTakeSummaries.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode)).ToListAsync();
 
-					if (!stockTakes.Any())
+					if (stockTakes.Count == 0)
 					{
 						await transaction.RollbackAsync();
 						return ServiceResponse<object>.Information("Stock take summary not found", null);

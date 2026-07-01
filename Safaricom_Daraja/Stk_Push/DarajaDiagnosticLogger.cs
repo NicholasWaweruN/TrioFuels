@@ -15,15 +15,11 @@ namespace Safaricom_Daraja.Stk_Push;
 /// so you can see exactly what was sent vs what Safaricom rejected.
 /// Drop this file next to StkPushService.cs and register it in DI.
 /// </summary>
-public sealed class StkPushDiagnosticService(
-	IHttpClientFactory httpFactory,
-	IDarajaTokenService tokenService,
-	IOptions<DarajaConfig> options,
-	ILogger<StkPushDiagnosticService> logger)
+public sealed class StkPushDiagnosticService(IHttpClientFactory httpFactory,IDarajaTokenService tokenService,IOptions<DarajaConfig> options,ILogger<StkPushDiagnosticService> logger)
 {
 	private readonly DarajaConfig _cfg = options.Value;
 	private static readonly string CsvPath = Path.Combine(
-		AppContext.BaseDirectory, "daraja_diagnostics.csv");
+	AppContext.BaseDirectory, "daraja_diagnostics.csv");
 
 	// ── CSV header ────────────────────────────────────────────────────────────
 	private static readonly string[] Headers =
