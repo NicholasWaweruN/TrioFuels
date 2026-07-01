@@ -78,7 +78,7 @@ public class Personal_MisingSale
 	public class UsageBalanceDto
     {
         public int Amount { get; set; }
-		public string StoreNumber { get; set; } = string.Empty;
+		public string TillNumber { get; set; } = string.Empty;
 
 	}
 

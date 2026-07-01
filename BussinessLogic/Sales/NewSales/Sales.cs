@@ -29,7 +29,8 @@ namespace BussinessLogic.Sales.NewSales
 		decimal Calculated,
 		decimal Requested,
 		string TransactionRef,
-		string VehicleRegistration   // just the string the user entered
+		string VehicleRegistration,  // just the string the user entered
+		decimal RawCalculated        // unrounded unitPrice * quantity — used only for the underpayment guard
 	);
 
 	internal delegate Task<ServiceResponse<object>?> PaymentStepAsync(
@@ -128,7 +129,7 @@ namespace BussinessLogic.Sales.NewSales
 					var abort = await paymentStep(sales, ctx, saleId);
 					if (abort is not null) return abort;
 
-					if (!ValidateTransactionAmount(ctx.Calculated, ctx.Requested))
+					if (!ValidateTransactionAmount(ctx))
 						return Info("Transaction amount does not match Quantity x Price");
 
 					StageReceipt(ctx, sales, receiptPaymentMethod,
@@ -170,7 +171,7 @@ namespace BussinessLogic.Sales.NewSales
 			string receiptPaymentMethod,
 			bool awardLoyalty,
 			PaymentStepAsync paymentStep,
-			string? mpesaStoreNumber = null,
+			string? mpesaTillNumber = null,
 			string? receiptStationOverride = null)
 		{
 			var strategy = _context.Database.CreateExecutionStrategy();
@@ -187,14 +188,14 @@ namespace BussinessLogic.Sales.NewSales
 					var abort = await paymentStep(sales, ctx, saleId);
 					if (abort is not null) return abort;
 
-					if (!ValidateTransactionAmount(ctx.Calculated, ctx.Requested))
+					if (!ValidateTransactionAmount(ctx))
 						return Info("Transaction amount does not match Quantity x Price");
 
 					StageReceipt(ctx, sales, receiptPaymentMethod,
 						stationNameOverride: receiptStationOverride);
 
 					var mpesaRefs = await PersistSaleAsync(sales, ctx, saleId,
-						mpesaStoreNumber: mpesaStoreNumber);
+						mpesaTillNumber: mpesaTillNumber);
 
 					await _context.SaveChangesAsync();
 					await tx.CommitAsync();
@@ -328,7 +329,7 @@ namespace BussinessLogic.Sales.NewSales
 				operationType: "MPESA SALE",
 				receiptPaymentMethod: "M-Pesa",
 				awardLoyalty: true,
-				mpesaStoreNumber: station.StoreNumber,
+				mpesaTillNumber: station.TillNumber, // ✅ verification now consistently uses TillNumber
 				receiptStationOverride: _setups.SentenceCase(station.StationName),
 				paymentStep: async (s, ctx, _) =>
 				{
@@ -418,7 +419,23 @@ namespace BussinessLogic.Sales.NewSales
 		// Context resolution
 		// =====================================================================
 
-		// ResolveSaleContextAsync — simplified
+		// ResolveSaleContextAsync — rounding rule:
+		//
+		//   calculated = unitPrice * quantity, e.g. 999.45
+		//   ceilingCalculated = round the fuel total UP to the next whole shilling, e.g. 1000
+		//   roundedRequested  = what the customer sent, rounded to the nearest whole shilling
+		//   effective = the SMALLER of the two
+		//
+		// Examples (calculated = 999.45, so ceilingCalculated = 1000):
+		//   sent 1000  -> effective = min(1000, 1000) = 1000   (take the full 1000)
+		//   sent 1001  -> effective = min(1001, 1000) = 1000   (never take more than the ceiling)
+		//   sent 999   -> effective = min(999, 1000)  = 999    (never top up an underpayment)
+		//   sent 1005  -> effective = min(1005, 1000) = 1000
+		//
+		// The underpayment guard (ValidateTransactionAmount) is checked against the RAW
+		// calculated value (999.45), not the rounded "effective" figure — otherwise a
+		// genuinely short payment (e.g. customer sends 500 against a 999.45 sale) would
+		// slip through, since effective is always <= whatever was sent by construction.
 		private async Task<SaleContext> ResolveSaleContextAsync(AddsaleDto sales, string transactionRef)
 		{
 			var station = await GetStationAsync(sales.DispenserCode);
@@ -429,16 +446,19 @@ namespace BussinessLogic.Sales.NewSales
 			var calculated = Math.Round(unitPrice * sales.Quantity, 2);
 
 			var roundedRequested = Math.Round(requested, 0, MidpointRounding.AwayFromZero);
-			var effective = Math.Abs(roundedRequested - calculated) <= 1.00m
-				? roundedRequested
-				: calculated;
+			var ceilingCalculated = Math.Ceiling(calculated);
+
+			// Never charge more than the fuel total (rounded up), and never charge
+			// more than what the customer actually sent.
+			var effective = Math.Min(roundedRequested, ceilingCalculated);
 
 			return new SaleContext(
 				station, customer, unitPrice, disc,
-				Calculated: effective,
+				Calculated: effective,           // always a whole number now
 				Requested: roundedRequested,
 				TransactionRef: transactionRef,
-				VehicleRegistration: sales.RegistrationNumber
+				VehicleRegistration: sales.RegistrationNumber,
+				RawCalculated: calculated        // unrounded, e.g. 999.45
 			);
 		}
 
@@ -448,7 +468,7 @@ namespace BussinessLogic.Sales.NewSales
 
 		private async Task<List<string>> PersistSaleAsync(
 			AddsaleDto sales, SaleContext ctx, string saleId,
-			string? mpesaStoreNumber = null)
+			string? mpesaTillNumber = null)
 		{
 			_context.QuantityTransactions.Add(
 				BuildQuantityTransaction(sales, ctx, saleId));
@@ -460,13 +480,18 @@ namespace BussinessLogic.Sales.NewSales
 			{
 				if (remaining <= 0) break;
 
-				decimal alloc = Math.Min(remaining, Math.Round(pay.TransactionAmount, 2));
+				// ctx.Calculated / remaining is now always a whole number, so each
+				// allocation is rounded to a whole number too — no stray cents
+				// (e.g. 44.70) creep back into PaymentTransactions.
+				decimal alloc = Math.Min(
+					remaining,
+					Math.Round(pay.TransactionAmount, 0, MidpointRounding.AwayFromZero));
 
-				if (!string.IsNullOrWhiteSpace(mpesaStoreNumber)
+				if (!string.IsNullOrWhiteSpace(mpesaTillNumber)
 					&& !string.IsNullOrWhiteSpace(pay.TransactionReference))
 				{
 					var check = await ValidateMpesaPaymentAsync(
-						pay.TransactionReference, mpesaStoreNumber);
+						pay.TransactionReference, mpesaTillNumber);
 					alloc = Math.Min(alloc, Math.Max(0, check.ResponseObject ?? 0));
 				}
 
@@ -481,7 +506,7 @@ namespace BussinessLogic.Sales.NewSales
 				});
 
 				if (!string.IsNullOrWhiteSpace(pay.TransactionReference)
-					&& !string.IsNullOrWhiteSpace(mpesaStoreNumber))
+					&& !string.IsNullOrWhiteSpace(mpesaTillNumber))
 					mpesaRefs.Add(pay.TransactionReference);
 
 				remaining -= alloc;
@@ -505,17 +530,15 @@ namespace BussinessLogic.Sales.NewSales
 				return;
 			}
 
-			var saleIds = await _context.PaymentTransactions
-				.Where(p => p.PaymentRefrence == transId)
-				.Select(p => p.SaleId)
-				.Distinct()
-				.ToListAsync();
-
-			var totalUsed = saleIds.Count == 0
-				? 0m
-				: await _context.QuantityTransactions
-					.Where(q => saleIds.Contains(q.SaleId) && !q.IsReversed)
-					.SumAsync(q => q.AmountCredit);
+			// ── Sum only the amount actually allocated to THIS code, not the
+			// ── full sale total — a sale can be split across two M-Pesa codes,
+			// ── and each code must only be debited by its own share.
+			var totalUsed = await (
+				from p in _context.PaymentTransactions
+				join q in _context.QuantityTransactions on p.SaleId equals q.SaleId
+				where p.PaymentRefrence == transId && !q.IsReversed
+				select p.TransactionAmount
+			).SumAsync();
 
 			mpesaTx.UsageBalance = Math.Max(0, mpesaTx.TransAmount - totalUsed);
 			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
@@ -620,8 +643,16 @@ namespace BussinessLogic.Sales.NewSales
 			return ServiceResponse<object>.Success("Data is valid", null);
 		}
 
-		private static bool ValidateTransactionAmount(decimal calculated, decimal entered)
-			=> entered >= calculated || Math.Abs(entered - calculated) <= 1.00m;
+		// Underpayment guard — checks against RawCalculated (the true, unrounded
+		// unitPrice * quantity, e.g. 999.45), NOT ctx.Calculated. ctx.Calculated
+		// has already been capped by Math.Min(roundedRequested, ceilingCalculated)
+		// in ResolveSaleContextAsync, so it is always <= what was sent by
+		// construction — checking against it here would make this guard trivially
+		// pass almost every time and stop catching genuine underpayments
+		// (e.g. customer sends 500 against a 999.45 sale).
+		private static bool ValidateTransactionAmount(SaleContext ctx)
+			=> ctx.Requested >= ctx.RawCalculated
+			   || Math.Abs(ctx.Requested - ctx.RawCalculated) <= 1.00m;
 
 		public async Task<ServiceResponse<bool>> CheckDuplicates(AddsaleDto sales)
 		{
@@ -676,13 +707,13 @@ namespace BussinessLogic.Sales.NewSales
 		}
 
 		private async Task<ServiceResponse<decimal>> GetTotalUsableMpesaAsync(
-			IEnumerable<string?> transIds, string storeNumber)
+			IEnumerable<string?> transIds, string tillNumber)
 		{
 			decimal total = 0m;
 
 			foreach (var id in transIds.Where(x => !string.IsNullOrWhiteSpace(x))!)
 			{
-				var r = await ValidateMpesaPaymentAsync(id!, storeNumber);
+				var r = await ValidateMpesaPaymentAsync(id!, tillNumber);
 
 				if (r.ResponseCode != Response.Success)
 					return ServiceResponse<decimal>.Information(r.ResponseMessage!, 0);
@@ -694,7 +725,7 @@ namespace BussinessLogic.Sales.NewSales
 		}
 
 		private async Task<ServiceResponse<int?>> ValidateMpesaPaymentAsync(
-			string transId, string storeNumber)
+			string transId, string tillNumber)
 		{
 			try
 			{
@@ -704,15 +735,16 @@ namespace BussinessLogic.Sales.NewSales
 					return ServiceResponse<int?>.Information(
 						$"Mpesa code {transId} does not exist", 0);
 
-				var store = Regex.Replace(
-					usage.StoreNumber ?? string.Empty, @"\s+", "").Trim();
+				var till = Regex.Replace(
+					usage.TillNumber ?? string.Empty, @"\s+", "").Trim();
 
-				if (!string.Equals(store, storeNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+				if (!string.Equals(till, tillNumber.Trim(), StringComparison.OrdinalIgnoreCase))
 					return ServiceResponse<int?>.Information(
 						"Mpesa code does not belong to that dispenser", 0);
 
 				if (usage.Amount <= 0)
-					return ServiceResponse<int?>.Information("Mpesa code has 0 balance", 0);
+					return ServiceResponse<int?>.Information(
+						$"Mpesa code {transId} has already been fully used", 0);
 
 				return ServiceResponse<int?>.Success($"Valid Mpesa Code {transId}.", usage.Amount);
 			}
@@ -723,13 +755,24 @@ namespace BussinessLogic.Sales.NewSales
 			}
 		}
 
+		// ── FOR UPDATE row-locks this MpesaTransactions row for the life of the
+		// ── surrounding DB transaction (see ExecuteSaleRawRefAsync's BeginTransactionAsync).
+		// ── This prevents two concurrent sales against the same M-Pesa code from both
+		// ── reading the pre-deduction balance and both passing validation (double-spend).
+		// ── Status is intentionally NOT filtered here. Status flips to 0 once a code
+		// ── is fully used (see ReconcileAndUpdateUsageBalanceAsync), and filtering on
+		// ── it here would make an exhausted-but-real code look identical to one that
+		// ── never existed. The Amount <= 0 check above is what should own that distinction.
 		private async Task<UsageBalanceDto?> GetUsageBalanceAsync(string transId)
 			=> await _context.MpesaTransactions
-				.Where(t => t.TransID == transId && t.Status == 1)
+				.FromSqlInterpolated($@"
+					SELECT * FROM ""MpesaTransactions""
+					WHERE ""TransID"" = {transId}
+					FOR UPDATE")
 				.Select(t => new UsageBalanceDto
 				{
 					Amount = (int)t.UsageBalance,
-					StoreNumber = t.TillNumber
+					TillNumber = t.TillNumber
 				})
 				.FirstOrDefaultAsync();
 
