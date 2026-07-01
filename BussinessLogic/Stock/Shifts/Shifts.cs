@@ -197,35 +197,57 @@ namespace BussinessLogic.Stock.Shifts
 		//get a list of sales for a particular shift
 		public async Task<ServiceResponse<object>> ShiftSales()
 		{
-			//get user current shift
-			var ShiftNumber = await _context.Shifts.Where(x => x.UserCode == _authentication.Usercode() && x.ShiftStatus == ShiftStatus.Open).Select(x => x.ShiftNumber).FirstOrDefaultAsync();
-			var shiftSales = await (from qt in _context.QuantityTransactions
-									join v in _context.Vehicles on qt.VehicleRegistrationNumber equals v.VehicleCode
-									where qt.ShiftNumber == ShiftNumber
-									select new
-									{
-										v.VehicleRegistrationNumber,
-										qt.QuantityCredit,
-										Time = qt.DateCreated.Hour + ":" + qt.DateCreated.Minute + ":" + qt.DateCreated.Second,
-										qt.AmountCredit,
-										qt.DateCreated,
-									}).OrderByDescending(x => x.DateCreated).ToListAsync();
+			var shiftNumber = await _context.Shifts
+				.Where(x => x.UserCode == _authentication.Usercode() && x.ShiftStatus == ShiftStatus.Open)
+				.Select(x => x.ShiftNumber)
+				.FirstOrDefaultAsync();
 
-			if (shiftSales.Count > 0)
+			if (shiftNumber == null)
 			{
-
 				return new ServiceResponse<object>
 				{
-					ResponseCode = Response.Success,
-					ResponseMessage = "Shift sales",
-					ResponseObject = shiftSales.OrderBy(x => x.Time).ToList()
+					ResponseCode = Response.Information,
+					ResponseMessage = "No open shift found",
+					ResponseObject = null
 				};
 			}
+
+			var raw = await _context.QuantityTransactions
+				.Where(qt => qt.ShiftNumber == shiftNumber)
+				.OrderByDescending(qt => qt.Id)
+				.Select(qt => new
+				{
+					qt.VehicleRegistrationNumber,
+					qt.QuantityCredit,
+					qt.AmountCredit,
+					qt.DateCreated
+				})
+				.ToListAsync();
+
+			if (raw.Count == 0)
+			{
+				return new ServiceResponse<object>
+				{
+					ResponseCode = Response.Information,
+					ResponseMessage = "No sales found",
+					ResponseObject = null
+				};
+			}
+
+			var shiftSales = raw.Select(x => new
+			{
+				x.VehicleRegistrationNumber,
+				x.QuantityCredit,
+				x.AmountCredit,
+				x.DateCreated,
+				Time = x.DateCreated.ToString("HH:mm:ss")
+			}).ToList();
+
 			return new ServiceResponse<object>
 			{
-				ResponseCode = Response.Information,
-				ResponseMessage = "No sales found",
-				ResponseObject = null
+				ResponseCode = Response.Success,
+				ResponseMessage = "Shift sales",
+				ResponseObject = shiftSales
 			};
 		}
 		//list all open shifts
