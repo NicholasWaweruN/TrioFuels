@@ -2,6 +2,7 @@ using BusinessLogic.CustomerService;
 using BusinessLogic.Sales.Archirve;
 using BusinessLogic.Sales.Target;
 using DataAccessLayer.Authentication.Entity;
+using DataAccessLayer.DTOs.Payments;
 using DataAccessLayer.EntityModels.Approvals;
 using DataAccessLayer.EntityModels.Authorisations;
 using DataAccessLayer.EntityModels.CreditTransactions;
@@ -128,9 +129,11 @@ namespace DataAccessLayer.Context
         // --- Reports & Views ---
         public DbSet<Reports> Reports { get; set; }
         public DbSet<Vw_SalesData> VwSalesData { get; set; }
-		public DbSet<ProvisionalCustomers> ProvisionalCustomers { get; set; } 
+		public DbSet<ProvisionalCustomers> ProvisionalCustomers { get; set; }
 
+		public DbSet<FuelSale> FuelSales { get; set; }
 
+	
 		//Daraja
 
 		public DbSet<StkTransaction> StkTransactions { get; set; }

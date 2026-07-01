@@ -1,7 +1,8 @@
 ﻿using DataAccessLayer.Common;
 using DataAccessLayer.DTOs.Payments;
+using static BussinessLogic.Payments.PaymentSetups.PaymentsSetups;
 
-namespace BusinessLogic.Payments.PaymentSetups
+namespace BussinessLogic.Payments.PaymentSetups
 {
 	public interface IPaymentsSetups
 	{
@@ -10,13 +11,11 @@ namespace BusinessLogic.Payments.PaymentSetups
 		Task<ServiceResponse<object>> AddTill(addTillNumberDto till);
 		Task<ServiceResponse<object>> AssignTillToDispenser(AssignTillToDispenserDto assignTill);
 		Task<ServiceResponse<object>> BlockMpesa(string transId);
-		Task<ServiceResponse<object>> ConfirmPayment(string transId, string dispenserCode);
-		Task<ServiceResponse<object>> ConfirmGaragePayment(string transId);
 		Task<ServiceResponse<byte[]>> ExportMpesaTransactions(string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct = default);
 		Task<ServiceResponse<object>> GetMpesaCodeUsage(string transId);
 		Task<ServiceResponse<object>> GetTills();
+		Task<ServiceResponse<List<UnusedMpesaTransactionDto>>> GetUnusedMpesaTransactionsAsync();
 		Task<ServiceResponse<object>> MpesaTransactions(string? tillNumber, DateTime? dateFrom, DateTime? dateTo, string? transId);
 		Task<ServiceResponse<object>> UpdateTill(UpdateTillDto till);
-		Task<ServiceResponse<object>> ValidateMpesaCode(string transId, string tillNumber);
 	}
 }

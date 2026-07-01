@@ -239,8 +239,8 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			var rawSourceData = $"{request.BillRefNumber} {request.TransNo} {request.InvoiceNumber} {request.TransactionType}";
 			var match = System.Text.RegularExpressions.Regex.Match(rawSourceData, @"(?:254|\+254|0)?(7|1)\d{8}");
 
-			finalPhone = match.Success ? "254" + match.Value.Substring(match.Value.Length - 9) : "ORGANIZATION_SETTLEMENT";
-
+			finalPhone = match.Success ? string.Concat("254", match.Value.AsSpan(match.Value.Length - 9)) : "ORGANIZATION_SETTLEMENT";
+			
 			logger.LogInformation("[C2B][Confirm] Resolved fallback phone payload. Extracted={Phone}", finalPhone);
 		}
 

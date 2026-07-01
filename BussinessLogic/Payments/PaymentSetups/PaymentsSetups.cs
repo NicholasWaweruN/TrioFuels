@@ -1,11 +1,15 @@
-﻿using BusinessLogic.Payments.PaymentSetups;
+﻿
 using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.PlateDetection;
 using ClosedXML.Excel;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Payments;
+using DataAccessLayer.EntityModels.ProtoBase;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Stations;
+using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -33,7 +37,7 @@ namespace BussinessLogic.Payments.PaymentSetups
 		private async Task LogUserTrailAsync(string action)
 		{
 			var message = $"{action} by {_authentication.Name()} On {DateTime.UtcNow}";
-			await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+			await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 		}
 
 		// Helper to return error responses
@@ -107,7 +111,7 @@ namespace BussinessLogic.Payments.PaymentSetups
 				tillExists.StoreNumber = till.StoreNumber;
 
 				var message = $"Till {till.TillNumber} updated by {_authentication} on date {DateTime.UtcNow}";
-				await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 				await _context.SaveChangesAsync();
 				return ServiceResponse<object>.Success("Till number updated successfully", null);
 
@@ -170,129 +174,6 @@ namespace BussinessLogic.Payments.PaymentSetups
 			}
 		}
 		//execute sql get statement pasing parameters transid and ShortCode
-		public async Task<ServiceResponse<object>> ValidateMpesaCode(string transId, string tillNumber)
-		{
-			var shortCode2 = await GetTillAssignedToDispenser(tillNumber);
-			var shortCode = shortCode2.ResponseObject;
-
-			if (string.IsNullOrWhiteSpace(transId) || string.IsNullOrWhiteSpace(shortCode))
-				return ServiceResponse<object>.Information("Transaction Id and Short Code cannot be empty", null);
-
-			var sql = $@"Select UsageBalance from Protobase..MpesaC2bPayments where BusinessShortCode = '{shortCode}' and Transid = '{transId}'";
-			try
-			{
-				var mpesaTransaction = await _context.MpesaTransactions.FromSqlRaw(sql).FirstOrDefaultAsync();
-				if (mpesaTransaction is null)
-					return ServiceResponse<object>.Information("Mpesa transaction not found", null);
-				return ServiceResponse<object>.Success("Mpesa transaction retrieved successfully", mpesaTransaction);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error getting mpesa transaction");
-				return GetErrorResponse("Error getting mpesa transaction");
-			}
-		}
-		//use the transid to confirm payment from database protoBase mpesaC2bPayments
-		public async Task<ServiceResponse<object>> ConfirmPayment(string transId, string dispenserCode)
-		{
-			if (string.IsNullOrWhiteSpace(transId))
-				return ServiceResponse<object>.Information("Mpesa Transactioncode cannot be empty", null);
-			
-			var sql = @"select TransID, BusinessShortCode, t.StoreNumber, t.TillNumber as Till, UsageBalance,DateTimeStamp,Mp.Status 
-                from Protobase..MpesaC2bPayments Mp
-                inner join Protobase..TillNumber t on Mp.BusinessShortCode = t.StoreNumber
-                where Trim(TransId) = @transId";
-
-			try
-			{
-				// Using Microsoft.Data.SqlClient.SqlParameter
-				var param = new SqlParameter("@transId", transId.Trim());
-				var result = _context.Database.SqlQueryRaw<MpesaTransactionDto>(sql, param);
-
-				var transaction = result.AsNoTracking().FirstOrDefault();
-
-				if (transaction == null)
-					return ServiceResponse<object>.Information("Mpesa transaction not found", null);
-				else
-				{
-					if (transaction.Status == 3)
-						return ServiceResponse<object>.Information($"This transaction code is blocked", null);
-
-					var date = transaction.DateTimeStamp;
-					if (date.AddDays(-7) > DateTime.UtcNow)
-						return ServiceResponse<object>.Information($"Transaction code {transaction.TransID} has expired", null);
-
-					var till = await (from d in _context.Dispensers
-									  where d.TillNumber == transaction.Till
-									  where d.DispenserCode == dispenserCode
-									  select d).FirstOrDefaultAsync();
-					if (till == null)
-						return ServiceResponse<object>.Information("Transaction Code does not belong to that till", null);
-
-					if (till != null && transaction.UsageBalance > 0)
-						return ServiceResponse<object>.Success($"The balance on this Mpesa code is {transaction.UsageBalance}", transaction);
-
-					if (transaction.UsageBalance == 0)
-						return ServiceResponse<object>.Information($"The balance is 0.00 can not transact.", 0);
-
-					return ServiceResponse<object>.Information("Transaction Code does not belong to that till", null);
-				}
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error retrieving Mpesa transaction for TransId: {TransId}", transId);
-				return GetErrorResponse("Error retrieving Mpesa transaction");
-			}
-		}
-		//Mpesa Payments
-
-		public async Task<ServiceResponse<object>> ConfirmGaragePayment(string transId)
-		{
-			if (string.IsNullOrWhiteSpace(transId))
-			{
-				return ServiceResponse<object>.Information("Mpesa Transactioncode cannot be empty", null);
-			}
-
-			var sql = @"select TransID, BusinessShortCode, t.StoreNumber, t.TillNumber as Till, UsageBalance,DateTimeStamp,Mp.Status 
-					from Protobase..MpesaC2bPayments Mp
-					inner join Protobase..TillNumber t on Mp.BusinessShortCode = t.StoreNumber
-					where Trim(TransId) = @transId";
-
-			try
-			{
-				// Using Microsoft.Data.SqlClient.SqlParameter
-				var param = new SqlParameter("@transId", transId.Trim());
-				var result = _context.Database.SqlQueryRaw<MpesaTransactionDto>(sql, param);
-
-				var transaction = await result.AsNoTracking().FirstOrDefaultAsync();
-
-				if (transaction == null)
-					return ServiceResponse<object>.Information("Mpesa transaction not found", null);
-				else
-				{
-					if (transaction.Status == 3)
-						return ServiceResponse<object>.Information($"This transaction code is blocked", null);
-
-					var date = transaction.DateTimeStamp;
-					if (date.AddDays(-7) > DateTime.UtcNow)
-						return ServiceResponse<object>.Information($"Transaction code {transaction.TransID} has expired", null);
-
-					
-					if (transaction.UsageBalance > 0)
-						return ServiceResponse<object>.Success($"The balance on this Mpesa code is {transaction.UsageBalance}", transaction);
-
-					if (transaction.UsageBalance == 0)
-						return ServiceResponse<object>.Information($"The balance is 0.00 can not transact.", 0);
-
-					return ServiceResponse<object>.Information("Transaction Code does not belong to that till", null);
-				}
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error retrieving Mpesa transaction for TransId: {TransId}", transId);
-				return GetErrorResponse("Error retrieving Mpesa transaction");
-			}
-		}
 
 		public async Task<ServiceResponse<object>> MpesaTransactions(
 			string? tillNumber,
@@ -420,7 +301,7 @@ namespace BussinessLogic.Payments.PaymentSetups
 							select new
 							{
 								mt.TransID,
-								Name = string.Join(' ', new object[] {mt.FirstName,mt.MiddName,mt.LastName}),
+								Name = string.Join(' ', new object[] { mt.FirstName, mt.MiddName, mt.LastName }),
 								mt.TillNumber,
 								t.TillName,
 								mt.BusinessShortCode,
@@ -588,13 +469,19 @@ namespace BussinessLogic.Payments.PaymentSetups
 			if (string.IsNullOrEmpty(transId))
 				return ServiceResponse<object>.Information("TransId cannot be empty", null);
 
-			var query = @"UPDATE Protobase..MpesaC2bPayments SET status = 3 WHERE TransID = @TransId";
 			try
 			{
 				var message = $"Mpesa transaction code {transId} blocked by {_authentication.Name()} on {DateTime.UtcNow}";
-				await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
-				await _context.Database.ExecuteSqlRawAsync(query, new SqlParameter("@TransId", transId));
+				var rowsAffected = await _context.MpesaTransactions
+					.Where(m => m.TransID == transId)
+					.ExecuteUpdateAsync(setters => setters
+						.SetProperty(m => m.Status, 3));
+
+				if (rowsAffected == 0)
+					return ServiceResponse<object>.Information("No matching Mpesa transaction found", null);
+
 				return ServiceResponse<object>.Success("Mpesa transaction blocked successfully", null);
 			}
 			catch (Exception ex)
@@ -608,19 +495,26 @@ namespace BussinessLogic.Payments.PaymentSetups
 			if (string.IsNullOrEmpty(transId))
 				return ServiceResponse<object>.Information("TransId cannot be empty", null);
 
-			var query = @"Update Protobase..MpesaC2bPayments SET status = 0,DateTimeStamp = getdate() WHERE TransID = @TransId";
 			try
 			{
 				var message = $"Mpesa transaction code {transId} activated by {_authentication.Name()} on {DateTime.UtcNow}";
-				await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
-				await _context.Database.ExecuteSqlRawAsync(query, new SqlParameter("@TransId", transId));
-				return ServiceResponse<object>.Success("Mpesa transaction blocked successfully", null);
+				var rowsAffected = await _context.MpesaTransactions
+					.Where(m => m.TransID == transId)
+					.ExecuteUpdateAsync(setters => setters
+						.SetProperty(m => m.Status, 0)
+						.SetProperty(m => m.DateTimeStamp, DateTime.UtcNow));
+
+				if (rowsAffected == 0)
+					return ServiceResponse<object>.Information("No matching Mpesa transaction found", null);
+
+				return ServiceResponse<object>.Success("Mpesa transaction activated successfully", null);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error blocking mpesa transaction");
-				return GetErrorResponse("Error blocking mpesa transaction");
+				_logger.LogError(ex, "Error activating mpesa transaction");
+				return GetErrorResponse("Error activating mpesa transaction");
 			}
 		}
 		//Add MpesaTransaction
@@ -631,39 +525,74 @@ namespace BussinessLogic.Payments.PaymentSetups
 
 			var transTime = DateTime.UtcNow.ToString().Replace("/", "").Replace("-", "");
 
-			var query = @"INSERT INTO Protobase..MpesaC2BPayments ( TransID, TransTime, TransAmount,BusinessShortCode, MSISDN, DateTimeStamp, status, UsageBalance, AddedBy) 
-				VALUES (@TransID,@TransTime, @Amount, @BusinessShortCode, @PhoneNumber,getdate(),0,@UsageBalance,@UserCode)";
-
 			try
 			{
+				var entity = new MpesaTransaction
+				{
+					TransID = mpesaC2BPayment.TransID,
+					TransAmount = mpesaC2BPayment.Amount,
+					BusinessShortCode = mpesaC2BPayment.BusinessShortCode,
+					MSISDN = mpesaC2BPayment.PhoneNumber,
+					DateTimeStamp = DateTime.UtcNow,
+					Status = 0,
+					UsageBalance = mpesaC2BPayment.Amount,
+					UserCode = _authentication.Usercode(),
+					DateCreated = EatTime.Now,
+					FirstName = "",
+					CheckoutRequestID = "",
+					DateModified = EatTime.Now,
+					LastName = string.Empty,
+					MerchantRequestID = string.Empty,
+					MiddName = string.Empty,
+					MpesaReceiptNumber = mpesaC2BPayment.TransID,
+					OrgAccountBalance = 0,
+					PaymentMethod = "MANUAL",
+					ShiftNumber = "",
+					TillName = string.Empty,
+					TillNumber = mpesaC2BPayment.BusinessShortCode
 
-				await _context.Database.ExecuteSqlRawAsync(query,
-					new SqlParameter("@TransID", mpesaC2BPayment.TransID),
-					new SqlParameter("@TransTime", transTime),
-					new SqlParameter("@Amount", mpesaC2BPayment.Amount),
-					new SqlParameter("@BusinessShortCode", mpesaC2BPayment.BusinessShortCode),
-					new SqlParameter("@PhoneNumber", mpesaC2BPayment.PhoneNumber),
-					new SqlParameter("@UsageBalance", mpesaC2BPayment.Amount),
-					new SqlParameter("@UserCode", _authentication.Usercode()));
+				};
+
+				await _context.MpesaTransactions.AddAsync(entity);
+				await _context.SaveChangesAsync();
+
 				var message = $"Mpesa transaction code {mpesaC2BPayment.TransID} added by {_authentication.Name()} on {DateTime.UtcNow}";
+				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
+
 				return ServiceResponse<MpesaTransactionDto>.Success("Mpesa transaction added successfully", null);
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				_logger.LogInformation("Error adding mpesa transaction");
-				return ServiceResponse<MpesaTransactionDto>.Error("Something went wrong",null);
+				_logger.LogError(ex, "Error adding mpesa transaction");
+				return ServiceResponse<MpesaTransactionDto>.Error("Something went wrong", null);
 			}
 		}
 
 		//view a code usage 
 		public async Task<ServiceResponse<object>> GetMpesaCodeUsage(string transId)
 		{
-			var sql = @$"Select Vehicle,ShiftNumber,SaleId,StationName,DispenserName,NozzleName,Attendant_Name as AttendantName,
-				Litres,Amount,SalesDate,Price,TillNumber,Transid from vw_SalesData where Transid  like  '%{transId}%'";
 			try
 			{
-				var result = _context.Database.SqlQueryRaw<FuelSale>(sql);
-				var transactions = await result.AsNoTracking().ToListAsync();
+				var transactions = await _context.FuelSales
+					.AsNoTracking()
+					.Where(f => f.TransId.Contains(transId))
+					.Select(f => new FuelSale
+					{
+						Vehicle = f.Vehicle,
+						ShiftNumber = f.ShiftNumber,
+						SaleId = f.SaleId,
+						StationName = f.StationName,
+						DispenserName = f.DispenserName,
+						NozzleName = f.NozzleName,
+						AttendantName = f.AttendantName,
+						Litres = f.Litres,
+						Amount = f.Amount,
+						SalesDate = f.SalesDate,
+						Price = f.Price,
+						TillNumber = f.TillNumber,
+						TransId = f.TransId
+					})
+					.ToListAsync();
 
 				if (transactions.Count == 0)
 					return ServiceResponse<object>.Information("No Mpesa transactions found", null);
@@ -675,6 +604,41 @@ namespace BussinessLogic.Payments.PaymentSetups
 				_logger.LogError(ex, "Error getting mpesa transactions");
 				return GetErrorResponse("Error getting mpesa transactions");
 			}
+		}
+
+		public async Task<ServiceResponse<List<UnusedMpesaTransactionDto>>> GetUnusedMpesaTransactionsAsync()
+		{
+			var shift = await _context.Shifts
+				.Where(x => x.UserCode == _authentication.Usercode() && x.ShiftStatus == 1)
+				.FirstOrDefaultAsync();
+
+			if (shift is null)
+				return ServiceResponse<List<UnusedMpesaTransactionDto>>.Information("No open shift found", null);
+
+			var transactions = await _context.MpesaTransactions
+				.Where(t => t.ShiftNumber == shift.ShiftNumber)
+				.OrderByDescending(t => t.DateCreated)
+				.Select(t => new UnusedMpesaTransactionDto
+				{
+					TransID = t.TransID,
+					TransAmount = t.TransAmount,
+					UsageBalance = t.UsageBalance,
+					DateCreated = t.DateCreated
+				})
+				.ToListAsync();
+
+			if (transactions.Count == 0)
+				return ServiceResponse<List<UnusedMpesaTransactionDto>>.Information("No unused Mpesa transactions found", null);
+
+			return ServiceResponse<List<UnusedMpesaTransactionDto>>.Success("Unused Mpesa transactions retrieved successfully", transactions);
+		}
+
+		public class UnusedMpesaTransactionDto
+		{
+			public string TransID { get; set; } = string.Empty;
+			public decimal TransAmount { get; set; }
+			public decimal UsageBalance { get; set; }
+			public DateTime DateCreated { get; set; }
 		}
 		//Add till 
 	}

@@ -11,7 +11,17 @@ namespace DataAccessLayer.Context
     {
         private static void ConfigureKeylessEntities(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<UsageBalanceDto>().HasNoKey();
+
+
+
+			modelBuilder.Entity<FuelSale>(entity =>
+			{
+				entity.HasNoKey();
+				entity.ToView("vw_salesdata"); // Postgres folds unquoted identifiers to lowercase
+			});
+		
+
+		    modelBuilder.Entity<UsageBalanceDto>().HasNoKey();
             modelBuilder.Entity<ValueDto>().HasNoKey();
             modelBuilder.Entity<OtopaySales>().HasNoKey();
             modelBuilder.Entity<IntValue>().HasNoKey();

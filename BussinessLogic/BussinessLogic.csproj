@@ -47,4 +47,7 @@
 	  <ProjectReference Include="..\OnFonMessaging\OnFonMessaging.csproj" />
 	  <ProjectReference Include="..\Safaricom_Daraja\Safaricom_Daraja.csproj" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Sales\NewFolder\" />
+	</ItemGroup>
 </Project>

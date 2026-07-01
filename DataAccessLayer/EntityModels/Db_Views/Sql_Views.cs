@@ -49,4 +49,25 @@ namespace DataAccessLayer.EntityModels.Db_Views
 		[Precision(18,2)] public decimal RunningBalance { get; set; } 
 	}
 
+	public class FuelSale
+	{
+		public string? Vehicle { get; set; }
+		public string ShiftNumber { get; set; } = string.Empty;
+		public string SaleId { get; set; } = string.Empty;
+		public string? StationName { get; set; }
+		public string? DispenserName { get; set; }
+		public string? StorageLocation { get; set; }
+		public string? NozzleName { get; set; }
+		public string AttendantName { get; set; } = string.Empty;
+		public string? CustomerName { get; set; }
+		public string? PetroleumName { get; set; }
+		public string? PaymentType { get; set; }
+		public decimal Litres { get; set; }
+		public decimal Price { get; set; }
+		public decimal Amount { get; set; }
+		public DateTime SalesDate { get; set; }
+		public string? TillNumber { get; set; }
+		public string TransId { get; set; } = string.Empty;
+		public decimal RunningBalance { get; set; }
+	}
 }

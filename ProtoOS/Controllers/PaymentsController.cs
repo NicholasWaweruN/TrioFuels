@@ -1,11 +1,8 @@
-﻿using BusinessLogic.Payments.PaymentSetups;
+﻿
+using BussinessLogic.Payments.PaymentSetups;
 using DataAccessLayer.DTOs.Payments;
-using DataAccessLayer.EntityModels.ProtoBase;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Globalization;
-using System.Threading.Tasks;
-using static BussinessLogic.Payments.PaymentSetups.PaymentsSetups;
 
 namespace FuelFlow.Controllers 
 {
@@ -57,24 +54,7 @@ namespace FuelFlow.Controllers
 			var response = await _payments.AssignTillToDispenser(till);
 			return CreateResponse(response);
 		}
-		[HttpPost]
-		[Authorize(Roles = "can add a payment method")]
-		[Route("ConfirmPayment/{transId}/{dispenserCode}")]
-		public async Task<IActionResult> ConfirmPayment(string transId, string dispenserCode)
-		{
-			var response = await _payments.ConfirmPayment(transId, dispenserCode);
-			return CreateResponse(response);
-		}
-
-		[HttpPost]
-		[Route("ConfirmGaragePayment/{transId}")]
-		[Authorize(Roles = "can confirm garage payment")]
-		public async Task<IActionResult> ConfirmGaragePayment(string transId)
-		{
-			var response = await _payments.ConfirmGaragePayment(transId);
-			return CreateResponse(response);
-		}
-
+	
 
 
 		[HttpGet("ExportMpesaTransactions")]
@@ -138,6 +118,15 @@ namespace FuelFlow.Controllers
 		public async Task<IActionResult> GetMpesaCodeUsage(string transId)
 		{
 			var response = await _payments.GetMpesaCodeUsage(transId);
+			return CreateResponse(response);
+		}
+
+		[HttpGet]
+		[Authorize(Roles = "get unused mpesa transactions")]
+		[Route("GetUnusedMpesaTransactions")]
+		public async Task<IActionResult> GetUnusedMpesaTransactions()
+		{
+			var response = await _payments.GetUnusedMpesaTransactionsAsync();
 			return CreateResponse(response);
 		}
 		#endregion
