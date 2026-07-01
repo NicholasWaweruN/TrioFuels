@@ -8,7 +8,6 @@ using BusinessLogic.CustomerService;
 using BusinessLogic.DashBoard;
 using BusinessLogic.EmailService;
 using BusinessLogic.Messaging;
-using BusinessLogic.Payments.PaymentSetups;
 using BusinessLogic.Roles;
 using BusinessLogic.Sales.Archive_data;
 using BusinessLogic.Sales.CommonSalesTasks;
@@ -46,7 +45,6 @@ using BussinessLogic.Sales.MissingSales;
 using BussinessLogic.Sales.NewSales;
 using BussinessLogic.Sales.PriceApproval;
 using BussinessLogic.Sales.ReverseSales;
-using BussinessLogic.Sales.Sales_ForeCast;
 using BussinessLogic.Sales.SalesData;
 using BussinessLogic.Sales.Wallet;
 using BussinessLogic.Sales.Wallet.Voucher;
@@ -119,7 +117,6 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ShiftsSales>();
 		services.AddScoped<Target>();
 		services.AddScoped<Archive_Data>();
-		services.AddScoped<Forecast>();
 		services.AddScoped<IGasPriceApproval, GasPriceApproval>();
 
 		// ── Wallet & payments ───────────────────────────────────────────────

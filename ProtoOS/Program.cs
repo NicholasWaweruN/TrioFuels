@@ -115,7 +115,7 @@ using (var scope = app.Services.CreateScope())
 	Console.WriteLine("Startup complete.");
 }
 
-// Program.cs / Startup.cs
+
 
 
 

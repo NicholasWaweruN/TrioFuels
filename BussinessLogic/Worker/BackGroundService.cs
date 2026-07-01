@@ -2,7 +2,6 @@
 using BusinessLogic.EmailService;
 using BusinessLogic.Worker.SalesReport;
 using BussinessLogic.Messaging;
-using BussinessLogic.Sales.Sales_ForeCast;
 using BussinessLogic.Sales.Wallet;
 using BussinessLogic.Stock.VarianceReport;
 using BussinessLogic.Worker.SalesReport;
@@ -45,7 +44,7 @@ public class EmailBackgroundService : BackgroundService
 			{
 				if (currentTime.Hour == 16 && currentTime.Minute == 0 && (_lastForecastSalesRun == null || _lastForecastSalesRun.Value.Date != currentTime.Date))
 				{
-					await ForecastSales(scope, currentTime);
+				
 					_lastForecastSalesRun = currentTime;
 				}
 
@@ -85,11 +84,7 @@ public class EmailBackgroundService : BackgroundService
 
 		await salesReportService.GenerateMonthlySalesReportAsync(month, year, emails ?? new Mails());
 	}
-	private static async Task ForecastSales(IServiceScope scope, DateTime currentTime)
-	{
-		var salesReportService = scope.ServiceProvider.GetRequiredService<Forecast>();
-		await salesReportService.GetForeCastData();
-	}
+
 	//private static async Task WalletBalanceReport(IServiceScope scope)
 	//{
 	//	//var walletService = scope.ServiceProvider.GetRequiredService<TransactionsSummaries>();

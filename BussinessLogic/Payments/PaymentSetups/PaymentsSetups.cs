@@ -1,16 +1,13 @@
 ﻿
 using BussinessLogic.Authentication.CommonTasks;
-using BussinessLogic.PlateDetection;
 using ClosedXML.Excel;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Payments;
-using DataAccessLayer.EntityModels.ProtoBase;
-using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.EntityModels.Db_Views;
 using DataAccessLayer.EntityModels.Stations;
 using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Helpers;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;

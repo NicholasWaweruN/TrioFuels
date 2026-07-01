@@ -57,21 +57,5 @@ namespace DataAccessLayer.DTOs.Payments
 
 	}
 
-	public class FuelSale
-	{
-		public string Vehicle { get; set; } = string.Empty;
-		public string ShiftNumber { get; set; } = string.Empty;
-		public string SaleId { get; set; } = string.Empty;
-		public string StationName { get; set; } = string.Empty;
-		public string DispenserName { get; set; } = string.Empty;
-		public string NozzleName { get; set; } = string.Empty;
-		public string AttendantName { get; set; } = string.Empty;
-		 [Precision(18,2)] public decimal Litres { get; set; }
-		 [Precision(18,2)] public decimal Amount { get; set; }
-		public DateTime SalesDate { get; set; }
-		 [Precision(18,2)] public decimal Price { get; set; }
-		public string TillNumber { get; set; } = string.Empty;	
-		public string TransId { get; set; } = string.Empty;
-	}
 
 }

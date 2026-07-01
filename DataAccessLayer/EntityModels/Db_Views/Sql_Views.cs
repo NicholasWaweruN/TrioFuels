@@ -49,6 +49,7 @@ namespace DataAccessLayer.EntityModels.Db_Views
 		[Precision(18,2)] public decimal RunningBalance { get; set; } 
 	}
 
+	[Keyless]
 	public class FuelSale
 	{
 		public string? Vehicle { get; set; }

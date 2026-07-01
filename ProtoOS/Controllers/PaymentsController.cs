@@ -122,7 +122,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpGet]
-		[Authorize(Roles = "get unused mpesa transactions")]
+		[Authorize]
 		[Route("GetUnusedMpesaTransactions")]
 		public async Task<IActionResult> GetUnusedMpesaTransactions()
 		{

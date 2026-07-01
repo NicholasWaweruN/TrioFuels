@@ -8,6 +8,7 @@ using DataAccessLayer.EntityModels.Authorisations;
 using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Daraja;
+using DataAccessLayer.EntityModels.Db_Views;
 using DataAccessLayer.EntityModels.Emails;
 using DataAccessLayer.EntityModels.Loyalty_Program;
 using DataAccessLayer.EntityModels.Messaging;
