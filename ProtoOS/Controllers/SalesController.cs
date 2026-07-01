@@ -578,6 +578,14 @@ namespace FuelFlow.Controllers
 
 			return CreateResponse(result);
 		}
+
+		[HttpGet("salespernozzle")]
+		public async Task<IActionResult> GetSalesPerNozzleAsync() 
+		{
+			var result = await _salesByPaymentMethod.GetSalesPerNozzleAsync();
+
+			return CreateResponse(result);
+		}
 		#endregion
 	}
 }

@@ -66,5 +66,64 @@ namespace BussinessLogic.Sales.SalesData
 			public decimal QuantitySold { get; set; }
 			public decimal Amount { get; set; }
 		}
+
+		public async Task<ServiceResponse<List<SalesPerNozzleDto>>> GetSalesPerNozzleAsync()
+		{
+			var shift = await _context.Shifts
+				.Where(x => x.UserCode == _authentication.Usercode() && x.ShiftStatus == 1)
+				.FirstOrDefaultAsync();
+
+			if (shift is null)
+				return ServiceResponse<List<SalesPerNozzleDto>>.Information("No open shift found", null);
+
+			var query =
+				from qt in _context.QuantityTransactions
+				where qt.ShiftNumber == shift.ShiftNumber                    // ← column name, TBC
+				join nz in _context.Nozzles
+					on qt.NozzleCode equals nz.NozzleCode                    // ← FK/PK column names, TBC
+				join pp in _context.PetroleumProducts
+					on nz.PetroleumCode equals pp.PetroleumCode                  // ← FK/PK column names, TBC
+				group new { qt, nz, pp } by new
+				{
+					nz.NozzleCode,
+					nz.NozzleName,                                           // ← column name, TBC
+					pp.PetroleumCode, 
+					pp.PetroleumName                                           // ← column name, TBC
+				} into g
+				select new SalesPerNozzleDto
+				{
+					NozzleName = g.Key.NozzleName,
+					ProductCode = g.Key.PetroleumCode,
+					ProductName = g.Key.PetroleumName,
+					QuantitySold = g.Sum(x => x.qt.QuantityCredit),          // ← column name, TBC
+					Amount = g.Sum(x => x.qt.AmountCredit)                   // ← column name, TBC
+				};
+
+			var results = await query.ToListAsync();
+
+			if (results.Count == 0)
+				return ServiceResponse<List<SalesPerNozzleDto>>.Information("No sales found for current shift", null);
+
+			var totals = new SalesPerNozzleDto
+			{
+				NozzleName = "Total",
+				ProductCode = "",
+				ProductName = "",
+				QuantitySold = results.Sum(r => r.QuantitySold),
+				Amount = results.Sum(r => r.Amount)
+			};
+
+			results.Add(totals);
+
+			return ServiceResponse<List<SalesPerNozzleDto>>.Success("Sales per nozzle retrieved", results);
+		}
+		public class SalesPerNozzleDto
+		{
+			public string NozzleName { get; set; } = string.Empty;
+			public string ProductCode { get; set; } = string.Empty;
+			public string ProductName { get; set; } = string.Empty;
+			public decimal QuantitySold { get; set; }
+			public decimal Amount { get; set; }
+		}
 	}
 }
