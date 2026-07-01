@@ -176,7 +176,10 @@ public static class BusinessServicesExtensions
 		// Program.cs
 	
 		services.AddScoped<IShiftResolver,ShiftResolver>();
+		services.AddScoped<ISalesByPaymentMethod, SalesByPaymentMethod>();
 	
+
+
 
 
 		return services;

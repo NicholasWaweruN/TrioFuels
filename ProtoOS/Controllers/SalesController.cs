@@ -38,11 +38,12 @@ namespace FuelFlow.Controllers
 		private readonly Statements _statements;
 		private readonly ILoyaltyProgramSubscription _subscription;
 		private readonly ICouponsService _coupons;
+		private readonly ISalesByPaymentMethod _salesByPaymentMethod;
 
 		public SalesController(ISalesManagementService salesService, ISales sales, IWalletTransactions wallet,
 			IDashBoard dashBoard, IMissingSales missing, IReverseSales reverse, IEmailService emailService,
 			IMisingSale misingSale,Archive_Data archive,ReceiptService receipt,Statements statements, 
-			ILoyaltyProgramSubscription loyaltyServices,ICouponsService coupons)
+			ILoyaltyProgramSubscription loyaltyServices,ICouponsService coupons,ISalesByPaymentMethod salesByPaymentMethod)
 		{
 			_salesService = salesService;
 			_addingSales = sales;
@@ -57,6 +58,7 @@ namespace FuelFlow.Controllers
 			_statements = statements;
 			_subscription = loyaltyServices;
 			_coupons = coupons;
+			_salesByPaymentMethod = salesByPaymentMethod;
 		}
 
 		private OkObjectResult CreateResponse<T>(T response) => Ok(response);
@@ -80,7 +82,9 @@ namespace FuelFlow.Controllers
 			return CreateResponse(result);
 		}
 
+
 	
+
 
 		[HttpPost]
 		[Route("DeferVariance")]
@@ -528,6 +532,10 @@ namespace FuelFlow.Controllers
 			}
 			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CustomerStatement.pdf");
 		}
+
+
+		
+
 		//[HttpGet]
 		//[Route("receipt")]
 		//public IActionResult Receipts(string customerName, string vehicleReg, DateTime date, string fuelType, double quantity, double pricePerLitre, string paymentMethod, string phoneNumber, string receipNumber)
@@ -562,6 +570,15 @@ namespace FuelFlow.Controllers
 		}
 		#endregion
 
+		#region MyRegion
+		[HttpGet("salesbypaymentmethod")]
+		public async Task<IActionResult> GetSalesByPaymentMethodAsync() 
+		{
+			var result = await _salesByPaymentMethod.GetSalesByPaymentMethodAsync();
+
+			return CreateResponse(result);
+		}
+		#endregion
 	}
 }
 
