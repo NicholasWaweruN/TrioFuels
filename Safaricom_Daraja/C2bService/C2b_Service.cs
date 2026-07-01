@@ -244,9 +244,9 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			logger.LogInformation("[C2B][Confirm] Resolved fallback phone payload. Extracted={Phone}", finalPhone);
 		}
 
-		var till = await ResolveTill(request);
+		var till = await ResolveTill(request, ct);
 		var shifts = await _resolver.GetCurrentShiftByTill(till!.TillNumber);
-		var shiftNumber = shifts.ResponseObject;
+		var shiftNumber = shifts.ResponseObject as string ?? string.Empty;
 
 		var transaction = new MpesaTransaction
 		{
@@ -272,7 +272,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 			UserCode = "Mpesa",
 			CheckoutRequestID = string.Empty,
 			MerchantRequestID = string.Empty,
-			ShiftNumber = shiftNumber is not null ? shiftNumber : string.Empty,
+			ShiftNumber = shiftNumber 
 
 		};
 
