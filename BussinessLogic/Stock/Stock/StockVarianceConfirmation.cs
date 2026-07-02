@@ -15,13 +15,11 @@
 //                             comparison against a prior shift.
 //
 //   Litre variance is converted to money before comparing against
-//   Dispenser.ThreshHold (which is a KES amount, not litres):
-//     - Closing: price/litre = SUM(AmountCredit) / SUM(QuantityCredit) for
-//       this shift's own sales on that nozzle (weighted average of what was
-//       actually charged this shift).
-//     - Opening (and closing with zero sales on a nozzle): current retail
-//       price via Nozzle.PetroleumCode joined against Price.ProductCode,
-//       scoped to the dispenser, net of Price.Discount.
+//   Dispenser.ThreshHold (which is a KES amount, not litres). Price-per-litre
+//   for BOTH opening and closing always comes from the current retail price
+//   list: Nozzle.PetroleumCode joined against Price.ProductCode, scoped to
+//   the dispenser, net of Price.Discount. (No weighted-average-of-sales
+//   pricing — kept simple and consistent across both stock take types.)
 //
 // Shift is resolved server-side from Shifts (DispenserCode + current user +
 // ShiftStatus.Open) rather than trusting the client-supplied ShiftNumber —
@@ -175,8 +173,8 @@ namespace BussinessLogic.Stock.Stock
 		/// Price.ProductCode, scoped to this dispenser (Price also carries
 		/// StationCode/DispenserCode since pricing can vary by station).
 		/// Net of Discount, since that's what a customer is actually charged.
-		/// Used wherever this shift's own sales can't tell us a price directly
-		/// (no sales yet at opening, or zero sales on a nozzle by closing time).
+		/// This is now the single source of price-per-litre for both opening
+		/// and closing stock take variance calculations.
 		/// </summary>
 		private async Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
 		{
@@ -207,9 +205,7 @@ namespace BussinessLogic.Stock.Stock
 		/// explicitly to this shift via ShiftNumber, rather than inferring
 		/// "current shift" from row recency.
 		///
-		/// No sales have happened yet this shift, so price-per-litre for the
-		/// money conversion comes from the current retail price list rather
-		/// than a weighted average of this shift's sales.
+		/// Price-per-litre comes from the current retail price list.
 		/// </summary>
 		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre)> GetExpectedOpeningReadingAsync(
 			string shiftNumber, string dispenserCode, string nozzleCode)
@@ -223,7 +219,7 @@ namespace BussinessLogic.Stock.Stock
 
 			return (openingReading ?? 0m, 0m, currentPrice);
 		}
-		////	
+
 		/// <summary>
 		/// Closing stock take: expected reading = this shift's OpeningReading
 		/// (written when the shift was opened) + sum of QuantityCredit from
@@ -232,10 +228,8 @@ namespace BussinessLogic.Stock.Stock
 		/// only written on actual close-shift submit — so sales + opening is
 		/// the correct "expected" to compare the attendant's entry against.
 		///
-		/// Price-per-litre for the money conversion is SUM(AmountCredit) /
-		/// SUM(QuantityCredit) for this shift's own sales on the nozzle — a
-		/// weighted average of what was actually charged, which holds up even
-		/// if the price changed mid-shift.
+		/// Price-per-litre comes from the current retail price list — same
+		/// source as opening, no weighted-average-of-sales calculation.
 		/// </summary>
 		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre)> GetExpectedClosingReadingAsync(
 			string shiftNumber,
@@ -247,19 +241,14 @@ namespace BussinessLogic.Stock.Stock
 				.Select(s => (decimal?)s.OpeningReading)
 				.FirstOrDefaultAsync() ?? 0m;
 
-			var sales = await _db.QuantityTransactions
+			var quantitySold = await _db.QuantityTransactions
 				.Where(t => t.ShiftNumber == shiftNumber
 							&& t.NozzleCode == nozzleCode
 							&& t.DispenserCode == dispenserCode
 							&& !t.IsReversed)
-				.Select(t => new { t.QuantityCredit, t.AmountCredit })
-				.ToListAsync();
+				.SumAsync(t => t.QuantityCredit);
 
-			var quantitySold = sales.Sum(s => s.QuantityCredit);
-			var amountCredit = sales.Sum(s => s.AmountCredit);
-			var pricePerLitre = quantitySold != 0
-				? amountCredit / quantitySold
-				: await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode); // no sales this shift on this nozzle — don't silently zero out the variance
+			var pricePerLitre = await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
 
 			return (openingReading + quantitySold, quantitySold, pricePerLitre);
 		}
