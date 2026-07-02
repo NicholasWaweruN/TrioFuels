@@ -223,7 +223,7 @@ namespace BussinessLogic.Stock.Stock
 
 			return (openingReading ?? 0m, 0m, currentPrice);
 		}
-
+		////	
 		/// <summary>
 		/// Closing stock take: expected reading = this shift's OpeningReading
 		/// (written when the shift was opened) + sum of QuantityCredit from
