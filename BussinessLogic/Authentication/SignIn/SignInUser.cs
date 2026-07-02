@@ -216,6 +216,7 @@ namespace BussinessLogic.Authentication.SignIn
 						UserCode = user.UserCode,
 						Token = tokenResult.Tooken, // renamed for consistency
 						Roles = tokenResult.Roles,
+						PhoneNumber = user.PhoneNumber,
 						AccessApps = userAccessApps,
 						NozzleDetails = new NozzleDetails
 						{
@@ -240,6 +241,7 @@ namespace BussinessLogic.Authentication.SignIn
 				Name = string.Join(' ', user.FirstName, user.LastName),
 				Token = tokenResult.Tooken,
 				Roles = tokenResult.Roles,
+				PhoneNumber = user.PhoneNumber,
 				AccessApps = userAccessApps,
 				NozzleDetails = new NozzleDetails
 				{

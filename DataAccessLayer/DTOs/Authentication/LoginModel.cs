@@ -40,11 +40,13 @@ namespace DataAccessLayer.DTOs.Authentication
 		public string? UserCode { get; set; } = string.Empty;
         public string? Token { get; set; } = string.Empty;
 		public string? Name {  get; set; } = string.Empty;
-        public List<RolesDto> Roles { get; set; } = new List<RolesDto>();
+		public string? PhoneNumber { get; set; } = string.Empty;
+		public List<RolesDto> Roles { get; set; } = new List<RolesDto>();
         public List<AccessTypes> AccessApps { get; set; } = new List<AccessTypes>();
         public NozzleDetails NozzleDetails { get; set; } = new NozzleDetails();
 
     }
+}
 public class DispenserNozzles
 {
     public string DispenserName { get; set; } = string.Empty;
@@ -129,4 +131,4 @@ public class RolesDto
         public DateTime RefreshTokenExpiration { get; set; } // Expiration of the refresh token
         public string UserCode { get; set; } = string.Empty;          // The unique identifier of the user
     }
-}
+
