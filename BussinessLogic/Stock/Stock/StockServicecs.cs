@@ -1142,53 +1142,42 @@ namespace BussinessLogic.Stock.Stock
 				{
 					foreach (var variance in variances)
 					{
-						if (Math.Abs(variance.ClosingVariance) > 0)
+						if (Math.Abs(variance.ClosingVariance) == 0)
+							continue;
+
+						var saleId = _setups.GenerateSaleId();
+
+						var isShortage = variance.ClosingVariance < 0;
+						var magnitude = Math.Abs(variance.ClosingVariance);
+
+						var quantityTransaction = new QuantityTransactions
 						{
-							var saleId = _setups.GenerateSaleId();
+							DateCreated = DateTime.UtcNow,
+							UserCode = variance.UserCode ?? "",
+							NozzleCode = variance.NozzleCode,
+							QuantityCredit = isShortage ? 0 : magnitude,
+							QuantityDebit = isShortage ? magnitude : 0,
+							ShiftNumber = shiftNumber,
+							SaleId = saleId,
+							PaymentTypeCode = 3,
+							DispenserCode = dispenserId ?? "",
+							StationCode = stationCode ?? ""
+						};
+						await _context.QuantityTransactions.AddAsync(quantityTransaction);
 
-							var quantityTransaction = new QuantityTransactions
-							{
-								DateCreated = DateTime.UtcNow,
-								UserCode = variance.UserCode ?? "",
-								NozzleCode = variance.NozzleCode,
-								QuantityCredit = variance.ClosingVariance,
-								QuantityDebit = 0,
-								ShiftNumber = shiftNumber,
-								SaleId = saleId,
-								PaymentTypeCode = 3,
-								VehicleRegistrationNumber = variance.UserCode ?? "",
-								DispenserCode = dispenserId ?? "",
-								AmountCredit = 0,
-								AmountDebit = 0,
-								IsReversed = false,
-								Price = 0,
-								StationCode = stationCode ?? "",
-								
-							};
-							await _context.QuantityTransactions.AddAsync(quantityTransaction);
+						var paymentTransaction = new PaymentTransactions
+						{
+							DateCreated = DateTime.UtcNow,
+							UserCode = variance.UserCode ?? "",
+							SaleId = saleId,
+							PaymentRefrence = _setups.GenerateShiftNumber(),
+							TransactionAmount = Math.Abs(magnitude),
+							TransactionAmountDebit = 0
+						};
+						await _context.PaymentTransactions.AddAsync(paymentTransaction);
 
-							var paymentTransaction = new PaymentTransactions
-							{
-								DateCreated = DateTime.UtcNow,
-								UserCode = variance.UserCode ?? "",
-								PaymentRefrence = EatTime.Now.ToString("yyyy-MM-dd-HH-mm-ss"),
-								SaleId = saleId,
-								TransactionAmount = variance.ClosingVariance,
-								TransactionAmountDebit = 0
-							};
-							await _context.PaymentTransactions.AddAsync(paymentTransaction);
-
-							var summaryToUpdate = await (
-								from s in _context.StockTakeSummaries
-								where s.Id == variance.Id && s.NozzleCode == variance.NozzleCode
-								select s
-							).FirstOrDefaultAsync();
-
-							if (summaryToUpdate != null)
-							{
-								summaryToUpdate.VarianceStatus = ShiftStatus.Closed;
-							}
-						}
+						variance.VarianceStatus = ShiftStatus.Closed;
+						_context.StockTakeSummaries.Update(variance);
 					}
 
 					// Close the shift itself — without this, ShiftStatuses() keeps
