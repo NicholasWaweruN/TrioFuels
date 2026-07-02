@@ -82,6 +82,7 @@ namespace BussinessLogic.Stock.Stock
 	public interface IStockTakeVarianceService
 	{
 		Task<StockTakeVarianceCheckResponse> CheckVarianceAsync(StockTakeVarianceCheckRequest request);
+		Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
 	}
 
 	public class StockTakeVarianceService : IStockTakeVarianceService
@@ -97,8 +98,7 @@ namespace BussinessLogic.Stock.Stock
 			_authentication = authentication;
 		}
 
-		public async Task<StockTakeVarianceCheckResponse> CheckVarianceAsync(
-			StockTakeVarianceCheckRequest request)
+		public async Task<StockTakeVarianceCheckResponse> CheckVarianceAsync(StockTakeVarianceCheckRequest request)
 		{
 			var threshold = await GetThresholdForDispenserAsync(request.DispenserCode);
 
@@ -176,7 +176,7 @@ namespace BussinessLogic.Stock.Stock
 		/// This is now the single source of price-per-litre for both opening
 		/// and closing stock take variance calculations.
 		/// </summary>
-		private async Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
+		public async Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
 		{
 			var petroleumCode = await _db.Nozzles
 				.Where(n => n.NozzleCode == nozzleCode && n.DispenserCode == dispenserCode)

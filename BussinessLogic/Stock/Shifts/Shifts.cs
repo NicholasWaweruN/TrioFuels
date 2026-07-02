@@ -1,5 +1,7 @@
 ﻿using BussinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Setup;
+using BussinessLogic.Stock.Stock;
+using BussinessLogic.Stock.Variance_Service;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Shifts;
@@ -12,11 +14,13 @@ namespace BussinessLogic.Stock.Shifts
 		private readonly OTOContext _context;
 		private readonly IAuthCommonTasks _authentication;
 		private readonly ICommonSetups _setups;
-		public Shifts(OTOContext context, IAuthCommonTasks authentication, ICommonSetups setups)
+		private readonly IStockTakeVarianceService _stockTakeVarianceService;
+		public Shifts(OTOContext context, IAuthCommonTasks authentication, ICommonSetups setups, IStockTakeVarianceService stockTakeVarianceService)
 		{
 			_context = context;
 			_authentication = authentication;
 			_setups = setups;
+			_stockTakeVarianceService = stockTakeVarianceService;
 		}
 		//check if a user has an open shift
 
@@ -56,6 +60,7 @@ namespace BussinessLogic.Stock.Shifts
 			var HasOpenshift = await _context.Shifts.AnyAsync(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Open);
 			var HasPendingShift = await _context.Shifts.AnyAsync(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Pending);
 			var HasVarianceShift = await _context.Shifts.AnyAsync(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Variance);
+
 			if (HasOpenshift)
 			{
 				var userDispenser = await GetDispenserAssignedToUserAsync();
@@ -65,7 +70,7 @@ namespace BussinessLogic.Stock.Shifts
 				{
 					var totalQuantitySold = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber).SumAsync(x => x.QuantityCredit + x.QuantityDebit);
 					var gettotalevents = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber).CountAsync();
-					var cashAtHand = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber && x.PaymentTypeCode == 12).SumAsync(x => x.AmountCredit-x.AmountDebit);
+					var cashAtHand = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber && x.PaymentTypeCode == 12).SumAsync(x => x.AmountCredit - x.AmountDebit);
 					return new ServiceResponse<object>
 					{
 						ResponseCode = Response.Success,
@@ -77,7 +82,7 @@ namespace BussinessLogic.Stock.Shifts
 							QuantitySold = totalQuantitySold,
 							TotalEvents = gettotalevents,
 							CashAtHand = cashAtHand,
-							IsStockTakeTaken =  true,
+							IsStockTakeTaken = true,
 						}
 
 					};
@@ -99,7 +104,7 @@ namespace BussinessLogic.Stock.Shifts
 											   vs.NozzleCode,
 											   n.NozzleName,
 											   s.ShiftNumber,
-											   
+
 										   }).ToListAsync();
 
 				var variances = new List<Variances>();
@@ -129,9 +134,6 @@ namespace BussinessLogic.Stock.Shifts
 			else if (HasVarianceShift)
 			{
 				var userDispenser = await GetDispenserAssignedToUserAsync();
-				var price = await (from p in _context.Prices
-								   where p.DispenserCode == userDispenser
-								   select p.Amount).FirstOrDefaultAsync();
 
 				// get from stocksummary where shiftstatus = variance and usercode = usercode
 				var varianceShift = await (from vs in _context.StockTakeSummaries
@@ -150,13 +152,19 @@ namespace BussinessLogic.Stock.Shifts
 				var variances = new List<Variances>();
 				foreach (var variance in varianceShift)
 				{
+					// Price scoped per-nozzle via the shared lookup used by stock take
+					// variance checks — was previously one price for the whole dispenser,
+					// which silently mispriced any nozzle selling a different product.
+					var pricePerLitre = await _stockTakeVarianceService.GetCurrentRetailPriceAsync(userDispenser, variance.NozzleCode);
+					var totalVarianceLitres = variance.OpeningVariance + variance.ClosingVariance;
+
 					variances.Add(new Variances
 					{
 						ShiftNumber = variance.ShiftNumber,
 						NozzleCode = variance.NozzleCode,
 						NozzleName = variance.NozzleName,
-						Variance = variance.OpeningVariance + variance.ClosingVariance,
-						VarianceValue = (variance.OpeningVariance + variance.ClosingVariance) * price
+						Variance = totalVarianceLitres,
+						VarianceValue = totalVarianceLitres * pricePerLitre
 					});
 				}
 
@@ -173,7 +181,6 @@ namespace BussinessLogic.Stock.Shifts
 			}
 			else
 			{
-
 				return new ServiceResponse<object>
 				{
 					ResponseCode = Response.Success,
@@ -185,7 +192,6 @@ namespace BussinessLogic.Stock.Shifts
 				};
 			}
 		}
-
 		private async Task<string> GetDispenserAssignedToUserAsync()
 		{
 			return await _context.DispenserAssignments
