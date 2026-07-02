@@ -83,6 +83,7 @@ namespace BussinessLogic.Stock.Stock
 	{
 		Task<StockTakeVarianceCheckResponse> CheckVarianceAsync(StockTakeVarianceCheckRequest request);
 		Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
+		Task<decimal> GetThresholdForDispenserAsync(string dispenserCode);
 	}
 
 	public class StockTakeVarianceService : IStockTakeVarianceService
@@ -158,7 +159,7 @@ namespace BussinessLogic.Stock.Stock
 		/// can't be found, which shouldn't happen in practice since request.DispenserCode
 		/// already passed the shift lookup above.
 		/// </summary>
-		private async Task<decimal> GetThresholdForDispenserAsync(string dispenserCode)
+		public async Task<decimal> GetThresholdForDispenserAsync(string dispenserCode)
 		{
 			var threshold = await _db.Dispensers
 				.Where(d => d.DispenserCode == dispenserCode)
