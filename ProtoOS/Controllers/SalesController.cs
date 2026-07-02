@@ -226,78 +226,8 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-		[HttpPost]
-		[Authorize(Roles = "can view customerBalances")]
-		[Route("GetAllCustomerBalances2")]
-		public async Task<IActionResult> GetAllCustomerBalances(string regNo)
-		{
-			var response = await _wallet.GetAllCustomerBalances();
-			return CreateResponse(response);
-		}
 
-
-
-		[HttpPost]
-		[Authorize(Roles = "can view customerbalances")]
-		[Route("get-all-customer-balances-sql")]
-		public async Task<IActionResult> GetAllCustomerBalancesSql(string? registrationNumber = null,
-		string? customerName = null,
-		int pageNumber = 1,
-		int pageSize = 15)
-		{
-			var response = await _wallet.GetAllCustomerBalancesSql(registrationNumber,customerName,pageNumber,pageSize);
-			return CreateResponse(response);
-		}
-
-		//upload
-		[HttpPost]
-		[Route("UploadSalesData")]
-		[Consumes("multipart/form-data")]
-		[Authorize(Roles = "can top up customer wallet")]
-		public async Task<IActionResult> UploadSalesData(IFormFile file,int topUpType) 
-		{
-			var response = await _wallet.UploadCustomerTransactions(file, topUpType);
-			return CreateResponse(response);
-		}
-
-		[HttpGet]
-		[Route("export-customer-transactions/{vehicleCode}")]
-		[Authorize(Roles = "can view customer statement")]
-		public async Task<IActionResult> ExportCustomerTransactions(string vehicleCode)
-		{
-			var result = await _wallet.ExportCustomerTransactions(vehicleCode);
-			if (result.ResponseCode != 1)
-			{
-				return NotFound(result.ResponseMessage);  // Return appropriate error response
-			}
-
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return BadRequest("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CustomerStatement.xlsx");
-		}
-
-		[HttpGet]
-		[Route("export-customer-transactions-pdf/{customerCode}")]
-		[Authorize(Roles = "can view customer statement")]
-		public async Task<IActionResult> ExportCustomerTransactionsPdf(string customerCode,DateTime from)
-		{
-
-			var result = await _wallet.CustomerStatementAsPdf(customerCode,from);
-			if (result.ResponseCode != 1)
-			{
-				return NotFound(result.ResponseMessage);  // Return appropriate error response
-			}
-
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return NotFound("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CustomerStatement.pdf");
-		}
+	
 
 		[HttpGet]
 		[Route("CustomerAllVehiclesStatement/{customerCode}")]

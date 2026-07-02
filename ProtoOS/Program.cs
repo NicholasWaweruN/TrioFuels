@@ -80,40 +80,40 @@ var app = builder.Build();
 
 
 
-using (var scope = app.Services.CreateScope())
-{
-	var services = scope.ServiceProvider;
+//using (var scope = app.Services.CreateScope())
+//{
+//	var services = scope.ServiceProvider;
 
-	var db = services.GetRequiredService<OTOContext>();
+//	var db = services.GetRequiredService<OTOContext>();
 
-	Console.WriteLine("Testing database connection...");
+//	Console.WriteLine("Testing database connection...");
 
-	var canConnect = await db.Database.CanConnectAsync();
+//	var canConnect = await db.Database.CanConnectAsync();
 
-	Console.WriteLine($"CanConnect = {canConnect}");
+//	Console.WriteLine($"CanConnect = {canConnect}");
 
-	Console.WriteLine("Running migrations...");
+//	Console.WriteLine("Running migrations...");
 
-	await db.Database.MigrateAsync();
+//	await db.Database.MigrateAsync();
 
-	Console.WriteLine("Creating views...");
+//	Console.WriteLine("Creating views...");
 
-	await ViewInitializer.UpdateViewsAsync(db);
+//	await ViewInitializer.UpdateViewsAsync(db);
 
-	await using var connection = db.Database.GetDbConnection();
+//	await using var connection = db.Database.GetDbConnection();
 
-	await connection.OpenAsync();
+//	await connection.OpenAsync();
 
-	await using var command = connection.CreateCommand();
+//	await using var command = connection.CreateCommand();
 
-	command.CommandText = @"SELECT COUNT(*) FROM ""vw_SalesData""";
+//	command.CommandText = @"SELECT COUNT(*) FROM ""vw_SalesData""";
 
-	var count = Convert.ToInt64(await command.ExecuteScalarAsync());
+//	var count = Convert.ToInt64(await command.ExecuteScalarAsync());
 
-	Console.WriteLine($"vw_SalesData records: {count:N0}");
+//	Console.WriteLine($"vw_SalesData records: {count:N0}");
 
-	Console.WriteLine("Startup complete.");
-}
+//	Console.WriteLine("Startup complete.");
+//}
 
 
 

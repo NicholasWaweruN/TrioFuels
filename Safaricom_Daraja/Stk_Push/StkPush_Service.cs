@@ -1,25 +1,36 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+﻿using DataAccessLayer.Context;
+using DataAccessLayer.EntityModels.Daraja;
+using DataAccessLayer.EntityModels.Stations;
+using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Safaricom_Daraja.DarajaTokenService;
+using Safaricom_Daraja.Helpers;
+using ServiceStack.Configuration;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.RegularExpressions;
-using DataAccessLayer.EntityModels.Daraja;
-using DataAccessLayer.Context;
-using DataAccessLayer.EntityModels.Transactions;
-using ServiceStack.Configuration;
-using Safaricom_Daraja.Helpers;
 
 namespace Safaricom_Daraja.Stk_Push;
 
-public sealed class StkPushService(IHttpClientFactory httpFactory, IDarajaTokenService tokenService, IOptions<DarajaConfig> options, ILogger<StkPushService> logger, OTOContext context) : IStkPushService
+public sealed class StkPushService(
+	IHttpClientFactory httpFactory,
+	IDarajaTokenService tokenService,
+	IOptions<DarajaConfig> options,
+	ILogger<StkPushService> logger,
+	OTOContext context,
+	IMemoryCache cache) : IStkPushService
 {
 	private readonly DarajaConfig _cfg = options.Value;
 	private readonly OTOContext _context = context;
 
-
+	// Tills are static / rarely-changing — no reason to hit Postgres on every
+	// single STK push. Cached in-memory to keep the hot path clear before we
+	// even talk to Safaricom.
+	private const string TillCacheKey = "daraja-tills";
 
 	// ─────────────────────────────────────────────────────────────
 	// STK PUSH
@@ -45,7 +56,7 @@ public sealed class StkPushService(IHttpClientFactory httpFactory, IDarajaTokenS
 			return DarajaResult<StkPushResponse>.Fail(ex.Message);
 		}
 
-		var till = await _context.Tills.Where(x => x.TillNumber == tillNumber).FirstOrDefaultAsync(ct);
+		var till = await GetTillAsync(tillNumber, ct);
 
 		if (till is null)
 			return DarajaResult<StkPushResponse>.Fail($"Till {tillNumber} is not configured.");
@@ -126,14 +137,6 @@ public sealed class StkPushService(IHttpClientFactory httpFactory, IDarajaTokenS
 	// ─────────────────────────────────────────────────────────────
 	// STK QUERY
 	// ─────────────────────────────────────────────────────────────
-
-	/// <summary>
-	/// 
-	/// </summary>
-	/// <param name="checkoutRequestId"></param>
-	/// <param name="ct"></param>
-	/// <returns></returns>
-	/// 
 
 	public async Task<MpesaTransaction?> GetMpesaTransaction(string checkoutRequestId, CancellationToken ct = default)
 	{
@@ -228,6 +231,23 @@ public sealed class StkPushService(IHttpClientFactory httpFactory, IDarajaTokenS
 	// ─────────────────────────────────────────────────────────────
 	// HELPERS
 	// ─────────────────────────────────────────────────────────────
+
+	/// <summary>
+	/// Cached till lookup. Tills are static reference data (5 live tills),
+	/// so we avoid a Postgres round-trip on every STK push. Cache is
+	/// refreshed every 30 minutes; call InvalidateTillCache() after any
+	/// admin edit to the Tills table if instant refresh is needed.
+	/// </summary>
+	private async Task<Tills?> GetTillAsync(string tillNumber, CancellationToken ct)
+	{
+		var tills = await cache.GetOrCreateAsync(TillCacheKey, async entry =>
+		{
+			entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30);
+			return await _context.Tills.AsNoTracking().ToListAsync(ct);
+		});
+
+		return tills?.FirstOrDefault(x => x.TillNumber == tillNumber);
+	}
 
 	private (string Timestamp, string Password) BuildCredentials()
 	{

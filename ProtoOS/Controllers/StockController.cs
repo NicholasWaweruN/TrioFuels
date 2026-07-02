@@ -3,6 +3,7 @@ using BussinessLogic.Reports.Shifts_Clossing;
 using BussinessLogic.Stock.Shifts;
 using BussinessLogic.Stock.Stock;
 using BussinessLogic.Stock.Totalizers;
+using BussinessLogic.Stock.Variance_Service;
 using DataAccessLayer.DTOs.Transactions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,14 +22,15 @@ namespace FuelFlow.Controllers
 		private readonly IShifts _shiftsService;
 		private readonly ReadingsTotalizers _reading;
 		private readonly IShiftClosingReport _closingReport;
+		private readonly IStockTakeVarianceService _varianceService;
 
-		public StockController(IStockServicecs stockService, 
-			IShifts shiftsService, ReadingsTotalizers reading, IShiftClosingReport closingReport)
+		public StockController(IStockServicecs stockService, IShifts shiftsService, ReadingsTotalizers reading, IShiftClosingReport closingReport,IStockTakeVarianceService varianceService)
 		{
 			_stockService = stockService;
 			_shiftsService = shiftsService;
 			_reading = reading;
 			_closingReport = closingReport;
+			_varianceService = varianceService;
 		}
 		private IActionResult HandleResponse<T>(T response)
 		{
@@ -190,7 +192,7 @@ namespace FuelFlow.Controllers
 		[Authorize(Roles = "can record totalizer readings")]
 		public async Task<IActionResult> TakeTotalizerReadings([FromBody] List<NozzleReadingInput > nozzles)
 		{
-			if (nozzles == null || !nozzles.Any())
+			if (nozzles == null || nozzles.Count == 0)
 				return BadRequest("Nozzles data is required.");
 
 			var response = await _reading.RecordTotalizerReadingsAsync(nozzles);
@@ -211,7 +213,16 @@ namespace FuelFlow.Controllers
 			var result = await _closingReport.GenerateClosingReportAsync(shiftNumber, dispenserCode);
 			return Ok(result);
 		}
-		
+
+		[HttpPost("check-variance")]
+		public async Task<IActionResult> CheckVariance([FromBody] StockTakeVarianceCheckRequest request)
+		{
+			if (request?.Readings == null || !request.Readings.Any())
+				return BadRequest(new { responseMessage = "No readings supplied" });
+
+			var result = await _varianceService.CheckVarianceAsync(request);
+			return Ok(result);
+		}
 	}
 
 }

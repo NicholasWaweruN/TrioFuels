@@ -22,6 +22,11 @@ public sealed class DarajaTokenService : IDarajaTokenService
 
 	private const string CacheKey = "daraja-token";
 
+	// Guards the fetch-and-cache section so a cache-miss burst (multiple
+	// concurrent sales all hitting an expired token at once) results in a
+	// single call to Daraja instead of N simultaneous ones.
+	private static readonly SemaphoreSlim TokenLock = new(1, 1);
+
 	public DarajaTokenService(
 		IHttpClientFactory factory,
 		IMemoryCache cache,
@@ -41,6 +46,25 @@ public sealed class DarajaTokenService : IDarajaTokenService
 			return token!;
 		}
 
+		await TokenLock.WaitAsync(ct);
+		try
+		{
+			// Someone else may have already refreshed it while we were waiting.
+			if (_cache.TryGetValue(CacheKey, out token))
+			{
+				return token!;
+			}
+
+			return await FetchAndCacheTokenAsync(ct);
+		}
+		finally
+		{
+			TokenLock.Release();
+		}
+	}
+
+	private async Task<string> FetchAndCacheTokenAsync(CancellationToken ct)
+	{
 		var client = _factory.CreateClient("Daraja");
 
 		var credentials = Convert.ToBase64String(
@@ -110,8 +134,6 @@ public sealed class DarajaTokenService : IDarajaTokenService
 		return result.AccessToken;
 	}
 }
-
-
 
 public sealed class DarajaTokenResponse
 {

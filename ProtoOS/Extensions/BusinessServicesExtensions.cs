@@ -107,6 +107,7 @@ public static class BusinessServicesExtensions
 		services.AddScoped<StockTakeSummaryReport>();
 		services.AddScoped<ReadingsTotalizers>();
 		services.AddScoped<IShiftClosingReport, ShiftClosingReportService>();
+		services.AddScoped<IStockTakeVarianceService, StockTakeVarianceService>();
 
 		// ── Sales ───────────────────────────────────────────────────────────
 		services.AddScoped<ISales, Sales>();

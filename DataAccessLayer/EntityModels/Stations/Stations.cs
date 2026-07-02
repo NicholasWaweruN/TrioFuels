@@ -54,6 +54,7 @@ namespace DataAccessLayer.EntityModels.Stations
 
 		[Required, StringLength(20), Unicode(false)]
 		public string StorageLocation { get; set; } = string.Empty;
+		public decimal ThreshHold { get; set; } = 0m;
 	}
 
 
