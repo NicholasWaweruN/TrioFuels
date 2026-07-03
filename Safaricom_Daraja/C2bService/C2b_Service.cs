@@ -306,8 +306,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 			if (byShortCode is not null)
 			{
-				logger.LogInformation("[C2B][ResolveTill] Matched via BusinessShortCode='{BSC}' → Till={Till} ({Name})",
-					bsc, byShortCode.TillNumber, byShortCode.TillName);
+				logger.LogInformation("[C2B][ResolveTill] Matched via BusinessShortCode='{BSC}' → Till={Till} ({Name})",bsc, byShortCode.TillNumber, byShortCode.TillName);
 				return byShortCode;
 			}
 			
@@ -324,8 +323,7 @@ public sealed class C2BService(IHttpClientFactory httpFactory,IDarajaTokenServic
 
 			if (byRef is not null)
 			{
-				logger.LogInformation("[C2B][ResolveTill] Matched via BillRefNumber='{Ref}' → Till={Till} ({Name})",
-					targetRef, byRef.TillNumber, byRef.TillName);
+				logger.LogInformation("[C2B][ResolveTill] Matched via BillRefNumber='{Ref}' → Till={Till} ({Name})",targetRef, byRef.TillNumber, byRef.TillName);
 				return byRef;
 			}
 		}

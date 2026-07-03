@@ -76,33 +76,52 @@ namespace BussinessLogic.Sales.SalesData
 			if (shift is null)
 				return ServiceResponse<List<SalesPerNozzleDto>>.Information("No open shift found", null);
 
+			// Start from Nozzles on this shift's dispenser, so nozzles with zero sales still appear.
 			var query =
-				from qt in _context.QuantityTransactions
-				where qt.ShiftNumber == shift.ShiftNumber                    // ← column name, TBC
-				join nz in _context.Nozzles
-					on qt.NozzleCode equals nz.NozzleCode                    // ← FK/PK column names, TBC
+				from nz in _context.Nozzles
+				where nz.DispenserCode == shift.DispenserCode && nz.IsActive
 				join pp in _context.PetroleumProducts
-					on nz.PetroleumCode equals pp.PetroleumCode                  // ← FK/PK column names, TBC
+					on nz.PetroleumCode equals pp.PetroleumCode
+				join qt in _context.QuantityTransactions
+					  .Where(x => x.ShiftNumber == shift.ShiftNumber)
+					on nz.NozzleCode equals qt.NozzleCode into qtGroup
+				from qt in qtGroup.DefaultIfEmpty()               // left join
 				group new { qt, nz, pp } by new
 				{
 					nz.NozzleCode,
-					nz.NozzleName,                                           // ← column name, TBC
-					pp.PetroleumCode, 
-					pp.PetroleumName                                           // ← column name, TBC
+					nz.NozzleName,
+					pp.PetroleumCode,
+					pp.PetroleumName
 				} into g
 				select new SalesPerNozzleDto
 				{
+					NozzleCode = g.Key.NozzleCode,
 					NozzleName = g.Key.NozzleName,
 					ProductCode = g.Key.PetroleumCode,
 					ProductName = g.Key.PetroleumName,
-					QuantitySold = g.Sum(x => x.qt.QuantityCredit),          // ← column name, TBC
-					Amount = g.Sum(x => x.qt.AmountCredit)                   // ← column name, TBC
+					QuantitySold = g.Sum(x => x.qt != null ? x.qt.QuantityCredit : 0),
+					Amount = g.Sum(x => x.qt != null ? x.qt.AmountCredit : 0)
 				};
 
 			var results = await query.ToListAsync();
 
 			if (results.Count == 0)
 				return ServiceResponse<List<SalesPerNozzleDto>>.Information("No sales found for current shift", null);
+
+			var nozzleCodes = results.Select(r => r.NozzleCode).Distinct().ToList();
+
+			var totalizers = await _context.QuantityTransactions
+				.Where(x => nozzleCodes.Contains(x.NozzleCode))
+				.GroupBy(x => x.NozzleCode)
+				.Select(g => new
+				{
+					NozzleCode = g.Key,
+					Totalizer = g.Sum(x => x.QuantityCredit) - g.Sum(x => x.QuantityDebit)
+				})
+				.ToDictionaryAsync(x => x.NozzleCode, x => x.Totalizer);
+
+			foreach (var row in results)
+				row.CurrentTotalizer = totalizers.TryGetValue(row.NozzleCode, out var t) ? t : 0;
 
 			var totals = new SalesPerNozzleDto
 			{
@@ -119,11 +138,13 @@ namespace BussinessLogic.Sales.SalesData
 		}
 		public class SalesPerNozzleDto
 		{
+			public string NozzleCode { get; set; } = string.Empty;
 			public string NozzleName { get; set; } = string.Empty;
 			public string ProductCode { get; set; } = string.Empty;
 			public string ProductName { get; set; } = string.Empty;
 			public decimal QuantitySold { get; set; }
 			public decimal Amount { get; set; }
+			public decimal CurrentTotalizer { get; set; }
 		}
 	}
 }

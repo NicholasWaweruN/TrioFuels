@@ -113,14 +113,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-		[HttpPost]
-		[Route("SalesShiftSummarySummary")]
-		[Authorize(Roles = "can view sales shift summary")]
-		public async Task<IActionResult> SalesShiftSummarySummary()
-		{
-			var response = await _salesService.SalesShiftSummarySummary();
-			return CreateResponse(response);
-		}
+	
 
 		[HttpGet]
 		[Authorize]
@@ -158,15 +151,7 @@ namespace FuelFlow.Controllers
 		}
 		
 
-		//events for a specifi vehicle
-		[HttpGet]
-		[Route("GetFuelingEventsForVehicle/{vehicleCode}")]
-		[Authorize(Roles = "can view fueling events for vehicle")]
-		public async Task<IActionResult> GetFuelingEventsForVehicle(string vehicleCode)
-		{
-			var response = await _salesService.GetFuelingEventsForVehicle(vehicleCode);
-			return CreateResponse(response);
-		}
+	
 
 		#endregion
 		#region Wallet Management Endpoints
@@ -258,24 +243,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-		[HttpGet]
-		[Route("export-customer-wallet-balances")]
-		[Authorize(Roles = "can export customer wallet balances excel")]
-		public async Task<IActionResult> ExportCustomerTransactions()
-		{
-			var result = await _salesService.ExportCustomerTransactions();
-			if (result.ResponseCode != 1)
-			{
-				return NotFound(result.ResponseMessage);  // Return appropriate error response
-			}
 
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return NotFound("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "customer-wallet.xlsx");
-		}
 
 		[HttpGet]
 		[Route("ViewPayments/{saleId}")]
@@ -307,14 +275,7 @@ namespace FuelFlow.Controllers
 		}
 		#endregion
 
-		[HttpGet]
-		[Route("GetSalesData")]
-		[Authorize(Roles = "can view sales data")]
-		public async Task<IActionResult> GetSalesData(DateTime date)
-		{
-			var response = await _salesService.GetSalesData(date);
-			return CreateResponse(response);
-		}
+		
 
 		[HttpGet]
 		[Route("ExportDailySales")]
