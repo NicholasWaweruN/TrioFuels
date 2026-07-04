@@ -49,5 +49,6 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="Sales\NewFolder\" />
+	  <Folder Include="Sales\ShiftsStatus\" />
 	</ItemGroup>
 </Project>

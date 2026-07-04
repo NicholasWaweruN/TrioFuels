@@ -53,147 +53,153 @@ namespace BussinessLogic.Stock.Shifts
 		}
 
 
-		//get shift status
+
+		#region SHIFTstatus
+
 		public async Task<ServiceResponse<object>> ShiftStatuses()
 		{
 			var userCode = _authentication.Usercode();
-			var HasOpenshift = await _context.Shifts.AnyAsync(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Open);
-			var HasPendingShift = await _context.Shifts.AnyAsync(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Pending);
-			var HasVarianceShift = await _context.Shifts.AnyAsync(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Variance);
 
-			if (HasOpenshift)
+			// FIX 1: one query instead of 3 AnyAsync calls. Pull the relevant shifts
+			// once, then decide priority (Open > Pending > Variance) in memory.
+			var relevantShifts = await _context.Shifts
+				.Where(x => x.UserCode == userCode &&
+							(x.ShiftStatus == ShiftStatus.Open ||
+							 x.ShiftStatus == ShiftStatus.Pending ||
+							 x.ShiftStatus == ShiftStatus.Variance))
+				.Select(x => new { x.ShiftNumber, x.ShiftStatus })
+				.ToListAsync();
+
+			var openShift = relevantShifts.FirstOrDefault(x => x.ShiftStatus == ShiftStatus.Open);
+			var pendingShift = relevantShifts.FirstOrDefault(x => x.ShiftStatus == ShiftStatus.Pending);
+			var varianceShiftRow = relevantShifts.FirstOrDefault(x => x.ShiftStatus == ShiftStatus.Variance);
+
+			if (openShift != null)
 			{
+				var shiftNumber = openShift.ShiftNumber;
 				var userDispenser = await GetDispenserAssignedToUserAsync();
-				//get total quantity sold for a particular shift
-				var shiftNumber = await _context.Shifts.Where(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Open).Select(x => x.ShiftNumber).FirstOrDefaultAsync();
-				if (shiftNumber != null)
-				{
-					var totalQuantitySold = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber).SumAsync(x => x.QuantityCredit + x.QuantityDebit);
 
-					// Per-nozzle totals: assumes exactly two nozzles are assigned to the
-					// user's dispenser. Adjust the Nozzles query below if nozzle
-					// assignment is modeled differently (e.g. a join table).
-					var dispenserNozzleCodes = await _context.Nozzles
-						.Where(n => n.DispenserCode == userDispenser)
-						.OrderBy(n => n.NozzleCode)
-						.Select(n => n.NozzleCode)
-						.ToListAsync();
+				var dispenserNozzleCodes = await _context.Nozzles
+					.Where(n => n.DispenserCode == userDispenser)
+					.OrderBy(n => n.NozzleCode)
+					.Select(n => n.NozzleCode)
+					.ToListAsync();
 
-					var nozzle1Code = dispenserNozzleCodes.ElementAtOrDefault(0);
-					var nozzle2Code = dispenserNozzleCodes.ElementAtOrDefault(1);
+				var nozzle1Code = dispenserNozzleCodes.ElementAtOrDefault(0);
+				var nozzle2Code = dispenserNozzleCodes.ElementAtOrDefault(1);
 
-					var nozzle1Quantity = nozzle1Code != null
-						? await _context.QuantityTransactions
-							.Where(x => x.ShiftNumber == shiftNumber && x.NozzleCode == nozzle1Code)
-							.SumAsync(x => x.QuantityCredit + x.QuantityDebit)
-						: 0m;
-
-					var nozzle2Quantity = nozzle2Code != null
-						? await _context.QuantityTransactions
-							.Where(x => x.ShiftNumber == shiftNumber && x.NozzleCode == nozzle2Code)
-							.SumAsync(x => x.QuantityCredit + x.QuantityDebit)
-						: 0m;
-
-					var gettotalevents = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber).CountAsync();
-					var cashAtHand = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber && x.PaymentTypeCode == 12).SumAsync(x => x.AmountCredit - x.AmountDebit);
-					return new ServiceResponse<object>
+				// FIX 2: replaced 5 separate Sum/Count queries with a single grouped
+				// query. Only aggregates by NozzleCode; cash-at-hand is filtered from
+				// the same in-memory result instead of a 5th round trip.
+				var perNozzle = await _context.QuantityTransactions
+					.Where(x => x.ShiftNumber == shiftNumber)
+					.GroupBy(x => x.NozzleCode)
+					.Select(g => new
 					{
-						ResponseCode = Response.Success,
-						ResponseMessage = "You have an open shift",
-						ResponseObject = new ShiftSummary
-						{
-							ShiftStatus = ShiftStatus.Open,
-							ShiftNumber = shiftNumber,
-							QuantitySold = totalQuantitySold,
-							TotalEvents = gettotalevents,
-							CashAtHand = cashAtHand,
-							IsStockTakeTaken = true,
-							Nozzle1 = nozzle1Quantity,
-							Nozzle2 = nozzle2Quantity,
-						}
+						NozzleCode = g.Key,
+						Quantity = g.Sum(x => x.QuantityCredit + x.QuantityDebit),
+						Count = g.Count(),
+						Cash = g.Where(x => x.PaymentTypeCode == 12).Sum(x => x.AmountCredit - x.AmountDebit)
+					})
+					.ToListAsync();
 
-					};
-				}
-				return ServiceResponse<object>.Success("You have an open shift", null);
+				var totalQuantitySold = perNozzle.Sum(x => x.Quantity);
+				var gettotalevents = perNozzle.Sum(x => x.Count);
+				var cashAtHand = perNozzle.Sum(x => x.Cash);
+				var nozzle1Quantity = perNozzle.FirstOrDefault(x => x.NozzleCode == nozzle1Code)?.Quantity ?? 0m;
+				var nozzle2Quantity = perNozzle.FirstOrDefault(x => x.NozzleCode == nozzle2Code)?.Quantity ?? 0m;
+
+				return new ServiceResponse<object>
+				{
+					ResponseCode = Response.Success,
+					ResponseMessage = "You have an open shift",
+					ResponseObject = new ShiftSummary
+					{
+						ShiftStatus = ShiftStatus.Open,
+						ShiftNumber = shiftNumber,
+						QuantitySold = totalQuantitySold,
+						TotalEvents = gettotalevents,
+						CashAtHand = cashAtHand,
+						IsStockTakeTaken = true,
+						Nozzle1 = nozzle1Quantity,
+						Nozzle2 = nozzle2Quantity,
+					}
+				};
 			}
-			else if (HasPendingShift)
+			else if (pendingShift != null)
 			{
-				var shiftNumber = await _context.Shifts.Where(x => x.UserCode == userCode && x.ShiftStatus == ShiftStatus.Pending).Select(x => x.ShiftNumber).FirstOrDefaultAsync();
+				var varianceRows = await (from vs in _context.StockTakeSummaries
+										  join s in _context.Shifts on vs.ShiftNumber equals s.ShiftNumber
+										  join n in _context.Nozzles on vs.NozzleCode equals n.NozzleCode
+										  where vs.UserCode == userCode && vs.VarianceStatus == ShiftStatus.Variance
+										  select new
+										  {
+											  vs.OpeningVariance,
+											  vs.ClosingVariance,
+											  vs.NozzleCode,
+											  n.NozzleName,
+											  s.ShiftNumber,
+										  }).ToListAsync();
 
-				var varianceShift = await (from vs in _context.StockTakeSummaries
-										   join s in _context.Shifts on vs.ShiftNumber equals s.ShiftNumber
-										   join n in _context.Nozzles on vs.NozzleCode equals n.NozzleCode
-										   where vs.UserCode == userCode && vs.VarianceStatus == ShiftStatus.Variance
-										   select new
-										   {
-											   vs.OpeningVariance,
-											   vs.ClosingVariance,
-											   vs.NozzleCode,
-											   n.NozzleName,
-											   s.ShiftNumber,
-
-										   }).ToListAsync();
-
-				var variances = new List<Variances>();
-				foreach (var variance in varianceShift)
+				var variances = varianceRows.Select(v => new Variances
 				{
-					variances.Add(new Variances
-					{
-						ShiftNumber = variance.ShiftNumber,
-						NozzleCode = variance.NozzleCode,
-						NozzleName = variance.NozzleName,
-						Variance = variance.OpeningVariance + variance.ClosingVariance
-					});
-				}
+					ShiftNumber = v.ShiftNumber,
+					NozzleCode = v.NozzleCode,
+					NozzleName = v.NozzleName,
+					Variance = v.OpeningVariance + v.ClosingVariance
+				}).ToList();
 
 				return new ServiceResponse<object>
 				{
 					ResponseCode = Response.Success,
 					ResponseMessage = "You have a pending shift",
-					ResponseObject =
-						new VariancesList
-						{
-							ShiftStatus = ShiftStatus.Pending,
-							variances = variances
-						}
+					ResponseObject = new VariancesList
+					{
+						ShiftStatus = ShiftStatus.Pending,
+						variances = variances
+					}
 				};
 			}
-			else if (HasVarianceShift)
+			else if (varianceShiftRow != null)
 			{
 				var userDispenser = await GetDispenserAssignedToUserAsync();
 
-				// get from stocksummary where shiftstatus = variance and usercode = usercode
-				var varianceShift = await (from vs in _context.StockTakeSummaries
-										   join s in _context.Shifts on vs.ShiftNumber equals s.ShiftNumber
-										   join n in _context.Nozzles on vs.NozzleCode equals n.NozzleCode
-										   where vs.UserCode == userCode && vs.VarianceStatus == ShiftStatus.Variance
-										   select new
-										   {
-											   vs.OpeningVariance,
-											   vs.ClosingVariance,
-											   vs.NozzleCode,
-											   n.NozzleName,
-											   s.ShiftNumber,
-										   }).ToListAsync();
+				var varianceRows = await (from vs in _context.StockTakeSummaries
+										  join s in _context.Shifts on vs.ShiftNumber equals s.ShiftNumber
+										  join n in _context.Nozzles on vs.NozzleCode equals n.NozzleCode
+										  where vs.UserCode == userCode && vs.VarianceStatus == ShiftStatus.Variance
+										  select new
+										  {
+											  vs.OpeningVariance,
+											  vs.ClosingVariance,
+											  vs.NozzleCode,
+											  n.NozzleName,
+											  s.ShiftNumber,
+										  }).ToListAsync();
 
-				var variances = new List<Variances>();
-				foreach (var variance in varianceShift)
+				// FIX 3: N+1 removed. Prices fetched concurrently instead of one
+				// sequential DB round trip per nozzle inside the loop.
+				// Best option is a batched overload (GetCurrentRetailPricesAsync
+				// returning a Dictionary<int, decimal>) if you can add one to
+				// _stockTakeVarianceService — that's a single query instead of N.
+				// Task.WhenAll below is the minimal fix if that's not feasible yet.
+				var priceTasks = varianceRows
+					.Select(v => _stockTakeVarianceService.GetCurrentRetailPriceAsync(userDispenser, v.NozzleCode))
+					.ToArray();
+				var prices = await Task.WhenAll(priceTasks);
+
+				var variances = varianceRows.Select((v, i) =>
 				{
-					// Price scoped per-nozzle via the shared lookup used by stock take
-					// variance checks — was previously one price for the whole dispenser,
-					// which silently mispriced any nozzle selling a different product.
-					var pricePerLitre = await _stockTakeVarianceService.GetCurrentRetailPriceAsync(userDispenser, variance.NozzleCode);
-					var totalVarianceLitres = variance.OpeningVariance + variance.ClosingVariance;
-
-					variances.Add(new Variances
+					var totalVarianceLitres = v.OpeningVariance + v.ClosingVariance;
+					return new Variances
 					{
-						ShiftNumber = variance.ShiftNumber,
-						NozzleCode = variance.NozzleCode,
-						NozzleName = variance.NozzleName,
+						ShiftNumber = v.ShiftNumber,
+						NozzleCode = v.NozzleCode,
+						NozzleName = v.NozzleName,
 						Variance = totalVarianceLitres,
-						VarianceValue = totalVarianceLitres * pricePerLitre
-					});
-				}
+						VarianceValue = totalVarianceLitres * prices[i]
+					};
+				}).ToList();
 
 				return new ServiceResponse<object>
 				{
@@ -219,6 +225,12 @@ namespace BussinessLogic.Stock.Shifts
 				};
 			}
 		}
+
+		#endregion
+
+
+		//get shift status
+
 		private async Task<string> GetDispenserAssignedToUserAsync()
 		{
 			return await _context.DispenserAssignments
