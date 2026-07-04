@@ -1,8 +1,8 @@
-﻿
-using BussinessLogic.Payments.PaymentSetups;
+﻿using BussinessLogic.Personal_Wallet.Payments.PaymentSetups;
 using DataAccessLayer.DTOs.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace FuelFlow.Controllers 
 {
@@ -127,6 +127,13 @@ namespace FuelFlow.Controllers
 		public async Task<IActionResult> GetUnusedMpesaTransactions()
 		{
 			var response = await _payments.GetUnusedMpesaTransactionsAsync();
+			return CreateResponse(response);
+		}
+
+		[HttpGet("check-unused-mpesa-code")]
+		public async Task<IActionResult> CheckUnusedMpesaCode([Required] string tillNumber,[Required] string shiftNumber,[Required] decimal amount)
+		{
+			var response = await _payments.CheckUnusedMpesaCode(tillNumber, shiftNumber, amount);
 			return CreateResponse(response);
 		}
 		#endregion

@@ -1,5 +1,4 @@
-﻿
-using BussinessLogic.Authentication.CommonTasks;
+﻿using BussinessLogic.Authentication.CommonTasks;
 using ClosedXML.Excel;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
@@ -12,10 +11,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text;
 
-namespace BussinessLogic.Payments.PaymentSetups 
+namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups 
 {
 	public class PaymentsSetups : IPaymentsSetups
 	{
@@ -630,6 +630,40 @@ namespace BussinessLogic.Payments.PaymentSetups
 			return ServiceResponse<List<UnusedMpesaTransactionDto>>.Success("Unused Mpesa transactions retrieved successfully", transactions);
 		}
 
+
+
+		public async Task<ServiceResponse<UnUsedMpesaCodes>> CheckUnusedMpesaCode([Required] string tillNumber,[Required] string shiftNumber,[Required] decimal amount)
+		{
+			// Mirrors the same rounding tolerance used elsewhere in Sales.cs:
+			// a whole-shilling STK/manual amount can be up to 1 KES above the
+			// raw fuel total (e.g. total 999.45 -> customer sent 1000).
+			var lowerBound = amount;
+			var upperBound = Math.Ceiling(amount);
+
+			var match = await _context.MpesaTransactions
+				.Where(x => x.TillNumber == tillNumber
+						 && x.ShiftNumber == shiftNumber
+						 && x.UsageBalance >= lowerBound
+						 && x.UsageBalance <= upperBound
+						 && x.Status == 1)
+				.OrderBy(x => x.Id)
+				.FirstOrDefaultAsync();
+
+			if (match == null)
+				return ServiceResponse<UnUsedMpesaCodes>.Information("No unused M-Pesa payment found for this amount.", null);
+
+			return ServiceResponse<UnUsedMpesaCodes>.Success("Matching M-Pesa payment found.", new UnUsedMpesaCodes
+			{
+				TransID = match.TransID,
+				UsageBalance = match.UsageBalance,
+			});
+		}
+
+		public class UnUsedMpesaCodes
+		{
+			public string TransID { get; set; } = string.Empty;
+			public decimal UsageBalance { get; set; } = 0m;
+		}
 		public class UnusedMpesaTransactionDto
 		{
 			public string TransID { get; set; } = string.Empty;

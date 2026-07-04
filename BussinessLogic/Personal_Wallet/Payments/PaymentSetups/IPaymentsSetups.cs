@@ -1,11 +1,13 @@
 ﻿using DataAccessLayer.Common;
 using DataAccessLayer.DTOs.Payments;
-using static BussinessLogic.Payments.PaymentSetups.PaymentsSetups;
+using System.ComponentModel.DataAnnotations;
+using static BussinessLogic.Personal_Wallet.Payments.PaymentSetups.PaymentsSetups;
 
-namespace BussinessLogic.Payments.PaymentSetups
+namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 {
 	public interface IPaymentsSetups
 	{
+		Task<ServiceResponse<UnUsedMpesaCodes>> CheckUnusedMpesaCode([Required] string tillNumber, [Required] string shiftNumber, [Required] decimal amount);
 		Task<ServiceResponse<object>> ActivateMpesa(string transId);
 		Task<ServiceResponse<MpesaTransactionDto>> AddMpesaTransaction(MpesaC2BPayment mpesaC2BPayment);
 		Task<ServiceResponse<object>> AddTill(addTillNumberDto till);
