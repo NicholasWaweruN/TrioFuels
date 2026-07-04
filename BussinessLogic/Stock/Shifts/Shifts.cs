@@ -69,6 +69,31 @@ namespace BussinessLogic.Stock.Shifts
 				if (shiftNumber != null)
 				{
 					var totalQuantitySold = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber).SumAsync(x => x.QuantityCredit + x.QuantityDebit);
+
+					// Per-nozzle totals: assumes exactly two nozzles are assigned to the
+					// user's dispenser. Adjust the Nozzles query below if nozzle
+					// assignment is modeled differently (e.g. a join table).
+					var dispenserNozzleCodes = await _context.Nozzles
+						.Where(n => n.DispenserCode == userDispenser)
+						.OrderBy(n => n.NozzleCode)
+						.Select(n => n.NozzleCode)
+						.ToListAsync();
+
+					var nozzle1Code = dispenserNozzleCodes.ElementAtOrDefault(0);
+					var nozzle2Code = dispenserNozzleCodes.ElementAtOrDefault(1);
+
+					var nozzle1Quantity = nozzle1Code != null
+						? await _context.QuantityTransactions
+							.Where(x => x.ShiftNumber == shiftNumber && x.NozzleCode == nozzle1Code)
+							.SumAsync(x => x.QuantityCredit + x.QuantityDebit)
+						: 0m;
+
+					var nozzle2Quantity = nozzle2Code != null
+						? await _context.QuantityTransactions
+							.Where(x => x.ShiftNumber == shiftNumber && x.NozzleCode == nozzle2Code)
+							.SumAsync(x => x.QuantityCredit + x.QuantityDebit)
+						: 0m;
+
 					var gettotalevents = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber).CountAsync();
 					var cashAtHand = await _context.QuantityTransactions.Where(x => x.ShiftNumber == shiftNumber && x.PaymentTypeCode == 12).SumAsync(x => x.AmountCredit - x.AmountDebit);
 					return new ServiceResponse<object>
@@ -83,6 +108,8 @@ namespace BussinessLogic.Stock.Shifts
 							TotalEvents = gettotalevents,
 							CashAtHand = cashAtHand,
 							IsStockTakeTaken = true,
+							Nozzle1 = nozzle1Quantity,
+							Nozzle2 = nozzle2Quantity,
 						}
 
 					};

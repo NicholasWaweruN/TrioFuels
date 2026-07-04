@@ -39,5 +39,7 @@ namespace DataAccessLayer.DTOs.Shifts
         public int TotalEvents { get; set; }
 		public bool IsStockTakeTaken { get; set; }
 		[Precision(18, 2)] public decimal CashAtHand { get; set; }
+		[Precision(18, 2)] public decimal Nozzle1 { get; set; }
+		[Precision(18, 2)] public decimal Nozzle2 { get; set; }
 	}
 }
