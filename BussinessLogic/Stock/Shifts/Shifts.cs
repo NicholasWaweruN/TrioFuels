@@ -177,16 +177,19 @@ namespace BussinessLogic.Stock.Shifts
 											  s.ShiftNumber,
 										  }).ToListAsync();
 
-				// FIX 3: N+1 removed. Prices fetched concurrently instead of one
-				// sequential DB round trip per nozzle inside the loop.
-				// Best option is a batched overload (GetCurrentRetailPricesAsync
-				// returning a Dictionary<int, decimal>) if you can add one to
-				// _stockTakeVarianceService — that's a single query instead of N.
-				// Task.WhenAll below is the minimal fix if that's not feasible yet.
-				var priceTasks = varianceRows
-					.Select(v => _stockTakeVarianceService.GetCurrentRetailPriceAsync(userDispenser, v.NozzleCode))
-					.ToArray();
-				var prices = await Task.WhenAll(priceTasks);
+				// FIX 3 (revised): Task.WhenAll caused "A second operation was started
+				// on this context instance" because GetCurrentRetailPriceAsync shares
+				// the same DbContext, and DbContext is NOT thread-safe for concurrent
+				// operations. Fetching sequentially avoids the crash. This still does
+				// N round trips — if GetCurrentRetailPriceAsync's query is simple,
+				// consider adding a batched GetCurrentRetailPricesAsync(dispenserCode,
+				// IEnumerable<int> nozzleCodes) returning a Dictionary<int, decimal>
+				// to cut this to a single query.
+				var prices = new decimal[varianceRows.Count];
+				for (int i = 0; i < varianceRows.Count; i++)
+				{
+					prices[i] = await _stockTakeVarianceService.GetCurrentRetailPriceAsync(userDispenser, varianceRows[i].NozzleCode);
+				}
 
 				var variances = varianceRows.Select((v, i) =>
 				{
