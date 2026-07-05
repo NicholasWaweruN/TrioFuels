@@ -742,17 +742,17 @@ namespace BussinessLogic.Customers.Vehicles
 
 
 		// Attendant-facing: resolves stationCode from their dispenser assignment
-		
+
 
 		// Station/shift-aware overload
-		
+
 
 		// Private worker
 
 
 		public async Task<ServiceResponse<object>> SearchCustomerByPhone(string phoneNumber)
 		{
-			try 
+			try
 			{
 				if (string.IsNullOrWhiteSpace(phoneNumber))
 					return ServiceResponse<object>.Error("Phone number is required", null);
@@ -765,44 +765,47 @@ namespace BussinessLogic.Customers.Vehicles
 				else if (phoneNumber.StartsWith("+254") && phoneNumber.Length == 13)
 					phoneNumber = "0" + phoneNumber[4..];
 
-				// 1️⃣ Resolve customer
-				var customer = await _context.Customers
+				// Single round trip: customer + loyalty balance + outstanding credit,
+				// via correlated subquery aggregates instead of 3 sequential queries.
+				var row = await _context.Database
+					.SqlQuery<CustomerSearchRow>($@"
+                SELECT
+                    c.""CustomerCode""    AS ""CustomerCode"",
+                    c.""CustomerName""    AS ""CustomerName"",
+                    c.""CustomerPhone""   AS ""CustomerPhone"",
+                    c.""CreditLimit""     AS ""CreditLimit"",
+                    c.""IsCreditCustomer"" AS ""IsCreditCustomer"",
+                    COALESCE((
+                        SELECT SUM(p.""PointsCredit"" - p.""PointsDebit"")
+                        FROM ""RoyaltyPoints"" p
+                        WHERE p.""CustomerCode"" = c.""CustomerCode""
+                    ), 0) AS ""LoyaltyBalance"",
+                    COALESCE((
+                        SELECT SUM(cr.""Debit"" - cr.""Credit"")
+                        FROM ""CreditTransactions"" cr
+                        WHERE cr.""CustomerCode"" = c.""CustomerCode""
+                    ), 0) AS ""OutstandingCredit""
+                FROM ""Customers"" c
+                WHERE c.""CustomerPhone"" = {phoneNumber}
+                LIMIT 1
+            ")
 					.AsNoTracking()
-					.Where(c => c.CustomerPhone == phoneNumber)
-					.Select(c => new
-					{
-						c.CustomerCode,
-						c.CustomerName,
-						c.CustomerPhone,
-						c.CreditLimit,
-						c.IsCreditCustomer,
-					})
 					.FirstOrDefaultAsync();
 
-				if (customer == null)
+				if (row is null)
 					return ServiceResponse<object>.WalkInCustomer("No customer found for that phone number", null);
-
-				// 3️⃣ Loyalty balance
-				var loyaltyBalance = await _context.RoyaltyPoints
-					.Where(p => p.CustomerCode == customer.CustomerCode)
-					.SumAsync(x => (decimal?)x.PointsCredit - x.PointsDebit) ?? 0;
-
-				// 4️⃣ Outstanding credit
-				var outstandingCredit = await _context.CreditTransactions
-					.Where(c => c.CustomerCode == customer.CustomerCode)
-					.SumAsync(c => c.Debit - c.Credit);
 
 				var result = new
 				{
-					customer.CustomerName,
-					customer.CustomerPhone,
-					customer.CustomerCode,
-					customer.CreditLimit,
-					customer.IsCreditCustomer,
-					OutstandingCredit = outstandingCredit,
-					AvailableCredit = customer.CreditLimit - outstandingCredit,
-					HasLoyaltySubscription = loyaltyBalance > 0 ? true : false,
-					LoyaltyBalance = loyaltyBalance,
+					row.CustomerName,
+					row.CustomerPhone,
+					row.CustomerCode,
+					row.CreditLimit,
+					row.IsCreditCustomer,
+					OutstandingCredit = row.OutstandingCredit,
+					AvailableCredit = row.CreditLimit - row.OutstandingCredit,
+					HasLoyaltySubscription = row.LoyaltyBalance > 0,
+					LoyaltyBalance = row.LoyaltyBalance,
 				};
 
 				return ServiceResponse<object>.Success("Customer retrieved successfully", result);
@@ -814,6 +817,14 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 		}
 
+		private sealed record CustomerSearchRow(
+			string CustomerCode,
+			string CustomerName,
+			string CustomerPhone,
+			decimal CreditLimit,
+			bool IsCreditCustomer,
+			decimal LoyaltyBalance,
+			decimal OutstandingCredit);
 		public async Task<ServiceResponse<object>> TransferVehicle(TransferVehicleDto transferVehicle)
 		{
 			try
@@ -940,7 +951,7 @@ namespace BussinessLogic.Customers.Vehicles
 		}
 
 		//se
-		private string BuildVehicleUninstalledEmail(string approverName, string vehicleReg, string oldSerial, string initiator)
+		private static string BuildVehicleUninstalledEmail(string approverName, string vehicleReg, string oldSerial, string initiator)
 		{
 			return $@"
 					<html>

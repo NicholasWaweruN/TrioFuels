@@ -32,33 +32,15 @@ namespace FuelFlow.Controllers
 
 		[HttpPost("ChangePrice")]
 		[Authorize(Roles = "can add price")]
-		public async Task<IActionResult> AddPrice(List<UpdatePrice> updatePrices)
+		public async Task<IActionResult> AddPrice(string productCode,decimal amount)
 		{
-			var response = await _setupService.AddPrice(updatePrices);
+			var response = await _setupService.UpdatePrice(productCode,amount);
 			return CreateResponse(response);
 		}
 
 		#endregion
 
 		#region Payment Management
-
-		[HttpPost]
-		[Route("AddPaymentType")]
-		[Authorize(Roles = "can add a payment type")]
-		public async Task<IActionResult> AddPaymentType([FromBody] string paymentType)
-		{
-			var response = await _setupService.AddPaymentType(paymentType);
-			return CreateResponse(response);
-		}
-
-		[HttpPost]
-        [Route("AddProduct")]
-		[Authorize(Roles = "can add a product")]
-		public async Task<IActionResult> AddProduct([FromBody] AddProductDto product)
-		{
-			var response = await _setupService.AddProduct(product);
-			return CreateResponse(response);
-		}
 
 		[HttpGet]
 		[Authorize]
@@ -141,15 +123,7 @@ namespace FuelFlow.Controllers
 			var response = _setupService.Reports();
 			return CreateResponse(response);
 		}
-		//PlateRecognition
-		[HttpPost]
-		[Route("PlateReCognition")]
-		[Authorize]
-		public IActionResult Reports(string base64Image)
-		{
-			var response = _plateRecognition.PlateNumber(base64Image);
-			return CreateResponse(response);
-		}
+	
 		#endregion
 
 	}

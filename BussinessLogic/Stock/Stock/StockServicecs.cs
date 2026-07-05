@@ -29,7 +29,7 @@ namespace BussinessLogic.Stock.Stock
 		private readonly IEmailService _emails;
 		private readonly IMainData MainData;
 		private readonly ICommonSalesTasks _salesTasks;
-		private readonly IStockTakeVarianceService _varianceService;   // add this
+		private readonly IStockTakeVarianceService _varianceService;
 
 		public StockServicecs(IAuthCommonTasks authentication, OTOContext context, ICommonSetups setups, IEmailService emails, IMainData data, ICommonSalesTasks salesTasks, IStockTakeVarianceService varianceService)
 		{
@@ -39,26 +39,38 @@ namespace BussinessLogic.Stock.Stock
 			_emails = emails;
 			MainData = data;
 			_salesTasks = salesTasks;
-			_varianceService = varianceService;   // add this
+			_varianceService = varianceService;
 		}
 
-		// Entry method for stock tak??e
+		// Entry method for stock take.
+		// PERF: nozzle-existence and initial-stock-take-done checks are now
+		// each a single batched query instead of two DB round trips per
+		// reading in the loop (was 2N round trips for N readings, now 2 total).
 		public async Task<ServiceResponse<object>> StockTakeAsync(StockTakeDto stockTake)
 		{
+			var requestedNozzleCodes = stockTake.Readings.Select(r => r.NozzleCode).Distinct().ToList();
+
+			var existingNozzleCodes = (await _context.Nozzles
+				.Where(n => requestedNozzleCodes.Contains(n.NozzleCode))
+				.Select(n => n.NozzleCode)
+				.ToListAsync()).ToHashSet();
+
+			var initialDoneSet = (await _context.StockTakes
+				.Where(x => x.TakeType == 99 && requestedNozzleCodes.Contains(x.NozzleCode))
+				.Select(x => x.NozzleCode)
+				.Distinct()
+				.ToListAsync()).ToHashSet();
+
 			foreach (var take in stockTake.Readings)
 			{
-				var nozzleexists = await (from n in _context.Nozzles
-										  where n.NozzleCode == take.NozzleCode
-										  select n).FirstOrDefaultAsync();
-				if (nozzleexists is null)
+				if (!existingNozzleCodes.Contains(take.NozzleCode))
 					return ServiceResponse<object>.Information($" {take.NozzleCode} Nozzle does not exist.", null);
 
 				if (take.Reading < 0)
 					return ServiceResponse<object>.Information("Reading cannot be negative", null);
 
-				if (!await IsInitialStockTakeDoneAsync(take.NozzleCode))
+				if (!initialDoneSet.Contains(take.NozzleCode))
 					return ServiceResponse<object>.Information("Initial stock take has not been done", null);
-
 			}
 
 			var userShift = await GetUserOpenShiftAsync();
@@ -79,40 +91,79 @@ namespace BussinessLogic.Stock.Stock
 			return ServiceResponse<object>.Information("Shift already closed or in variance", null);
 		}
 
-		// Handles initial stock take
+		// Handles initial stock take.
+		// PERF: nozzle validation batched (was 2 queries per reading), and all
+		// StockTake/QuantityTransaction inserts are now flushed with a single
+		// SaveChangesAsync instead of one SaveChangesAsync per reading.
 		public async Task<ServiceResponse<object>> InitialStockTake(StockTakeDto initialStockTakeDto)
 		{
 			try
 			{
-				//get dispenser by paasing nozzlecode
-				var dispenserName = await (from d in _context.Dispensers
+				var firstNozzleCode = initialStockTakeDto.Readings.First().NozzleCode;
+
+				var dispenserInfo = await (from d in _context.Dispensers
 										   join n in _context.Nozzles on d.DispenserCode equals n.DispenserCode
 										   join s in _context.Stations on d.StationCode equals s.StationCode
-										   where n.NozzleCode.Equals(initialStockTakeDto.Readings.First().NozzleCode)
+										   where n.NozzleCode.Equals(firstNozzleCode)
 										   select new { d.DispenserName, s.StationName }).FirstOrDefaultAsync();
 
-				if (dispenserName is null)
+				if (dispenserInfo is null)
 					return ServiceResponse<object>.Information($"Dispenser does not exist", null);
 
-				var shift = GenerateShiftNumber();
+				var requestedNozzleCodes = initialStockTakeDto.Readings.Select(r => r.NozzleCode).Distinct().ToList();
+
+				var existingNozzleCodes = (await _context.Nozzles
+					.Where(n => requestedNozzleCodes.Contains(n.NozzleCode))
+					.Select(n => n.NozzleCode)
+					.ToListAsync()).ToHashSet();
+
+				var alreadyDoneSet = (await _context.StockTakes
+					.Where(x => x.TakeType == 99 && requestedNozzleCodes.Contains(x.NozzleCode))
+					.Select(x => x.NozzleCode)
+					.Distinct()
+					.ToListAsync()).ToHashSet();
 
 				foreach (var item in initialStockTakeDto.Readings)
 				{
-					//validate nozzle 
-					var nozzleexists = await (from n in _context.Nozzles
-											  where n.NozzleCode == item.NozzleCode
-											  select n).FirstOrDefaultAsync();
-
-					if (nozzleexists == null)
+					if (!existingNozzleCodes.Contains(item.NozzleCode))
 						return ServiceResponse<object>.Information($" {item.NozzleCode} Nozzle does not exist.", null);
 
-					if (await IsInitialStockTakeDoneAsync(item.NozzleCode))
+					if (alreadyDoneSet.Contains(item.NozzleCode))
 						return ServiceResponse<object>.Information("Initial Stock Take Already Done", null);
-
-					await AddInitialStockTakeAsync(item, shift);
 				}
 
-				var message = $@"Initial stock take done by {_authentication.Name()} for Dispenser {dispenserName.DispenserName} at {dispenserName.StationName} Station on {DateTime.UtcNow}";
+				var shift = GenerateShiftNumber();
+				var userCode = _authentication.Usercode();
+
+				foreach (var item in initialStockTakeDto.Readings)
+				{
+					_context.StockTakes.Add(new StockTake
+					{
+						DateCreated = DateTime.UtcNow,
+						NozzleCode = item.NozzleCode,
+						ShiftNumber = shift,
+						OpeningReading = item.Reading,
+						ClosingReading = 0,
+						UserCode = userCode,
+						TakeType = 99
+					});
+
+					_context.QuantityTransactions.Add(new QuantityTransactions
+					{
+						DateCreated = DateTime.UtcNow,
+						UserCode = userCode,
+						NozzleCode = item.NozzleCode,
+						QuantityCredit = item.Reading,
+						QuantityDebit = 0,
+						ShiftNumber = shift,
+						SaleId = _setups.GenerateSaleId(),
+						PaymentTypeCode = 99,
+					});
+				}
+
+				await _context.SaveChangesAsync(); // single round trip for the whole batch
+
+				var message = $@"Initial stock take done by {_authentication.Name()} for Dispenser {dispenserInfo.DispenserName} at {dispenserInfo.StationName} Station on {DateTime.UtcNow}";
 				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
 				return ServiceResponse<object>.Success("Initial Stock Taken Successfully", null);
@@ -175,7 +226,6 @@ namespace BussinessLogic.Stock.Stock
 		{
 			try
 			{
-				//Get Current Shift
 				var shift = await (from s in _context.Shifts
 								   where s.ShiftStatus == ShiftStatus.Open && s.UserCode == _authentication.Usercode()
 								   select s.ShiftNumber).FirstOrDefaultAsync();
@@ -217,19 +267,30 @@ namespace BussinessLogic.Stock.Stock
 			}
 		}
 
-		// Adjusts stock take based on given adjustments
+		// Adjusts stock take based on given adjustments.
+		// PERF: batched lookups for all nozzles in one query each, instead of
+		// two queries per reading in the loop. Also added a rollback on
+		// exception (was missing).
 		public async Task<ServiceResponse<object>> AdjustStockTake([Required] int takeType, AdjustStockTakeDto adjust)
 		{
 			using var transaction = await _context.Database.BeginTransactionAsync();
 
 			try
 			{
+				var nozzleCodes = adjust.Readings.Select(r => r.NozzleCode).Distinct().ToList();
+
+				var stocktakes = await _context.StockTakes
+					.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode))
+					.ToDictionaryAsync(x => x.NozzleCode);
+
+				var stocktakeSummaries = await _context.StockTakeSummaries
+					.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode))
+					.ToDictionaryAsync(x => x.NozzleCode);
+
 				foreach (var item in adjust.Readings)
 				{
-					var stocktake = await GetStockTakeByNozzleAndShiftAsync(item.NozzleCode, adjust.ShiftNumber);
-					var stocktakeSummary = await GetStockTakeSummaryByNozzleAndShiftAsync(item.NozzleCode, adjust.ShiftNumber);
-
-					if (stocktake == null || stocktakeSummary == null)
+					if (!stocktakes.TryGetValue(item.NozzleCode, out var stocktake) ||
+						!stocktakeSummaries.TryGetValue(item.NozzleCode, out var stocktakeSummary))
 					{
 						await transaction.RollbackAsync();
 						return ServiceResponse<object>.Information("Stock take or summary not found", null);
@@ -248,31 +309,23 @@ namespace BussinessLogic.Stock.Stock
 			}
 			catch (Exception ex)
 			{
+				await transaction.RollbackAsync();
 				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 			}
 		}
-		// Gets deliveries for a specific date
-
 
 		//save base64 image to file TotalizerImages folder StockTakeDto
 		public class ReceiveDeliveryDto
 		{
-			public string OrderId { get; set; } = string.Empty; // Order ID for the delivery
-			public double DeliveryQuantityKgs { get; set; } // Quantity of the delivery in kilograms
-			public string RotoGaugeImageBeforeDelivery { get; set; } = string.Empty; // Image URL or path before delivery
-			public double RotoGaugePercAfterDelivery { get; set; } // RotoGauge percentage after delivery
-			public string RotoGaugeImageAfterDelivery { get; set; } = string.Empty; // Image URL or path after delivery
-			public double RotoGaugePercBeforeDelivery { get; set; } // RotoGauge percentage before delivery
-			public double DeliveryQuantityLitres { get; set; } // Quantity of the delivery in liters
+			public string OrderId { get; set; } = string.Empty;
+			public double DeliveryQuantityKgs { get; set; }
+			public string RotoGaugeImageBeforeDelivery { get; set; } = string.Empty;
+			public double RotoGaugePercAfterDelivery { get; set; }
+			public string RotoGaugeImageAfterDelivery { get; set; } = string.Empty;
+			public double RotoGaugePercBeforeDelivery { get; set; }
+			public double DeliveryQuantityLitres { get; set; }
 		}
-		// Receives a delivery and updates the database
 
-
-		// Private methods for refactoring common tasks
-		private async Task<bool> IsInitialStockTakeDoneAsync(string nozzleCode)
-		{
-			return await _context.StockTakes.AnyAsync(x => x.TakeType == 99 && x.NozzleCode == nozzleCode);
-		}
 		private async Task<Shift?> GetUserOpenShiftAsync()
 		{
 			var openshift = await _context.Shifts.FirstOrDefaultAsync(x => x.UserCode == _authentication.Usercode() && x.ShiftStatus == ShiftStatus.Open);
@@ -317,13 +370,17 @@ namespace BussinessLogic.Stock.Stock
 			return ServiceResponse<object>.Success("Stock take completed successfully", null);
 		}
 
+		// PERF: expected-reading and quantity-sold calculations were previously
+		// done per-nozzle inside the loop (2 extra DB round trips per nozzle).
+		// Both are now precomputed once for the whole shift via grouped queries.
+		// Also dropped the unused `highestv` aggregate query that was computed
+		// and discarded on every closing stock take.
 		private async Task ProcessStockTakeReadingsAsync(StockTakeDto stockTake, string shiftNumber, bool isOpeningReading, Shift shift)
 		{
 			decimal totalVariance = 0;
 			var userCode = _authentication.Usercode();
 			var nozzleCodes = stockTake.Readings.Select(n => n.NozzleCode).ToList();
 
-			// Fetch all necessary StockTakes and StockTakeSummaries in one go
 			var stockTakes = await _context.StockTakes
 				.Where(s => s.ShiftNumber == shiftNumber && nozzleCodes.Contains(s.NozzleCode))
 				.ToListAsync();
@@ -332,6 +389,16 @@ namespace BussinessLogic.Stock.Stock
 				.Where(s => s.ShiftNumber == shiftNumber && nozzleCodes.Contains(s.NozzleCode))
 				.ToListAsync();
 
+			// Batched replacement for the old per-nozzle GetExpectedReadingAsync calls.
+			var expectedReadings = await GetExpectedReadingsAsync(nozzleCodes);
+
+			// Batched replacement for the old per-nozzle QuantitySold sum in the
+			// closing-reading branch below.
+			var quantitySoldByNozzle = await _context.QuantityTransactions
+				.Where(q => q.ShiftNumber == shiftNumber && nozzleCodes.Contains(q.NozzleCode))
+				.GroupBy(q => q.NozzleCode)
+				.Select(g => new { NozzleCode = g.Key, Total = g.Sum(x => x.QuantityCredit - x.QuantityDebit) })
+				.ToDictionaryAsync(x => x.NozzleCode, x => x.Total);
 
 			foreach (var nozzle in stockTake.Readings)
 			{
@@ -348,8 +415,7 @@ namespace BussinessLogic.Stock.Stock
 						_context.StockTakes.Update(stockTakeEntity);
 					}
 
-				// Process StockTakeSummary
-				var expectedReading = await GetExpectedReadingAsync(nozzle.NozzleCode);
+				var expectedReading = expectedReadings.TryGetValue(nozzle.NozzleCode, out var er) ? er : 0m;
 				var variance = nozzle.Reading - expectedReading;
 				var stockTakeSummary = stockTakeSummaries.FirstOrDefault(s => s.NozzleCode == nozzle.NozzleCode);
 
@@ -379,11 +445,9 @@ namespace BussinessLogic.Stock.Stock
 				}
 				else
 				{
-					var QuantitySold = await (from q in _context.QuantityTransactions
-											  where q.ShiftNumber == shiftNumber && q.NozzleCode == nozzle.NozzleCode
-											  select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
+					var quantitySold = quantitySoldByNozzle.TryGetValue(nozzle.NozzleCode, out var qs) ? qs : 0m;
 
-					stockTakeSummary.QuantitySold = QuantitySold;
+					stockTakeSummary.QuantitySold = quantitySold;
 					stockTakeSummary.ExpectedClosingReading = expectedReading;
 					stockTakeSummary.ClosingReading = nozzle.Reading;
 					stockTakeSummary.ClosingVariance = variance;
@@ -400,11 +464,6 @@ namespace BussinessLogic.Stock.Stock
 			if (!isOpeningReading)
 			{
 				await _salesTasks.ReconcileStockSummariesAsync(shift.ShiftNumber);
-
-				//get the highest variance for this shif in stocktakesummaries
-				var highestv = await (from q in _context.StockTakeSummaries
-									  where q.ShiftNumber.Equals(shiftNumber)
-									  select q).MaxAsync(x => Math.Abs(x.ClosingVariance));
 
 				totalVariance = await (from q in _context.StockTakeSummaries
 									   where q.ShiftNumber == shiftNumber
@@ -431,69 +490,40 @@ namespace BussinessLogic.Stock.Stock
 				_context.Shifts.Update(shift);
 				await _context.SaveChangesAsync();
 
-				// Closing shift landed in variance — attempt an automatic clear if
-				// it's within the dispenser's allowed KES threshold, so the attendant
-				// never has to see the variance dialog at all for small variances.
-				// ClearVariance no-ops (returns "Variance not cleared") if it exceeds
-				// threshold, leaving the shift in ShiftStatus.Variance as normal.
 				if (!isOpeningReading && shift.ShiftStatus == ShiftStatus.Variance)
 				{
 					await ClearVariance(shiftNumber);
 				}
 			}
 		}
-		private async Task<decimal> GetExpectedReadingAsync(string nozzleCode)
+
+		// PERF: replaces the old per-nozzle GetExpectedReadingAsync (2 DB round
+		// trips per nozzle). Computes totalizer readings and running variance
+		// for every requested nozzle in exactly 2 grouped queries total.
+		private async Task<Dictionary<string, decimal>> GetExpectedReadingsAsync(IEnumerable<string> nozzleCodes)
 		{
-			var totalizerReading = await (from q in _context.QuantityTransactions
-										  where q.NozzleCode == nozzleCode
-										  select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
+			var codes = nozzleCodes.Distinct().ToList();
 
-			var currentVariance = await (from ss in _context.StockTakeSummaries
-										 where ss.NozzleCode == nozzleCode
-										 select ss).SumAsync(v => v.ClosingVariance);
+			var totalizerReadings = await _context.QuantityTransactions
+				.Where(q => codes.Contains(q.NozzleCode))
+				.GroupBy(q => q.NozzleCode)
+				.Select(g => new { NozzleCode = g.Key, Total = g.Sum(x => x.QuantityCredit - x.QuantityDebit) })
+				.ToDictionaryAsync(x => x.NozzleCode, x => x.Total);
 
-			return totalizerReading + currentVariance;
-		}
-		private async Task<decimal> GetExpectedReadingAsync(string nozzleCode, string shiftNumber)
-		{
-			var totalizerReading = await (from q in _context.QuantityTransactions
-										  where q.NozzleCode == nozzleCode
-										  select q).SumAsync(x => x.QuantityCredit - x.QuantityDebit);
+			var currentVariances = await _context.StockTakeSummaries
+				.Where(ss => codes.Contains(ss.NozzleCode))
+				.GroupBy(ss => ss.NozzleCode)
+				.Select(g => new { NozzleCode = g.Key, Total = g.Sum(v => v.ClosingVariance) })
+				.ToDictionaryAsync(x => x.NozzleCode, x => x.Total);
 
-			var currentVariance = await (from ss in _context.StockTakeSummaries
-										 where ss.NozzleCode == nozzleCode && ss.ShiftNumber != shiftNumber
-										 select ss).SumAsync(v => v.ClosingVariance);
-
-			return totalizerReading + currentVariance;
-		}
-
-		private async Task AddInitialStockTakeAsync(Readings item, string shift)
-		{
-			var stocktake = new StockTake
+			var result = new Dictionary<string, decimal>();
+			foreach (var code in codes)
 			{
-				DateCreated = DateTime.UtcNow,
-				NozzleCode = item.NozzleCode,
-				ShiftNumber = shift,
-				OpeningReading = item.Reading,
-				ClosingReading = 0,
-				UserCode = _authentication.Usercode(),
-				TakeType = 99
-			};
-			await _context.StockTakes.AddAsync(stocktake);
-
-			var quantity = new QuantityTransactions
-			{
-				DateCreated = DateTime.UtcNow,
-				UserCode = _authentication.Usercode(),
-				NozzleCode = item.NozzleCode,
-				QuantityCredit = item.Reading,
-				QuantityDebit = 0,
-				ShiftNumber = shift,
-				SaleId = _setups.GenerateSaleId(),
-				PaymentTypeCode = 99,
-			};
-			await _context.QuantityTransactions.AddAsync(quantity);
-			await _context.SaveChangesAsync();
+				totalizerReadings.TryGetValue(code, out var totalizer);
+				currentVariances.TryGetValue(code, out var variance);
+				result[code] = totalizer + variance;
+			}
+			return result;
 		}
 
 		private void AdjustStockTakeValues(StockTake stocktake, StockTakeSummary stocktakeSummary, int takeType, decimal reading)
@@ -515,22 +545,6 @@ namespace BussinessLogic.Stock.Stock
 
 			_context.Update(stocktake);
 			_context.StockTakeSummaries.Update(stocktakeSummary);
-		}
-		private async Task<StockTake?> GetStockTakeByNozzleAndShiftAsync(string nozzleCode, string shiftNumber)
-		{
-			var stocktake = await _context.StockTakes.FirstOrDefaultAsync(x => x.NozzleCode == nozzleCode && x.ShiftNumber == shiftNumber);
-			if (stocktake is not null)
-				return stocktake;
-			else
-				return null;
-
-		}
-		private async Task<StockTakeSummary?> GetStockTakeSummaryByNozzleAndShiftAsync(string nozzleCode, string shiftNumber)
-		{
-			var stockSummary = await _context.StockTakeSummaries.FirstOrDefaultAsync(x => x.NozzleCode == nozzleCode && x.ShiftNumber == shiftNumber);
-			if (stockSummary is not null)
-				return stockSummary;
-			return null;
 		}
 
 		private static readonly Dictionary<int, string> MonthAlphabetMapping = new Dictionary<int, string>
@@ -565,6 +579,7 @@ namespace BussinessLogic.Stock.Stock
 			var uniqueCode = $"{yearLetter}{monthLetter}{dayLetter}{timePortion}";
 			return uniqueCode.ToUpper();
 		}
+
 		//List Variance From StockTakeSummary Table 
 		public async Task<ServiceResponse<object>> ListVariance(DateTime? date, string? shiftNumber, string? stationName)
 		{
@@ -587,26 +602,20 @@ namespace BussinessLogic.Stock.Stock
 								ss.OpeningReading,
 								ss.ClosingReading,
 								ss.ExpectedClosingReading,
-
-								Variance = ss.ClosingVariance, // keep clean single source
-
+								Variance = ss.ClosingVariance,
 								ss.QuantitySold,
 								Status = ss.VarianceStatus,
 								ss.DateCreated,
-
 								n.NozzleName,
 								d.DispenserName,
 								s.StationName,
 								s.StationCode,
-
 								u.PayrollNumber,
-
-							    u.FirstName,
+								u.FirstName,
 								MiddleName = u.MiddName,
 								u.LastName
 							};
 
-				// ✅ FIX: PostgreSQL-safe date filtering (no .Date)
 				if (date.HasValue)
 				{
 					var start = date.Value.Date;
@@ -628,7 +637,6 @@ namespace BussinessLogic.Stock.Stock
 					.AsNoTracking()
 					.ToListAsync();
 
-				// ✅ FIX: build full name AFTER query (client-side safe)
 				var result = variances.Select(x => new
 				{
 					x.Id,
@@ -661,9 +669,6 @@ namespace BussinessLogic.Stock.Stock
 				return ServiceResponse<object>.Error(ex.Message, null);
 			}
 		}
-		//auto clear variance if the sum of closing variance for the shift is less than 5 plus or minus  that dispenser insert the record in QuantityTransaction Table and PaymentTransaction and update the StockTakeSummary Table
-
-	
 
 		public async Task<ServiceResponse<object>> GetTotalizerReadings()
 		{
@@ -697,10 +702,8 @@ namespace BussinessLogic.Stock.Stock
 			{
 				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 			}
-			//Adjust stock in table StocktakeSummary for each nozzle in the list foar a particular shift
-
 		}
-		//totalizer reading for a particular day
+
 		public async Task<ServiceResponse<object>> GetTotalizerReadings(DateTime date)
 		{
 			try
@@ -785,11 +788,11 @@ namespace BussinessLogic.Stock.Stock
 				{
 					await transaction.RollbackAsync();
 
-					return ServiceResponse<object>.Error("Something went wrong",ex.Message);
+					return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 				}
 			});
 		}
-		//export all variances
+
 		public async Task<ServiceResponse<byte[]>> ExportAllVariances()
 		{
 			try
@@ -825,7 +828,6 @@ namespace BussinessLogic.Stock.Stock
 				if (variances.Count == 0)
 					return ServiceResponse<byte[]>.Information("No variances found", null);
 
-				// Create and populate DataTable only if there are variances
 				var dataTable = new DataTable("VarianceReport");
 				dataTable.Columns.AddRange(
 				[
@@ -845,7 +847,6 @@ namespace BussinessLogic.Stock.Stock
 					new("Name", typeof(string))
 				]);
 
-				// Add variances to DataTable
 				foreach (var variance in variances)
 				{
 					dataTable.Rows.Add(
@@ -862,10 +863,10 @@ namespace BussinessLogic.Stock.Stock
 						variance.Status,
 						variance.DateCreated,
 						variance.PayrollNumber,
-						variance.Name ?? string.Empty // Handle nulls gracefully
+						variance.Name ?? string.Empty
 					);
 				}
-				//add datatable to excel
+
 				var excel = new ExcelPackage();
 				var ws = excel.Workbook.Worksheets.Add("VarianceReport");
 				ws.Cells["A1"].LoadFromDataTable(dataTable, true);
@@ -877,15 +878,15 @@ namespace BussinessLogic.Stock.Stock
 			}
 			catch (Exception)
 			{
-
 				return ServiceResponse<byte[]>.Error("Failed to generate variance report", null);
-
 			}
 		}
+
 		public async Task<ServiceResponse> ReconcileStockSummaries(string shiftNumber)
 		{
 			return await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
 		}
+
 		public class VarianceDto
 		{
 			public long ShiftId { get; set; }
@@ -908,82 +909,119 @@ namespace BussinessLogic.Stock.Stock
 			public string PayrollNumber { get; set; } = string.Empty;
 			public string Name { get; set; } = string.Empty;
 		}
+
+		// FIX (#4 correctness): now transfers across ALL positive/negative
+		// variance pairs instead of only the first of each.
+		// FIX (#2 correctness): explicit RollbackAsync on failure.
+		// PERF: candidate transactions for the shift are fetched once up front
+		// instead of hitting the DB inside the matching loop; MovedTransactions
+		// are batched and everything is flushed with a single SaveChangesAsync.
 		public async Task<ServiceResponse> NozzleQuantityTransfer(string shiftNumber)
 		{
-			const decimal varianceThreshold = 0m; // Acceptable variance threshold
+			const decimal varianceThreshold = 0m;
 
-			// Step 1: Get variances for the shift
 			var variances = await GetVariance(shiftNumber);
-			var positiveVarianceRecord = variances.FirstOrDefault(v => v.ClosingVariance > 0);
-			var negativeVarianceRecord = variances.FirstOrDefault(v => v.ClosingVariance < 0);
 
-			if (positiveVarianceRecord == null || negativeVarianceRecord == null)
+			var positiveVariances = variances.Where(v => v.ClosingVariance > 0)
+				.OrderByDescending(v => v.ClosingVariance)
+				.ToList();
+			var negativeVariances = variances.Where(v => v.ClosingVariance < 0)
+				.OrderBy(v => v.ClosingVariance) // most negative first
+				.ToList();
+
+			if (positiveVariances.Count == 0 || negativeVariances.Count == 0)
 				return ServiceResponse<object>.Information("Nozzle variance data missing.", null);
-
-
-			decimal negativeVariance = negativeVarianceRecord.ClosingVariance;
-			string positiveNozzle = positiveVarianceRecord.NozzleCode;
-			string negativeNozzle = negativeVarianceRecord.NozzleCode;
 
 			var dispensercode = await (from s in _context.Shifts
 									   where s.ShiftNumber == shiftNumber
 									   select s.DispenserCode).FirstOrDefaultAsync() ?? string.Empty;
 
-			var stationCode = await (from s in _context.Dispensers
-									 where s.DispenserCode == dispensercode
-									 select s.StationCode).FirstOrDefaultAsync() ?? string.Empty;
+			var stationCode = await (from d in _context.Dispensers
+									 where d.DispenserCode == dispensercode
+									 select d.StationCode).FirstOrDefaultAsync() ?? string.Empty;
+
+			var positiveNozzleCodes = positiveVariances.Select(p => p.NozzleCode).Distinct().ToList();
+
+			// Fetch every candidate transaction once instead of round-tripping the
+			// DB inside the matching loop as the old GetClosestTransaction did.
+			var candidateTransactions = await _context.QuantityTransactions
+				.Where(qt => qt.ShiftNumber == shiftNumber && positiveNozzleCodes.Contains(qt.NozzleCode))
+				.ToListAsync();
 
 			using var transaction = await _context.Database.BeginTransactionAsync();
 			try
 			{
-				while (Math.Abs(negativeVariance) > varianceThreshold)
+				var movedRecords = new List<MovedTransactions>();
+				var usedTransactions = new HashSet<QuantityTransactions>();
+
+				foreach (var negativeVarianceRecord in negativeVariances)
 				{
-					// Find the closest transaction to move
-					var transactionToMove = await GetClosestTransaction(shiftNumber, Math.Abs(negativeVariance), positiveNozzle);
+					var negativeVariance = negativeVarianceRecord.ClosingVariance;
+					var negativeNozzle = negativeVarianceRecord.NozzleCode;
 
-					if (transactionToMove == null)
+					foreach (var positiveVarianceRecord in positiveVariances)
 					{
-						break; // Exit if no matching transactions
+						if (Math.Abs(negativeVariance) <= varianceThreshold)
+							break;
+
+						var positiveNozzle = positiveVarianceRecord.NozzleCode;
+
+						// Largest-first among unused candidates for this nozzle,
+						// same "closest match" preference as the original.
+						var pool = candidateTransactions
+							.Where(t => t.NozzleCode == positiveNozzle && !usedTransactions.Contains(t))
+							.OrderByDescending(t => t.QuantityCredit);
+
+						foreach (var candidate in pool)
+						{
+							if (Math.Abs(negativeVariance) <= varianceThreshold)
+								break;
+
+							if (candidate.QuantityCredit > Math.Abs(negativeVariance))
+								continue;
+
+							candidate.NozzleCode = negativeNozzle;
+							candidate.DispenserCode = dispensercode;
+							candidate.StationCode = stationCode;
+
+							movedRecords.Add(new MovedTransactions
+							{
+								AmountCredit = candidate.AmountCredit,
+								NozzleCode = candidate.NozzleCode,
+								AmountDebit = candidate.AmountDebit,
+								DateCreated = candidate.DateCreated,
+								DispenserCode = candidate.DispenserCode,
+								IsReversed = candidate.IsReversed,
+								PaymentTypeCode = candidate.PaymentTypeCode,
+								ShiftNumber = candidate.ShiftNumber,
+								Price = candidate.Price,
+								QuantityCredit = candidate.QuantityCredit,
+								UserCode = candidate.UserCode,
+								SaleId = candidate.SaleId,
+								QuantityDebit = candidate.QuantityDebit,
+								StationCode = candidate.StationCode,
+								VehicleCode = candidate.VehicleRegistrationNumber,
+							});
+
+							_context.QuantityTransactions.Update(candidate);
+							usedTransactions.Add(candidate);
+							negativeVariance += candidate.QuantityCredit;
+						}
 					}
-
-					// Update the nozzle,dispensercode,stationCode code
-					transactionToMove.NozzleCode = negativeNozzle;
-					transactionToMove.DispenserCode = dispensercode;
-					transactionToMove.StationCode = stationCode;
-
-					//Save to moved
-					await SaveMovedTransactionAsync(new MovedTransactions
-					{
-						AmountCredit = transactionToMove.AmountCredit,
-						NozzleCode = transactionToMove.NozzleCode,
-						AmountDebit = transactionToMove.AmountDebit,
-						DateCreated = transactionToMove.DateCreated,
-						DispenserCode = transactionToMove.DispenserCode,
-						IsReversed = transactionToMove.IsReversed,
-						PaymentTypeCode = transactionToMove.PaymentTypeCode,
-						ShiftNumber = transactionToMove.ShiftNumber,
-						Price = transactionToMove.Price,
-						QuantityCredit = transactionToMove.QuantityCredit,
-						UserCode = transactionToMove.UserCode,
-						SaleId = transactionToMove.SaleId,
-						QuantityDebit = transactionToMove.QuantityDebit,
-						StationCode = transactionToMove.StationCode,
-						VehicleCode = transactionToMove.VehicleRegistrationNumber,
-					});
-
-					_context.QuantityTransactions.Update(transactionToMove);
-					await _context.SaveChangesAsync();
-
-					// Update remaining variance
-					negativeVariance += transactionToMove.QuantityCredit;
 				}
 
+				if (movedRecords.Count > 0)
+					await _context.AddRangeAsync(movedRecords);
+
+				await _context.SaveChangesAsync(); // single round trip for all moves
 				await transaction.CommitAsync();
+
 				await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
 				return ServiceResponse<object>.Success("Nozzle quantity transfer successful.", null);
 			}
 			catch (Exception ex)
 			{
+				await transaction.RollbackAsync();
 				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 			}
 		}
@@ -994,62 +1032,6 @@ namespace BussinessLogic.Stock.Stock
 								 .Where(ss => ss.ShiftNumber == shiftNumber)
 								 .AsNoTracking()
 								 .ToListAsync();
-		}
-
-		// ─────────────────────────────────────────────────────────────
-		// Persists a moved transaction record. Renamed from the original
-		// "MovedTransactions" (same name as the entity type, and async void,
-		// which swallows exceptions) to "SaveMovedTransactionAsync" returning
-		// a proper awaitable Task so callers can observe failures.
-		// ─────────────────────────────────────────────────────────────
-		private async Task SaveMovedTransactionAsync(MovedTransactions transactions)
-		{
-			var moved = new MovedTransactions()
-			{
-				AmountCredit = transactions.AmountCredit,
-				AmountDebit = transactions.AmountDebit,
-				NozzleCode = transactions.NozzleCode,
-				DispenserCode = transactions.DispenserCode,
-				StationCode = transactions.StationCode,
-				DateCreated = transactions.DateCreated,
-				QuantityDebit = transactions.QuantityDebit,
-				IsReversed = transactions.IsReversed,
-				PaymentTypeCode = transactions.PaymentTypeCode,
-				Price = transactions.Price,
-				QuantityCredit = transactions.QuantityCredit,
-				SaleId = transactions.SaleId,
-				ShiftNumber = transactions.ShiftNumber,
-				UserCode = transactions.UserCode,
-				VehicleCode = transactions.VehicleCode,
-			};
-
-			await _context.AddAsync(moved);
-			await _context.SaveChangesAsync();
-		}
-
-		private async Task<QuantityTransactions?> GetClosestTransaction(string shiftNumber, decimal quantityFrom, string nozzleCodeFrom)
-		{
-			return await _context.QuantityTransactions
-								 .Where(qt => qt.ShiftNumber == shiftNumber &&
-											  qt.NozzleCode == nozzleCodeFrom &&
-											  qt.QuantityCredit <= quantityFrom)
-								 .OrderByDescending(qt => qt.QuantityCredit) // Descending to prioritize larger values closer to the target
-								 .FirstOrDefaultAsync();
-		}
-		private async Task<List<ThePrices>> GetProductPrice(string stationCode)
-		{
-			var newPrice = new List<ThePrices>();
-
-			var prices = await (from p in _context.Prices
-								where p.StationCode == stationCode
-								select new ThePrices
-								{
-									ProductCode = p.ProductCode,
-									Price = p.Amount
-								}).ToListAsync();
-
-			newPrice.AddRange(prices);
-			return newPrice;
 		}
 
 		//Reset stocktake in stocktakeSummaries
@@ -1091,10 +1073,18 @@ namespace BussinessLogic.Stock.Stock
 			{
 				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 			}
-
-
 		}
 
+		// FIX (#1 correctness - money): PaymentTransactions now correctly splits
+		// credit vs debit by shortage/surplus (was always posting to
+		// TransactionAmount with TransactionAmountDebit hardcoded to 0), and
+		// the posted amount is now the KES value (magnitude * pricePerLitre)
+		// rather than the raw litre magnitude.
+		// FIX (#3 correctness): OpeningVariance is now folded into both the
+		// threshold check and the correction, matching ShiftVariances()'s
+		// definition of Variance = ClosingVariance + OpeningVariance.
+		// PERF: dispenser code + station code lookups merged into a single
+		// joined query instead of two sequential round trips.
 		public async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
 		{
 			try
@@ -1105,22 +1095,18 @@ namespace BussinessLogic.Stock.Stock
 					select vs
 				).ToListAsync();
 
-				var dispenserId = await (
+				var dispenserStation = await (
 					from s in _context.Shifts
 					where s.ShiftNumber == shiftNumber
-					select s.DispenserCode
+					join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
+					from d in dj.DefaultIfEmpty()
+					select new { DispenserCode = s.DispenserCode, StationCode = d != null ? d.StationCode : null }
 				).FirstOrDefaultAsync();
 
-				var stationCode = await (
-					from d in _context.Dispensers
-					where d.DispenserCode == (dispenserId ?? "")
-					select d.StationCode
-				).FirstOrDefaultAsync();
+				var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
+				var stationCode = dispenserStation?.StationCode ?? string.Empty;
 
-				// Money-based variance, priced per nozzle — same threshold source used
-				// by the stock take variance check, so "acceptable variance" means the
-				// same thing everywhere in the app rather than two different definitions.
-				var threshold = await _varianceService.GetThresholdForDispenserAsync(dispenserId ?? "");
+				var threshold = await _varianceService.GetThresholdForDispenserAsync(dispenserId);
 
 				var nozzlePrices = new Dictionary<string, decimal>();
 				decimal totalVarianceValue = 0m;
@@ -1129,26 +1115,30 @@ namespace BussinessLogic.Stock.Stock
 				{
 					if (!nozzlePrices.TryGetValue(variance.NozzleCode, out var pricePerLitre))
 					{
-						pricePerLitre = await _varianceService.GetCurrentRetailPriceAsync(dispenserId ?? "", variance.NozzleCode);
+						pricePerLitre = await _varianceService.GetCurrentRetailPriceAsync(dispenserId, variance.NozzleCode);
 						nozzlePrices[variance.NozzleCode] = pricePerLitre;
 					}
 
-					totalVarianceValue += Math.Abs(variance.ClosingVariance) * pricePerLitre;
+					var netVarianceForNozzle = variance.ClosingVariance + variance.OpeningVariance;
+					totalVarianceValue += Math.Abs(netVarianceForNozzle) * pricePerLitre;
 				}
 
-				var totalVarianceLitres = variances.Sum(x => x.ClosingVariance);
+				var totalVarianceLitres = variances.Sum(x => x.ClosingVariance + x.OpeningVariance);
 
 				if (totalVarianceValue <= threshold)
 				{
 					foreach (var variance in variances)
 					{
-						if (Math.Abs(variance.ClosingVariance) == 0)
+						var netVariance = variance.ClosingVariance + variance.OpeningVariance;
+						if (netVariance == 0)
 							continue;
 
+						var pricePerLitre = nozzlePrices[variance.NozzleCode];
 						var saleId = _setups.GenerateSaleId();
 
-						var isShortage = variance.ClosingVariance < 0;
-						var magnitude = Math.Abs(variance.ClosingVariance);
+						var isShortage = netVariance < 0;
+						var magnitude = Math.Abs(netVariance);
+						var moneyValue = magnitude * pricePerLitre;
 
 						var quantityTransaction = new QuantityTransactions
 						{
@@ -1160,8 +1150,8 @@ namespace BussinessLogic.Stock.Stock
 							ShiftNumber = shiftNumber,
 							SaleId = saleId,
 							PaymentTypeCode = 3,
-							DispenserCode = dispenserId ?? "",
-							StationCode = stationCode ?? ""
+							DispenserCode = dispenserId,
+							StationCode = stationCode
 						};
 						await _context.QuantityTransactions.AddAsync(quantityTransaction);
 
@@ -1171,8 +1161,8 @@ namespace BussinessLogic.Stock.Stock
 							UserCode = variance.UserCode ?? "",
 							SaleId = saleId,
 							PaymentRefrence = _setups.GenerateShiftNumber(),
-							TransactionAmount = Math.Abs(magnitude),
-							TransactionAmountDebit = 0
+							TransactionAmount = isShortage ? 0 : moneyValue,
+							TransactionAmountDebit = isShortage ? moneyValue : 0
 						};
 						await _context.PaymentTransactions.AddAsync(paymentTransaction);
 
@@ -1180,9 +1170,6 @@ namespace BussinessLogic.Stock.Stock
 						_context.StockTakeSummaries.Update(variance);
 					}
 
-					// Close the shift itself — without this, ShiftStatuses() keeps
-					// seeing ShiftStatus.Variance on the Shifts row and the attendant
-					// gets shown the (now already-cleared) variance dialog again.
 					var shiftToClose = await (
 						from s in _context.Shifts
 						where s.ShiftNumber == shiftNumber
@@ -1194,7 +1181,6 @@ namespace BussinessLogic.Stock.Stock
 						shiftToClose.ShiftStatus = ShiftStatus.Closed;
 					}
 
-					// Commit all changes
 					await _context.SaveChangesAsync();
 					await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
 					var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, it falls within the allowed threshold of KES {threshold:N2}.";
@@ -1210,7 +1196,5 @@ namespace BussinessLogic.Stock.Stock
 				return ServiceResponse<object>.Error(ex.Message, null);
 			}
 		}
-
-
 	}
 }

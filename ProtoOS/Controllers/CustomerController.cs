@@ -9,7 +9,7 @@ using static BusinessLogic.CustomerService.Customers;
 using static BussinessLogic.Customers.Vehicles.OtogasVehicles;
 
 
-namespace ProtoOS.Controllers
+namespace FuelFlow.Controllers 
 {
 	[Route("fuelflow/[controller]")]
 	[ApiController]
@@ -88,34 +88,6 @@ namespace ProtoOS.Controllers
 			return CreateResponse(response);
 		}
 
-		[HttpPost("add-provisional-customer")]
-		[Authorize]
-		public async Task<IActionResult> AddProvisionalCustomer([FromBody] AddProvisionalCustomerDto model)
-		{
-			var result = await _vehicles.AddProvisionalCustomers(
-				model.PhoneNumber,
-				model.Name,
-				model.NumberPlate);
-
-			return Ok(result);
-		}
-
-		[HttpPost("DeactivateVehicle")]
-		[Authorize(Roles = "can deactivate a vehicle")]
-		public async Task<IActionResult> DeactivateVehicle(string vehicleCode)
-		{
-			var response = await _vehicles.DeactivateVehicle(vehicleCode);
-			return CreateResponse(response);
-		}
-
-		[HttpPost("ActivateVehicle")]
-		[Authorize(Roles = "can activate a vehicle")]
-		public async Task<IActionResult> ActivateVehicle(string vehicleCode)
-		{
-			var response = await _vehicles.ActivateVehicle(vehicleCode);
-			return CreateResponse(response);
-		}
-
 		[HttpGet("GetAllVehicles")]
 		[Authorize(Roles = "can view all vehicles")]
 		public async Task<IActionResult> GetAllVehicles()
@@ -141,13 +113,7 @@ namespace ProtoOS.Controllers
 		}
 
 
-		//[HttpGet("SearchVehicle")]
-		//[Authorize(Roles = "can search vehicle")]
-		//public async Task<IActionResult> SearchVehicle(string vehicleRegNo)
-		//{
-		//	var response = await _vehicles.SearchVehicle(vehicleRegNo);
-		//	return CreateResponse(response);
-		//}
+
 
 		[HttpGet("SearchVehicle")]
 		[Authorize(Roles = "can search vehicle")]
@@ -172,76 +138,11 @@ namespace ProtoOS.Controllers
 			var response = await _vehicles.GetCustomerVehicles(customerCode);
 			return CreateResponse(response);
 		}
-		//get walkin customers
-		[HttpGet("GetWalkinCustomers")]
-		[Authorize]
-		public async Task<IActionResult> GetWalkinCustomers()
-		{
-			var response = await _vehicles.GetWalkInCustomers();
-			return CreateResponse(response);
-		}
+	
 		#endregion
 
 		#region Complain Methods
-
-		[HttpPost("AddComplain")]
-		[Authorize(Roles = "can add a complain")]
-		public async Task<IActionResult> AddComplain([FromBody] AddComplainDto complainDTO)
-		{
-			var response = await _complains.AddComplain(complainDTO);
-			return CreateResponse(response);
-		}
-
-		[HttpGet("GetAllComplains")]
-		[Authorize(Roles = "can view all complains")]
-		public async Task<IActionResult> GetAllComplains()
-		{
-			var response = await _complains.GetAllComplains();
-			return CreateResponse(response);
-		}
-
-		[HttpPatch("ChangeComplainStatus")]
-		[Authorize(Roles = "can change complain status")]
-		public async Task<IActionResult> ChangeComplainStatus(string complainId)
-		{
-			var response = await _complains.ChangeComplainStatus(complainId);
-			return CreateResponse(response);
-		}
-		[HttpPost("MarkVehicleAsUnInstalled")]
-		[Authorize(Roles = "can uninstall a vehicle")]
-		public async Task<IActionResult> MarkVehicleAsUnInstalled(string vehicleCode)
-		{
-			var response = await _vehicles.MarkVehicleAsUnInstalled(vehicleCode);
-			return CreateResponse(response);
-		}
 		//
-		//a vehicle to another customer
-		[HttpPost("TransferVehicle")]
-		[Authorize(Roles = "can transfer a vehicle")]
-		public async Task<IActionResult> TransferVehicle(TransferVehicleDto transfer)
-		{
-			var response = await _vehicles.TransferVehicle(transfer);
-			return CreateResponse(response);
-		}
-
-		[HttpGet]
-		[Route("GetTankSizes")]
-		[Authorize]
-		public async Task<IActionResult> GetTankSizes()
-		{
-			var response = await _vehicles.GetTankSizes();
-			return CreateResponse(response);
-		}
-
-		[HttpPost]
-		[Route("RegisterNonOtogasVehicle")]
-		[Authorize(Roles = "can register vehicles on forecourt")]
-		public async Task<IActionResult> RegisterNonOtogasVehicle(NonOtogasVehicleDto vehicle)
-		{
-			var response = await _vehicles.RegisterNonOtogasVehicle(vehicle);
-			return CreateResponse(response);
-		}
-
 
 		//Export customers
 		[HttpGet("export-all-customers")]
@@ -271,23 +172,6 @@ namespace ProtoOS.Controllers
 			return CreateResponse(response);
 		}
 
-		//merge
-		[HttpPost("MergeCustomer")]
-		[Authorize(Roles = "can merge customers")]
-		public async Task<IActionResult> MergeCustomer(string customerCode, string customerCodeToMerge)
-		{
-			var response = await _vehicles.MergeCustomers(customerCode, customerCodeToMerge);
-			return CreateResponse(response);
-		}
-
-		//list customers to merge
-		[HttpGet("ListCustomersToMerge")]
-		[Authorize(Roles = "can list customers to merge")]
-		public async Task<IActionResult> ListCustomersToMerge(string customerCode)
-		{
-			var response = await _vehicles.ListCustomersToMerge(customerCode);
-			return CreateResponse(response);
-		}
 		//CustomerCreditLimit
 		[HttpPost]
 		[Authorize(Roles = "can update customer credit limit")]
@@ -298,39 +182,6 @@ namespace ProtoOS.Controllers
 			return CreateResponse(response);
 		}
 		#endregion
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="telematicDto"></param>
-		/// <returns> <param name=""</param></returns>
-
-		//add addtelematic
-		[HttpPost("AddTelematic")]
-		[Authorize(Roles = "can add vehicle telematic")]
-		public async Task<IActionResult> AddTelematic([FromBody] TellematicDto telematicDto)
-		{
-			var response = await _vehicles.AddTelematic(telematicDto);
-			return CreateResponse(response);
-		}
-
-		//add addtelematic
-		[HttpPost("add-organisation")]
-		[Authorize(Roles = "can add an organisation")]
-		public async Task<IActionResult> AddOrganisations([FromBody] RegisterOrganisationDTO organisation)
-		{
-			var response = await _customers.Organisations(organisation);
-			return CreateResponse(response);
-		}
-
-		[HttpGet]
-		[Route("get-organisations")]
-		[Authorize]
-		public async Task<IActionResult> GetOrganisations()
-		{
-			var response = await _customers.OrganisationList();
-			return CreateResponse(response);
-		}
 
 		[HttpGet("check-loyalty")]
 		[Authorize]

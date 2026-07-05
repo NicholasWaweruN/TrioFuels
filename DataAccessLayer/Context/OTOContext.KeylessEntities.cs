@@ -14,14 +14,12 @@ namespace DataAccessLayer.Context
 
 
 
-			modelBuilder.Entity<FuelSale>(entity =>
-			{
-				entity.HasNoKey();
-				entity.ToView("vw_salesdata"); // Postgres folds unquoted identifiers to lowercase
-			});
-		
+			modelBuilder.Entity<FuelSale>()
+		.ToView("vw_SalesData", schema: "public")
+		.HasNoKey(); // keep this if it's mapped as a keyless entity
 
-		    modelBuilder.Entity<UsageBalanceDto>().HasNoKey();
+
+			modelBuilder.Entity<UsageBalanceDto>().HasNoKey();
             modelBuilder.Entity<ValueDto>().HasNoKey();
             modelBuilder.Entity<OtopaySales>().HasNoKey();
             modelBuilder.Entity<IntValue>().HasNoKey();

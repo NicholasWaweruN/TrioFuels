@@ -24,37 +24,44 @@ namespace BussinessLogic.Setup
 			_setups = setups;
 			_authentication = authentication;
 		}
-		public async Task<ServiceResponse<object>> AddPrice(List<UpdatePrice> updatePrice)
+		public async Task<ServiceResponse<object>> UpdatePrice(string productCode, decimal newAmount)
 		{
+			if (newAmount <= 0)
+				return ServiceResponse<object>.Information("Price must be greater than zero", null);
+
 			try
 			{
-				foreach (var item in updatePrice)
-				{
-					var product = await _context.Prices.Where(x => x.ProductCode == item.ProductCode && x.StationCode.Equals(item.StationCode)).FirstOrDefaultAsync();
-					if (product is not null)
-					{
-						product.Amount = item.NewPrice;
-						_context.Prices.Update(product);
-						await _context.SaveChangesAsync();
-					}
-					else
-					{
-						return ServiceResponse<object>.Information("Product does not exist", null);
-					}
-				}
+				var productExists = await _context.PetroleumProducts
+					.AnyAsync(pp => pp.PetroleumCode == productCode);
+
+				if (!productExists)
+					return ServiceResponse<object>.Information($"Product {productCode} does not exist", null);
+
+				var price = await _context.Prices
+					.FirstOrDefaultAsync(p => p.ProductCode == productCode);
+
+				if (price == null)
+					return ServiceResponse<object>.Information($"No price record found for product {productCode}", null);
+
+				var oldAmount = price.Amount;
+
+				if (oldAmount == newAmount)
+					return ServiceResponse<object>.Information("New price is the same as the current price", null);
+
+				price.Amount = newAmount;
+				_context.Prices.Update(price);
+				await _context.SaveChangesAsync();
+
+				var message = $"Price for product {productCode} changed from KES {oldAmount:N2} to KES {newAmount:N2} by {_authentication.Name()} on {DateTime.UtcNow}";
+				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
+
 				return ServiceResponse<object>.Success("Price updated successfully", null);
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				return new ServiceResponse<object>
-				{
-					ResponseCode = Response.Error,
-					ResponseMessage = "An error occured while updating price",
-					ResponseObject = null
-				};
+				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 			}
 		}
-
 
 
 		/// <summary>
@@ -183,69 +190,16 @@ namespace BussinessLogic.Setup
 				return ServiceResponse<object>.Error("An error occurred while registering device", null);
 			}
 		}
-		public async Task<ServiceResponse<object>> AddProduct(AddProductDto product)
-		{
-			try
-			{
-				var productExists = await _context.Products.Where(x => x.ProductName == product.ProductName).FirstOrDefaultAsync();
-				if (productExists is null)
-				{
-					var productcode = await _setups.GetCodeGenerator("ProductCode");
-					var newProduct = new Products
-					{
-						ProductCode = productcode,
-						ProductName = product.ProductName,
-						IsActive = true,
-						DateCreated = DateTime.UtcNow,
-						UserCode = _authentication.Usercode(),
-						
-					};
-					_context.Products.Add(newProduct);
-
-					var stations = await _context.Stations.Select(x => x.StationCode).ToListAsync();
-					//Add records in the price table for every station
-					foreach (var item in stations)
-					{
-						var price = new Price
-						{
-							Amount = 0,
-							ProductCode = productcode,
-							StationCode = item,
-							DateCreated = DateTime.UtcNow,
-							UserCode = _authentication.Usercode(),
-							Discount = 0
-						};
-						_context.Prices.Add(price);
-					}
-					var message = $" creating product {product.ProductName} by {_authentication.Name()} on {DateTime.UtcNow} also created price for the product for every station";
-					await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
-
-					await _context.SaveChangesAsync();
-					return ServiceResponse<object>.Success("Product added successfully", newProduct);
-				}
-				else
-				{
-					return ServiceResponse<object>.Information("Product already exists", null);
-				}
-
-			}
-			catch (Exception)
-			{
-				return ServiceResponse<object>.Error("An error occurred while adding product", null);
-			}
-		}
 		//Get all products
 		public async Task<ServiceResponse<object>> GetProducts()
 		{
 			try
 			{
-				var products = await (from p in _context.Products
+				var products = await (from p in _context.PetroleumProducts
 									  select new
 									  {
-										  p.ProductCode,
-										  p.ProductName,
-										  p.IsActive,
-
+										  p.PetroleumCode,
+										  p.PetroleumName,
 									  }).ToListAsync();
 				if (!products.Any())
 				{
@@ -493,6 +447,11 @@ namespace BussinessLogic.Setup
 			};
 
 			return reportList;
+		}
+
+		public Task<ServiceResponse<object>> AddProduct(AddProductDto product)
+		{
+			throw new NotImplementedException();
 		}
 
 		//report model

@@ -79,7 +79,7 @@ namespace BussinessLogic.Sales.NewSales
 		{
 			var saleId = _setups.GenerateSaleId();
 
-			if (await _context.QuantityTransactions.AnyAsync(q => q.SaleId == saleId))
+			if (await _context.QuantityTransactions.AsNoTracking().AnyAsync(q => q.SaleId == saleId))
 				return Info("Duplicate sale detected, try again");
 
 			var precheck = await ValidateDataAsync(sales);
@@ -110,7 +110,8 @@ namespace BussinessLogic.Sales.NewSales
 			Func<AddsaleDto, Task<string>> generateRef,
 			PaymentStepAsync paymentStep,
 			Func<SaleContext, AddsaleDto, Task>? postCommit = null,
-			string? receiptStationOverride = null)
+			string? receiptStationOverride = null,
+			StationData? station = null)
 		{
 			var strategy = _context.Database.CreateExecutionStrategy();
 
@@ -124,7 +125,7 @@ namespace BussinessLogic.Sales.NewSales
 					var txRef = await generateRef(sales);
 					sales.PaymentDetails.ForEach(p => p.TransactionReference = txRef);
 
-					var ctx = await ResolveSaleContextAsync(sales, txRef);
+					var ctx = await ResolveSaleContextAsync(sales, txRef, station);
 
 					var abort = await paymentStep(sales, ctx, saleId);
 					if (abort is not null) return abort;
@@ -172,7 +173,9 @@ namespace BussinessLogic.Sales.NewSales
 			bool awardLoyalty,
 			PaymentStepAsync paymentStep,
 			string? mpesaTillNumber = null,
-			string? receiptStationOverride = null)
+			string? receiptStationOverride = null,
+			StationData? station = null,
+			Func<Dictionary<string, int>?>? getPreValidatedUsage = null)
 		{
 			var strategy = _context.Database.CreateExecutionStrategy();
 
@@ -183,7 +186,7 @@ namespace BussinessLogic.Sales.NewSales
 
 				try
 				{
-					var ctx = await ResolveSaleContextAsync(sales, saleId);
+					var ctx = await ResolveSaleContextAsync(sales, saleId, station);
 
 					var abort = await paymentStep(sales, ctx, saleId);
 					if (abort is not null) return abort;
@@ -194,8 +197,13 @@ namespace BussinessLogic.Sales.NewSales
 					StageReceipt(ctx, sales, receiptPaymentMethod,
 						stationNameOverride: receiptStationOverride);
 
+					// getPreValidatedUsage() reads the dictionary AFTER paymentStep has
+					// run and populated it (closures capture the local by reference),
+					// so PersistSaleAsync can reuse balances instead of re-querying
+					// and re-locking the same MpesaTransactions rows.
 					var mpesaRefs = await PersistSaleAsync(sales, ctx, saleId,
-						mpesaTillNumber: mpesaTillNumber);
+						mpesaTillNumber: mpesaTillNumber,
+						preValidatedUsage: getPreValidatedUsage?.Invoke());
 
 					await _context.SaveChangesAsync();
 					await tx.CommitAsync();
@@ -322,7 +330,12 @@ namespace BussinessLogic.Sales.NewSales
 			//if (dupCheck.ResponseCode == Response.Information)
 			//	return Info("Duplicate M-Pesa codes found in the transaction");
 
-			var station = await GetStationAsync(sales.DispenserCode);
+			var station = await GetStationAsync(sales.DispenserCode); // resolved ONCE, reused below
+
+			// Populated inside paymentStep, then read back by ExecuteSaleRawRefAsync
+			// via the getPreValidatedUsage closure — avoids re-locking the same
+			// MpesaTransactions rows a second time inside PersistSaleAsync.
+			Dictionary<string, int>? usageCache = null;
 
 			return await ExecuteSaleRawRefAsync(
 				sales, saleId,
@@ -331,16 +344,32 @@ namespace BussinessLogic.Sales.NewSales
 				awardLoyalty: true,
 				mpesaTillNumber: station.TillNumber, // ✅ verification now consistently uses TillNumber
 				receiptStationOverride: _setups.SentenceCase(station.StationName),
+				station: station,
+				getPreValidatedUsage: () => usageCache,
 				paymentStep: async (s, ctx, _) =>
 				{
-					var balResult = await GetTotalUsableMpesaAsync(
-						s.PaymentDetails.Select(p => p.TransactionReference),
-						ctx.Station.TillNumber);
+					var codes = s.PaymentDetails
+						.Where(p => !string.IsNullOrWhiteSpace(p.TransactionReference))
+						.Select(p => p.TransactionReference!)
+						.Distinct()
+						.ToList();
 
-					if (balResult.ResponseCode != Response.Success)
-						return Info(balResult.ResponseMessage!);
+					var usage = new Dictionary<string, int>();
+					decimal total = 0m;
 
-					if (balResult.ResponseObject < ctx.Requested)
+					foreach (var code in codes)
+					{
+						var r = await ValidateMpesaPaymentAsync(code, ctx.Station.TillNumber);
+						if (r.ResponseCode != Response.Success)
+							return Info(r.ResponseMessage!);
+
+						usage[code] = r.ResponseObject ?? 0;
+						total += r.ResponseObject ?? 0;
+					}
+
+					usageCache = usage;
+
+					if (total < ctx.Requested)
 						return Info("Insufficient funds, cannot complete the transaction");
 
 					StageQueuedSms(ctx.Customer.CustomerPhone,
@@ -370,6 +399,7 @@ namespace BussinessLogic.Sales.NewSales
 						return Info("A valid loyalty account is required for this payment method.");
 
 					var customerCode = await _context.Customers
+						.AsNoTracking()
 						.Where(c => c.CustomerPhone == s.LoyaltyPhone)
 						.Select(c => c.CustomerCode)
 						.FirstOrDefaultAsync();
@@ -436,9 +466,13 @@ namespace BussinessLogic.Sales.NewSales
 		// calculated value (999.45), not the rounded "effective" figure — otherwise a
 		// genuinely short payment (e.g. customer sends 500 against a 999.45 sale) would
 		// slip through, since effective is always <= whatever was sent by construction.
-		private async Task<SaleContext> ResolveSaleContextAsync(AddsaleDto sales, string transactionRef)
+		//
+		// `station` — pass a pre-resolved StationData to skip the join query entirely
+		// (e.g. HandleMpesaAsync already needs the till number before this runs).
+		private async Task<SaleContext> ResolveSaleContextAsync(
+			AddsaleDto sales, string transactionRef, StationData? station = null)
 		{
-			var station = await GetStationAsync(sales.DispenserCode);
+			station ??= await GetStationAsync(sales.DispenserCode);
 			var customer = await GetCustomerByPhoneAsync(sales.PhoneNumber);
 			var (unitPrice, disc) = await GetPriceByNozzleAsync(sales.NozzleCode);
 
@@ -468,7 +502,8 @@ namespace BussinessLogic.Sales.NewSales
 
 		private async Task<List<string>> PersistSaleAsync(
 			AddsaleDto sales, SaleContext ctx, string saleId,
-			string? mpesaTillNumber = null)
+			string? mpesaTillNumber = null,
+			Dictionary<string, int>? preValidatedUsage = null)
 		{
 			_context.QuantityTransactions.Add(
 				BuildQuantityTransaction(sales, ctx, saleId));
@@ -490,9 +525,23 @@ namespace BussinessLogic.Sales.NewSales
 				if (!string.IsNullOrWhiteSpace(mpesaTillNumber)
 					&& !string.IsNullOrWhiteSpace(pay.TransactionReference))
 				{
-					var check = await ValidateMpesaPaymentAsync(
-						pay.TransactionReference, mpesaTillNumber);
-					alloc = Math.Min(alloc, Math.Max(0, check.ResponseObject ?? 0));
+					int usable;
+
+					if (preValidatedUsage is not null
+						&& preValidatedUsage.TryGetValue(pay.TransactionReference, out var cached))
+					{
+						// Already validated (and row-locked) once in the paymentStep —
+						// reuse instead of hitting MpesaTransactions again.
+						usable = cached;
+					}
+					else
+					{
+						var check = await ValidateMpesaPaymentAsync(
+							pay.TransactionReference, mpesaTillNumber);
+						usable = Math.Max(0, check.ResponseObject ?? 0);
+					}
+
+					alloc = Math.Min(alloc, usable);
 				}
 
 				_context.PaymentTransactions.Add(new PaymentTransactions
@@ -521,6 +570,8 @@ namespace BussinessLogic.Sales.NewSales
 
 		private async Task ReconcileAndUpdateUsageBalanceAsync(string transId)
 		{
+			// Tracked on purpose — this method mutates UsageBalance/Status and
+			// explicitly marks the entity Modified below.
 			var mpesaTx = await _context.MpesaTransactions
 				.FirstOrDefaultAsync(t => t.TransID == transId);
 
@@ -534,8 +585,8 @@ namespace BussinessLogic.Sales.NewSales
 			// ── full sale total — a sale can be split across two M-Pesa codes,
 			// ── and each code must only be debited by its own share.
 			var totalUsed = await (
-				from p in _context.PaymentTransactions
-				join q in _context.QuantityTransactions on p.SaleId equals q.SaleId
+				from p in _context.PaymentTransactions.AsNoTracking()
+				join q in _context.QuantityTransactions.AsNoTracking() on p.SaleId equals q.SaleId
 				where p.PaymentRefrence == transId && !q.IsReversed
 				select p.TransactionAmount
 			).SumAsync();
@@ -618,6 +669,8 @@ namespace BussinessLogic.Sales.NewSales
 		// Validation
 		// =====================================================================
 
+		private record ValidationFlags(bool HasShift, bool HasNozzle, bool HasPaymentType, bool HasDispenser);
+
 		private async Task<ServiceResponse<object>> ValidateDataAsync(AddsaleDto sales)
 		{
 			if (sales?.PaymentDetails is null || sales.PaymentDetails.Count == 0)
@@ -628,17 +681,21 @@ namespace BussinessLogic.Sales.NewSales
 					$"Hi {_authentication.Username().Split(',')[0]}, " +
 					$"more than two Mpesa codes is not allowed");
 
-			(string msg, IQueryable<bool> query)[] checks =
-			[
-				("Shift does not exist",        _context.Shifts.Where(x => x.ShiftNumber == sales.ShiftNumber).Select(_ => true)),
-				("Nozzle does not exist",       _context.Nozzles.Where(x => x.NozzleCode == sales.NozzleCode).Select(_ => true)),
-				("Payment type does not exist", _context.PaymentTypes.Where(x => x.PaymentTypeId == sales.PaymentTypeCode).Select(_ => true)),
-				("Dispenser does not exist",    _context.Dispensers.Where(x => x.DispenserCode == sales.DispenserCode).Select(_ => true)),
-			];
+			// Single round trip instead of 4 sequential AnyAsync() calls.
+			var flags = await _context.Database
+				.SqlQuery<ValidationFlags>($@"
+					SELECT
+						EXISTS(SELECT 1 FROM ""Shifts""       WHERE ""ShiftNumber""    = {sales.ShiftNumber})    AS ""HasShift"",
+						EXISTS(SELECT 1 FROM ""Nozzles""      WHERE ""NozzleCode""     = {sales.NozzleCode})     AS ""HasNozzle"",
+						EXISTS(SELECT 1 FROM ""PaymentTypes"" WHERE ""PaymentTypeId"" = {sales.PaymentTypeCode}) AS ""HasPaymentType"",
+						EXISTS(SELECT 1 FROM ""Dispensers""   WHERE ""DispenserCode""  = {sales.DispenserCode})  AS ""HasDispenser""
+				")
+				.FirstAsync();
 
-			foreach (var (msg, query) in checks)
-				if (!await query.AnyAsync())
-					return Info(msg);
+			if (!flags.HasShift) return Info("Shift does not exist");
+			if (!flags.HasNozzle) return Info("Nozzle does not exist");
+			if (!flags.HasPaymentType) return Info("Payment type does not exist");
+			if (!flags.HasDispenser) return Info("Dispenser does not exist");
 
 			return ServiceResponse<object>.Success("Data is valid", null);
 		}
@@ -658,11 +715,13 @@ namespace BussinessLogic.Sales.NewSales
 		{
 			var cutoff = EatTime.Now.AddMinutes(-2);
 
-			var exists = await _context.QuantityTransactions.AnyAsync(p =>
-				p.NozzleCode == sales.NozzleCode
-				&& p.VehicleRegistrationNumber == sales.RegistrationNumber
-				&& p.QuantityCredit == sales.Quantity
-				&& p.DateCreated >= cutoff);
+			var exists = await _context.QuantityTransactions
+				.AsNoTracking()
+				.AnyAsync(p =>
+					p.NozzleCode == sales.NozzleCode
+					&& p.VehicleRegistrationNumber == sales.RegistrationNumber
+					&& p.QuantityCredit == sales.Quantity
+					&& p.DateCreated >= cutoff);
 
 			return exists
 				? ServiceResponse<bool>.Information("Duplicate payment detected (ignored).", false)
@@ -676,8 +735,8 @@ namespace BussinessLogic.Sales.NewSales
 		private async Task<(decimal Price, decimal Discount)> GetPriceByNozzleAsync(string nozzleCode)
 		{
 			var price = await (
-				from n in _context.Nozzles
-				join p in _context.Prices on n.PetroleumCode equals p.ProductCode
+				from n in _context.Nozzles.AsNoTracking()
+				join p in _context.Prices.AsNoTracking() on n.PetroleumCode equals p.ProductCode
 				where n.NozzleCode == nozzleCode
 				select p.Amount
 			).FirstOrDefaultAsync();
@@ -689,6 +748,7 @@ namespace BussinessLogic.Sales.NewSales
 			string transId, CancellationToken ct)
 		{
 			var tx = await _context.MpesaTransactions
+				.AsNoTracking()
 				.Where(t => t.TransID == transId && t.Status == 1)
 				.FirstOrDefaultAsync(ct);
 
@@ -735,8 +795,7 @@ namespace BussinessLogic.Sales.NewSales
 					return ServiceResponse<int?>.Information(
 						$"Mpesa code {transId} does not exist", 0);
 
-				var till = Regex.Replace(
-					usage.TillNumber ?? string.Empty, @"\s+", "").Trim();
+				var till = Regex.Replace(usage.TillNumber ?? string.Empty, @"\s+", "").Trim();
 
 				if (!string.Equals(till, tillNumber.Trim(), StringComparison.OrdinalIgnoreCase))
 					return ServiceResponse<int?>.Information(
@@ -763,12 +822,19 @@ namespace BussinessLogic.Sales.NewSales
 		// ── is fully used (see ReconcileAndUpdateUsageBalanceAsync), and filtering on
 		// ── it here would make an exhausted-but-real code look identical to one that
 		// ── never existed. The Amount <= 0 check above is what should own that distinction.
+		//
+		// AsNoTracking() here is safe: this instance is only ever read then discarded
+		// for validation — it is never mutated. The actual UPDATE happens later, in
+		// ReconcileAndUpdateUsageBalanceAsync, via a separate tracked fetch. The row
+		// lock itself (FOR UPDATE) is independent of EF's change-tracking and still
+		// applies regardless of AsNoTracking().
 		private async Task<UsageBalanceDto?> GetUsageBalanceAsync(string transId)
 			=> await _context.MpesaTransactions
 				.FromSqlInterpolated($@"
 					SELECT * FROM ""MpesaTransactions""
 					WHERE ""TransID"" = {transId}
 					FOR UPDATE")
+				.AsNoTracking()
 				.Select(t => new UsageBalanceDto
 				{
 					Amount = (int)t.UsageBalance,
@@ -778,6 +844,7 @@ namespace BussinessLogic.Sales.NewSales
 
 		private Task<decimal> GetOutstandingCreditAsync(string customerCode)
 			=> _context.CreditTransactions
+				.AsNoTracking()
 				.Where(c => c.CustomerCode == customerCode)
 				.SumAsync(c => c.Debit - c.Credit);
 
@@ -788,9 +855,9 @@ namespace BussinessLogic.Sales.NewSales
 		private async Task<StationData> GetStationAsync(string dispenserCode)
 		{
 			var s = await (
-				from sta in _context.Stations
-				join d in _context.Dispensers on sta.StationCode equals d.StationCode
-				join t in _context.Tills on d.TillNumber equals t.TillNumber
+				from sta in _context.Stations.AsNoTracking()
+				join d in _context.Dispensers.AsNoTracking() on sta.StationCode equals d.StationCode
+				join t in _context.Tills.AsNoTracking() on d.TillNumber equals t.TillNumber
 				where d.DispenserCode == dispenserCode
 				select new StationData
 				{
@@ -806,6 +873,7 @@ namespace BussinessLogic.Sales.NewSales
 
 		private async Task<VehicleInfo> GetVehicleByRegAsync(string registrationNumber)
 			=> await _context.Vehicles
+				.AsNoTracking()
 				.Where(v => v.VehicleRegistrationNumber == registrationNumber)
 				.Select(v => new VehicleInfo
 				{
@@ -818,6 +886,7 @@ namespace BussinessLogic.Sales.NewSales
 
 		private async Task<CustomerInfo> GetCustomerByPhoneAsync(string phone)
 			=> await _context.Customers
+				.AsNoTracking()
 				.Where(c => c.CustomerPhone == phone)
 				.Select(c => new CustomerInfo
 				{
@@ -872,6 +941,7 @@ namespace BussinessLogic.Sales.NewSales
 			try
 			{
 				var customerCode = await _context.Customers
+					.AsNoTracking()
 					.Where(x => x.CustomerPhone == sales.LoyaltyPhone)
 					.Select(x => x.CustomerCode)
 					.FirstOrDefaultAsync();

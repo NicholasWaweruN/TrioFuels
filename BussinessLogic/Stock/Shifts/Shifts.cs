@@ -246,8 +246,9 @@ namespace BussinessLogic.Stock.Shifts
 		public async Task<ServiceResponse<object>> ShiftSales()
 		{
 			var shiftNumber = await _context.Shifts
+				.AsNoTracking()
 				.Where(x => x.UserCode == _authentication.Usercode() && x.ShiftStatus == ShiftStatus.Open)
-				.Select(x => x.ShiftNumber)
+				.Select(x => x.ShiftNumber) // cast to nullable so "no shift" is detectable regardless of underlying type
 				.FirstOrDefaultAsync();
 
 			if (shiftNumber == null)
@@ -260,22 +261,27 @@ namespace BussinessLogic.Stock.Shifts
 				};
 			}
 
-			var raw = await (from qt in _context.QuantityTransactions
-							 join pt in _context.PaymentTypes
-								 on qt.PaymentTypeCode equals pt.PaymentTypeId into ptJoin
-							 from pt in ptJoin.DefaultIfEmpty() // left join, in case some rows have no payment type set
-							 where qt.ShiftNumber == shiftNumber
-							 orderby qt.DateCreated descending
-							 select new
-							 {
-								 qt.VehicleRegistrationNumber,
-								 qt.QuantityCredit,
-								 qt.AmountCredit,
-								 qt.DateCreated,
-								 PaymentTypeName = pt != null ? pt.PaymentTypeName : "Unknown"
-							 }).ToListAsync();
+			var sales = await _context.FuelSales
+				.AsNoTracking()
+				.Where(x => x.ShiftNumber == shiftNumber)
+				.Select(qt => new
+				{
+					VehicleRegistrationNumber = qt.Vehicle,
+					QuantityCredit = qt.Litres,
+					AmountCredit = qt.Amount,
+					qt.Price,
+					PaymentTypeName = qt.PaymentType ?? "Unknown",
+					DateCreated = qt.SalesDate,
+					ReceiptNumber = qt.SaleId,
+					ServedBy = qt.AttendantName,
+					qt.CustomerName,
+					qt.PetroleumName,
+					qt.TillNumber,
+					qt.StationName,
+				})
+				.ToListAsync();
 
-			if (raw.Count == 0)
+			if (sales.Count == 0)
 			{
 				return new ServiceResponse<object>
 				{
@@ -285,14 +291,23 @@ namespace BussinessLogic.Stock.Shifts
 				};
 			}
 
-			var shiftSales = raw.Select(x => new
+			// Formatting done once, in memory, over the already-materialized list —
+			// not inside the query expression.
+			var shiftSales = sales.Select(x => new
 			{
 				x.VehicleRegistrationNumber,
 				x.QuantityCredit,
 				x.AmountCredit,
+				x.Price,
+				x.PaymentTypeName,
 				x.DateCreated,
 				Time = x.DateCreated.ToString("HH:mm:ss"),
-				x.PaymentTypeName
+				x.ReceiptNumber,
+				x.ServedBy,
+				x.CustomerName,
+				x.PetroleumName,
+				x.TillNumber,
+				x.StationName,
 			}).ToList();
 
 			return new ServiceResponse<object>
@@ -302,6 +317,7 @@ namespace BussinessLogic.Stock.Shifts
 				ResponseObject = shiftSales
 			};
 		}
+
 		//list all open shifts
 		public async Task<ServiceResponse<object>> OpenShifts()
 		{

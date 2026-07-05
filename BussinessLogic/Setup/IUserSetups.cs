@@ -8,7 +8,7 @@ namespace BusinessLogic.SetupService
 	public interface IUserSetups
 	{
 		Task<ServiceResponse<object>> AddPaymentType(string paymentType);
-		Task<ServiceResponse<object>> AddPrice(List<UpdatePrice> updatePrice);
+		Task<ServiceResponse<object>> UpdatePrice(string productCode, decimal newAmount);
 		Task<ServiceResponse> AddPriceSchedule(List<PriceChangeSchedule> schedule);
 		Task<ServiceResponse<object>> AddProduct(AddProductDto product);
 		Task<ServiceResponse<object>> AddRecipients(int type, string reportCode, string email);

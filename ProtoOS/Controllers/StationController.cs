@@ -65,24 +65,7 @@ namespace FuelFlow.Controllers
 			return HandleResponse(response);
 		}
 
-		// Station Tank Endpoints
-		[HttpPost]
-		[Route("AddTank")]
-		[Authorize(Roles = "can add a tank")]
-		public async Task<IActionResult> AddTank(AddTankDto addTank)
-		{
-			var response = await _stationTanks.AddTank(addTank);
-			return HandleResponse(response);
-		}
 
-		[HttpPost]
-		[Route("UpdateTank")]
-		[Authorize(Roles = "can update a tank")]
-		public async Task<IActionResult> UpdateTank(UpdateTankDto updateTank)
-		{
-			var response = await _stationTanks.UpdateTank(updateTank);
-			return HandleResponse(response);
-		}
 
 		[HttpGet]
 		[Route("GetAllTanks")]
