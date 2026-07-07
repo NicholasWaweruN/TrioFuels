@@ -70,5 +70,6 @@ namespace DataAccessLayer.EntityModels.Db_Views
 		public string? TillNumber { get; set; }
 		public string TransId { get; set; } = string.Empty;
 		public decimal RunningBalance { get; set; }
+		
 	}
 }

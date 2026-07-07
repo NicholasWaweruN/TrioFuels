@@ -39,8 +39,8 @@ namespace BussinessLogic.Sales.SalesData
 				select new SalesByPaymentMethodDto
 				{
 					PaymentName = g.Key.PaymentTypeName,
-					QuantitySold = g.Sum(x => x.QuantityCredit),
-					Amount = g.Sum(x => x.AmountCredit)
+					QuantitySold = g.Sum(x => x.QuantityCredit-x.QuantityDebit),
+					Amount = g.Sum(x => x.AmountCredit-x.AmountDebit)
 				};
 
 			var results = await query.ToListAsync();
