@@ -116,7 +116,11 @@ namespace BussinessLogic.Sales.ReverseSales
 					// --- Out-of-transaction reconcile (safe to fail independently) --------------
 					try
 					{
-						await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
+						bool shiftIsOpen = await _context.Shifts.AnyAsync(x => x.ShiftNumber == sale.ShiftNumber && x.ShiftStatus == ShiftStatus.Open);
+						if (!shiftIsOpen)
+						{
+							await _salesTasks.ReconcileStockSummariesAsync(sale.ShiftNumber);
+						}
 					}
 					catch (Exception reconcileEx)
 					{
