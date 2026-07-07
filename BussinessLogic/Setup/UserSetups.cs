@@ -204,48 +204,47 @@ namespace BussinessLogic.Setup
 		}
 		public async Task<ServiceResponse<object>> GetPriceInfo(string nozzleCode)
 		{
-			// Single round trip: Nozzle -> Dispenser (for StationCode) -> Prices ->
-			// PetroleumProducts, all joined in one query instead of three sequential
-			// awaits. Also fixes a real bug: the old version never resolved station
-			// at all, so on any station with multiple Price rows for the same
-			// product it could pick an arbitrary one — same issue ResolveUnitPriceAsync
-			// had before it was scoped to StationCode.
-			var result = await (
+			// Single round trip in ALL cases, including "not found". Prices are matched
+			// purely on ProductCode now — no station involved, and Nozzle never carried
+			// a StationCode to join on in the first place. Using left joins (via
+			// DefaultIfEmpty) means "does the nozzle exist" and "is price configured"
+			// both come out of the same query, so there's never a second trip.
+			var row = await (
 				from n in _context.Nozzles.AsNoTracking()
 				where n.NozzleCode == nozzleCode
-				join d in _context.Dispensers.AsNoTracking() on n.DispenserCode equals d.DispenserCode
-				join p in _context.Prices.AsNoTracking()
-					on new { Product = n.PetroleumCode, Station = d.StationCode }
-					equals new { Product = p.ProductCode, Station = p.StationCode }
-				join pp in _context.PetroleumProducts.AsNoTracking()
-					on n.PetroleumCode equals pp.PetroleumCode
+				join p in _context.Prices.AsNoTracking() on n.PetroleumCode equals p.ProductCode
+					into priceJoin
+				from p in priceJoin.DefaultIfEmpty()
+				join pp in _context.PetroleumProducts.AsNoTracking() on n.PetroleumCode equals pp.PetroleumCode
+					into productJoin
+				from pp in productJoin.DefaultIfEmpty()
 				select new
 				{
 					n.PetroleumCode,
-					Price = p.Amount,
-					Discount = p.Discount,
-					ProductName = pp.PetroleumName,
+					Price = (decimal?)p.Amount,
+					Discount = (decimal?)p.Discount,
+					ProductName = pp != null ? pp.PetroleumName : null,
 				}
 			).FirstOrDefaultAsync();
 
-			if (result == null)
-			{
-				// Distinguish "nozzle doesn't exist" from "price not configured" with
-				// one cheap follow-up check only when the main query comes back empty
-				// — keeps the common (found) path to a single round trip.
-				var nozzleExists = await _context.Nozzles.AsNoTracking().AnyAsync(n => n.NozzleCode == nozzleCode);
-				return nozzleExists
-					? ServiceResponse<object>.Information("Price not configured for this nozzle/station", null)
-					: ServiceResponse<object>.Information("Nozzle not found", null);
-			}
+			// No row at all means the WHERE on NozzleCode matched nothing.
+			if (row == null)
+				return ServiceResponse<object>.Information("Nozzle not found", null);
+
+			// Nozzle exists, but the left-joined Price came back empty.
+			if (row.Price == null)
+				return ServiceResponse<object>.Information("Price not configured for this product", null);
+
+			var discount = row.Discount ?? 0m;
+			var finalPrice = Math.Max(row.Price.Value - discount, 0);
 
 			return ServiceResponse<object>.Success("", new
 			{
-				result.PetroleumCode,
-				result.Price,
-				result.Discount,
-				result.ProductName,
-				FinalPrice = Math.Max(result.Price - result.Discount, 0)
+				row.PetroleumCode,
+				Price = row.Price.Value,
+				Discount = discount,
+				row.ProductName,
+				FinalPrice = finalPrice
 			});
 		}
 		public async Task<ServiceResponse<object>> AddRecipients(int type, string reportCode, string email)

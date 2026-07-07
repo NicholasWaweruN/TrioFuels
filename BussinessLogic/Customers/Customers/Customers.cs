@@ -672,6 +672,8 @@ namespace BusinessLogic.CustomerService
 				customer.CreditLimit = updateCustomer.CreditLimit;
 				customer.IsActive = true;
 				customer.RoyaltyPointPerLitre = 0;
+				
+				
 
 
 				// Update the customer in the database
