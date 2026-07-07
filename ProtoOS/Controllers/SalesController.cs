@@ -83,7 +83,7 @@ namespace FuelFlow.Controllers
 		}
 
 
-	
+		
 
 
 		[HttpPost]
@@ -201,18 +201,6 @@ namespace FuelFlow.Controllers
 			var response = await _reverse.ReverseSaleAsync(saleid);
 			return CreateResponse(response);
 		}
-
-		[HttpGet]
-		[Route("GetEmployeePrice")]
-		[Authorize(Roles = "can view employee price")]
-		public async Task<IActionResult> GetEmployeeAsync(string userCode)
-		{
-			var response = await _missing.GetEmployeeAsync(userCode);
-			return CreateResponse(response);
-		}
-
-
-	
 
 		[HttpGet]
 		[Route("CustomerAllVehiclesStatement/{customerCode}")]

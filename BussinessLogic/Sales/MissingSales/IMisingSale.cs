@@ -7,9 +7,8 @@ namespace BussinessLogic.Sales.MissingSales
 	{
 		Task<ServiceResponse<object>> AddSalesAsync(MisingSaleDto sales);
 		Task<ServiceResponse> DeferVariance(string shiftNumber);
-		Task<ServiceResponse> OffWriteVariance(string shiftNumber);
 		Task<ServiceResponse> ReconcileStockSummaries(string shiftNumber);
 		Task<MisingSale.StationData> StationsName(string dispenserCode);
-		Task<string> StoreNumber(string dispenserCode);
+		Task<string> TillNumber(string dispenserCode);
 	}
 }

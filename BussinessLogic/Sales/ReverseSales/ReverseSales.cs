@@ -78,18 +78,33 @@ namespace BussinessLogic.Sales.ReverseSales
 
 					// --- Stage domain changes (no SaveChanges yet) ------------------------------
 					if (sale.PaymentTypeCode == PaymetMethod.Wallet)
-					AddCustomerTransactionIfVehiclePresent(sale.VehicleRegistrationNumber, sale.AmountDebit, transactionCode);
+						AddCustomerTransactionIfVehiclePresent(sale.VehicleRegistrationNumber, sale.AmountDebit, transactionCode);
 
 					AddReversedQuantityTransactionAndMarkOriginal(sale, transactionCode);
 					await AddReversedPaymentTransactionsAsync(sale);
 
-					// Trail entry
+					// Trail entry. BuildReverseSaleMessage does its own display-name lookups; if those
+					// fail for any reason we still want the reversal itself to succeed, so we fall back
+					// to a plain message rather than aborting the whole operation over a cosmetic detail.
+					string trailMessage;
+					try
+					{
+						trailMessage = await BuildReverseSaleMessage(sale);
+					}
+					catch (Exception trailEx)
+					{
+						_logger.LogError(trailEx,
+							"Failed to build detailed trail message for sale {SaleId}; falling back to plain message.",
+							sale.SaleId);
+						trailMessage = $"User '{_authentication.Name()}' (Code: {_authentication.Usercode()}) reversed sale [SaleId={sale.SaleId}] on Shift [{sale.ShiftNumber}].";
+					}
+
 					_context.UserTrails.Add(new UserTrail
 					{
 						UserCode = _authentication.Usercode(),
 						UserName = _authentication.Name(),
 						ActionType = "ReverseSale",
-						Message = await BuildReverseSaleMessage(sale),
+						Message = trailMessage,
 						ShiftNumber = sale.ShiftNumber,
 						DateCreated = DateTime.UtcNow
 					});
@@ -162,12 +177,11 @@ namespace BussinessLogic.Sales.ReverseSales
 					// station-match check below — but if they ARE station-scoped, this prevents
 					// a sale from silently jumping to a nozzle on a different station.
 
-					var nozzle = await(from n in _context.Nozzles 
-									   join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
-									   select d
-									   ).FirstOrDefaultAsync();
+					var nozzle = await (from n in _context.Nozzles
+										join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
+										select d
+										).FirstOrDefaultAsync();
 
-			
 					if (nozzle == null)
 						return ServiceResponse<object>.Information($"Nozzle {nozzleCode} does not exist in the system", null);
 
@@ -306,7 +320,7 @@ namespace BussinessLogic.Sales.ReverseSales
 					// try/catch so a failure here logs cleanly without rolling back the reversal.
 					try
 					{
-						 await _salesTasks.UpdateMpesaPaymentStatus(p.PaymentRefrence);
+						await _salesTasks.UpdateMpesaPaymentStatus(p.PaymentRefrence);
 					}
 					catch (Exception mpesaEx)
 					{
@@ -319,21 +333,26 @@ namespace BussinessLogic.Sales.ReverseSales
 		}
 
 		/// <summary>
-		/// Looks up display names for the trail message. Runs the three lookups concurrently
-		/// (independent tables, no shared state) instead of sequentially to cut latency.
+		/// Looks up display names for the trail message.
+		///
+		/// FIX: previously ran these three queries concurrently via Task.WhenAll on the shared
+		/// _context, which throws "A second operation was started on this context instance
+		/// before a previous operation completed" — a single DbContext/connection cannot run
+		/// concurrent operations, even across unrelated DbSets. Queries are now awaited
+		/// sequentially. This is a few extra round-trips, but correct; if real parallelism is
+		/// wanted later, each concurrent query needs its own DbContext instance (e.g. via
+		/// IDbContextFactory&lt;OTOContext&gt;), not a shared one.
 		/// </summary>
 		private async Task<(string stationName, string nozzleName, string numberPlate)> GetStationAndNozzleNames(
 			string stationCode, string nozzleCode, string vehicleCode)
 		{
-			var stationTask = _context.Stations.AsNoTracking().FirstOrDefaultAsync(s => s.StationCode == stationCode);
-			var nozzleTask = _context.Nozzles.AsNoTracking().FirstOrDefaultAsync(n => n.NozzleCode == nozzleCode);
-			var vehicleTask = _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.VehicleCode == vehicleCode);
+			var station = await _context.Stations.AsNoTracking().FirstOrDefaultAsync(s => s.StationCode == stationCode);
+			var nozzle = await _context.Nozzles.AsNoTracking().FirstOrDefaultAsync(n => n.NozzleCode == nozzleCode);
+			var vehicle = await _context.Vehicles.AsNoTracking().FirstOrDefaultAsync(v => v.VehicleCode == vehicleCode);
 
-			await Task.WhenAll(stationTask, nozzleTask, vehicleTask);
-
-			var stationName = stationTask.Result?.StationName ?? "Unknown Station";
-			var nozzleName = nozzleTask.Result?.NozzleName ?? "Unknown Nozzle";
-			var numberPlate = vehicleTask.Result?.VehicleRegistrationNumber ?? "Unknown Vehicle";
+			var stationName = station?.StationName ?? "Unknown Station";
+			var nozzleName = nozzle?.NozzleName ?? "Unknown Nozzle";
+			var numberPlate = vehicle?.VehicleRegistrationNumber ?? "Unknown Vehicle";
 
 			return (stationName, nozzleName, numberPlate);
 		}

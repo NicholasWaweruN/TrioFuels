@@ -39,8 +39,8 @@ public static class DarajaServiceExtensions
 		services.AddSingleton<IDarajaTokenService, DarajaTokenService>();
 		services.AddScoped<IStkPushService, StkPushService>();
 		services.AddScoped<IC2BService, C2BService>();
-		services.AddScoped<IPullTransactionService, PullTransactionService>();
-		services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
+		//services.AddScoped<IPullTransactionService, PullTransactionService>();
+		//services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
 		//services.AddHostedService<C2BRegistrationStartupService>();
 
 

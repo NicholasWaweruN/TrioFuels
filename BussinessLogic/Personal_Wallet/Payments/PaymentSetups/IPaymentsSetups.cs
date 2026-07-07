@@ -7,6 +7,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 {
 	public interface IPaymentsSetups
 	{
+		Task<ServiceResponse<UnusedMpesaTransactionDto>> ConfirmMpesaPayment(string transId, string dispenserCode);
 		Task<ServiceResponse<UnUsedMpesaCodes>> CheckUnusedMpesaCode([Required] string tillNumber, [Required] string shiftNumber, [Required] decimal amount);
 		Task<ServiceResponse<object>> ActivateMpesa(string transId);
 		Task<ServiceResponse<MpesaTransactionDto>> AddMpesaTransaction(MpesaC2BPayment mpesaC2BPayment);

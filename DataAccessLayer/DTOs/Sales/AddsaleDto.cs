@@ -33,11 +33,13 @@ namespace DataAccessLayer.DTOs.Sales
 
 		public string? CustomerCode { get; set; } = string.Empty;
 		public string? WalletId { get; set; } = string.Empty;
-		public string VehicleCode { get; set; } = string.Empty;
+		public string VehicleRegistrationNumber { get; set; } = string.Empty;
 		[Required]
 		public int PaymentTypeCode { get; set; }
 		[Required]
 		public string NozzleCode { get; set; } = string.Empty;
+		[Required]
+		public string ProductCode { get; set; } = string.Empty;
 		[Required]
 		public string ShiftNumber { get; set; } = string.Empty;
 		[Required]

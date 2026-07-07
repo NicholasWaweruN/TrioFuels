@@ -668,7 +668,11 @@ namespace BusinessLogic.CustomerService
 				var CreditLimit = customerDetails.CreditLimit;
 				if (CreditLimit > 0)
 					return ServiceResponse<object>.Information($"Customer {customerDetails.CustomerName} has a credit limit, You can not add to specific vehicles", null);
+
 				customer.CreditLimit = updateCustomer.CreditLimit;
+				customer.IsActive = true;
+				customer.RoyaltyPointPerLitre = 0;
+
 
 				// Update the customer in the database
 				_context.Vehicles.Update(customer);

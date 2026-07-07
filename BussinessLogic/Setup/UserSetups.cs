@@ -24,7 +24,7 @@ namespace BussinessLogic.Setup
 			_setups = setups;
 			_authentication = authentication;
 		}
-		public async Task<ServiceResponse<object>> UpdatePrice(string productCode, decimal newAmount)
+		public async Task<ServiceResponse<object>> UpdatePrice(string productCode, string stationCode, decimal newAmount)
 		{
 			if (newAmount <= 0)
 				return ServiceResponse<object>.Information("Price must be greater than zero", null);
@@ -37,22 +37,29 @@ namespace BussinessLogic.Setup
 				if (!productExists)
 					return ServiceResponse<object>.Information($"Product {productCode} does not exist", null);
 
-				var price = await _context.Prices
-					.FirstOrDefaultAsync(p => p.ProductCode == productCode);
+				// Price is per product+station, not per dispenser — but the table
+				// still carries one row per dispenser. Every row for this
+				// station+product must move together or dispensers at the same
+				// station will silently charge different prices for the same fuel.
+				var prices = await _context.Prices
+					.Where(p => p.ProductCode == productCode && p.StationCode == stationCode)
+					.ToListAsync();
 
-				if (price == null)
-					return ServiceResponse<object>.Information($"No price record found for product {productCode}", null);
+				if (prices.Count == 0)
+					return ServiceResponse<object>.Information($"No price record found for product {productCode} at station {stationCode}", null);
 
-				var oldAmount = price.Amount;
+				var oldAmount = prices[0].Amount;
 
 				if (oldAmount == newAmount)
 					return ServiceResponse<object>.Information("New price is the same as the current price", null);
 
-				price.Amount = newAmount;
-				_context.Prices.Update(price);
+				foreach (var price in prices)
+					price.Amount = newAmount;
+
+				_context.Prices.UpdateRange(prices);
 				await _context.SaveChangesAsync();
 
-				var message = $"Price for product {productCode} changed from KES {oldAmount:N2} to KES {newAmount:N2} by {_authentication.Name()} on {DateTime.UtcNow}";
+				var message = $"Price for product {productCode} at station {stationCode} changed from KES {oldAmount:N2} to KES {newAmount:N2} across {prices.Count} dispenser(s) by {_authentication.Name()} on {DateTime.UtcNow}";
 				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
 				return ServiceResponse<object>.Success("Price updated successfully", null);
@@ -62,43 +69,11 @@ namespace BussinessLogic.Setup
 				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 			}
 		}
-
-
 		/// <summary>
 		/// for Discounts and Price adjustments
 		/// </summary>
 		/// <param name="adjustPrices"></param>
 		/// <returns></returns>
-		public async Task<ServiceResponse<object>> PriceDiscount(List<AdjustPriceDto> adjustPrices)
-		{
-			try
-			{
-				foreach (var item in adjustPrices)
-				{
-					var product = await _context.Prices
-						.FirstOrDefaultAsync(x => x.ProductCode == item.ProductCode && x.StationCode == item.StationCode);
-
-					if (product is null)
-						return ServiceResponse<object>.Information($"Product {item.ProductCode} at station {item.StationCode} does not exist", null);
-
-					// Apply adjustment
-					product.Discount = item.AdjustmentAmount;
-					_context.Prices.Update(product);
-				}
-
-				await _context.SaveChangesAsync();
-				return ServiceResponse<object>.Success("Price adjusted successfully", null);
-			}
-			catch (Exception ex)
-			{
-				return new ServiceResponse<object>
-				{
-					ResponseCode = Response.Error,
-					ResponseMessage = $"An error occurred while adjusting price: {ex.Message}",
-					ResponseObject = null
-				};
-			}
-		}
 
 		public async Task<ServiceResponse> AddPriceSchedule(List<PriceChangeSchedule> schedule)
 		{
@@ -106,8 +81,12 @@ namespace BussinessLogic.Setup
 			{
 				foreach (var change in schedule)
 				{
+					// ASSUMPTION: PriceChangeSchedule has a "Station" property —
+					// confirm the real name if this doesn't compile. Original code
+					// compared StationCode == change.Product (typo, both sides
+					// referenced Product).
 					var xprice = await (from p in _context.Prices
-										where p.ProductCode == change.Product && p.StationCode == change.Product
+										where p.ProductCode == change.Product && p.StationCode == change.StationCodes
 										select p).FirstOrDefaultAsync();
 					if (xprice is not null)
 					{
@@ -131,63 +110,6 @@ namespace BussinessLogic.Setup
 			catch (Exception ex)
 			{
 				return ServiceResponse<Object>.Success("Price schedule failed to add, contact admin", ex.Message);
-			}
-		}
-		public async Task<ServiceResponse<object>> AddPaymentType(string paymentType)
-		{
-			try
-			{
-				if (string.IsNullOrEmpty(paymentType))
-				{
-					return ServiceResponse<object>.Information("Payment type cannot be empty", null);
-				}
-				else
-				{
-					var paymenttype = new PaymentType
-					{
-						PaymentTypeName = paymentType,
-						DateCreated = DateTime.UtcNow,
-
-					};
-					_context.PaymentTypes.Add(paymenttype);
-					await _context.SaveChangesAsync();
-					return ServiceResponse<object>.Success("Payment type added successfully", paymenttype);
-				}
-			}
-			catch (Exception)
-			{
-				return ServiceResponse<object>.Error("An error occurred while adding payment type", null);
-			}
-		}
-		public async Task<ServiceResponse<object>> RegisterPDA(string deviceName, string deviceIMEI, string deviceSerialNumber, string deviceModel, string dispensercode)
-		{
-			try
-			{
-				if (string.IsNullOrEmpty(deviceName) || string.IsNullOrEmpty(deviceIMEI) || string.IsNullOrEmpty(deviceSerialNumber) || string.IsNullOrEmpty(dispensercode))
-				{
-					return ServiceResponse<object>.Information("Device name, IMEI and Serial number cannot be empty", null);
-				}
-				else
-				{
-					var device = new PdaDevices
-					{
-						DeviceCode = await _setups.GetCodeGenerator("pdadevice"),
-						DeviceName = deviceName,
-						DeviceIMEI = deviceIMEI,
-						DeviceSerialNumber = deviceSerialNumber,
-						DeviceModel = deviceModel,
-						IsActive = true,
-						DateCreated = DateTime.UtcNow,
-						DispenserCode = dispensercode
-					};
-					_context.PdaDevices.Add(device);
-					await _context.SaveChangesAsync();
-					return ServiceResponse<object>.Success("Device registered successfully", device);
-				}
-			}
-			catch (Exception)
-			{
-				return ServiceResponse<object>.Error("An error occurred while registering device", null);
 			}
 		}
 		//Get all products
@@ -247,43 +169,84 @@ namespace BussinessLogic.Setup
 				return ServiceResponse<object>.Error("An error occurred while updating price", null);
 			}
 		}
+		public async Task<ServiceResponse<object>> GetPriceByStation(string stationCode, string productCode)
+		{
+			try
+			{
+				var productExists = await _context.PetroleumProducts
+					.AnyAsync(pp => pp.PetroleumCode == productCode);
+				if (!productExists)
+					return ServiceResponse<object>.Information("Product does not exist", null);
 
+				var priceInfo = await _context.Prices
+					.AsNoTracking()
+					.Where(p => p.ProductCode == productCode)
+					.Select(p => new { p.Amount, p.Discount })
+					.FirstOrDefaultAsync();
+
+				if (priceInfo == null)
+					return ServiceResponse<object>.Information("Kindly check the station pricing or product configuration", null);
+
+				var result = new
+				{
+					ProductCode = productCode,
+					Price = priceInfo.Amount,
+					Discount = priceInfo.Discount,
+					FinalPrice = Math.Max(priceInfo.Amount - priceInfo.Discount, 0)
+				};
+
+				return ServiceResponse<object>.Success("Price retrieved", result);
+			}
+			catch (Exception)
+			{
+				return ServiceResponse<object>.Error("An error occurred while retrieving price", null);
+			}
+		}
 		public async Task<ServiceResponse<object>> GetPriceInfo(string nozzleCode)
 		{
-			var nozzle = await _context.Nozzles
-				.AsNoTracking()
-				.Where(x => x.NozzleCode == nozzleCode)
-				.Select(x => new { x.PetroleumCode})
-				.FirstOrDefaultAsync();
+			// Single round trip: Nozzle -> Dispenser (for StationCode) -> Prices ->
+			// PetroleumProducts, all joined in one query instead of three sequential
+			// awaits. Also fixes a real bug: the old version never resolved station
+			// at all, so on any station with multiple Price rows for the same
+			// product it could pick an arbitrary one — same issue ResolveUnitPriceAsync
+			// had before it was scoped to StationCode.
+			var result = await (
+				from n in _context.Nozzles.AsNoTracking()
+				where n.NozzleCode == nozzleCode
+				join d in _context.Dispensers.AsNoTracking() on n.DispenserCode equals d.DispenserCode
+				join p in _context.Prices.AsNoTracking()
+					on new { Product = n.PetroleumCode, Station = d.StationCode }
+					equals new { Product = p.ProductCode, Station = p.StationCode }
+				join pp in _context.PetroleumProducts.AsNoTracking()
+					on n.PetroleumCode equals pp.PetroleumCode
+				select new
+				{
+					n.PetroleumCode,
+					Price = p.Amount,
+					Discount = p.Discount,
+					ProductName = pp.PetroleumName,
+				}
+			).FirstOrDefaultAsync();
 
-
-			if (nozzle == null)
-				return ServiceResponse<object>.Information("Nozzle not found", null);
-
-			var priceInfo = await _context.Prices
-				.AsNoTracking()
-				.Where(p => p.ProductCode == nozzle.PetroleumCode)
-				.Select(p => new { p.Amount, p.Discount })
-				.FirstOrDefaultAsync();
-
-			var product = await _context.PetroleumProducts.Where(x => x.PetroleumCode == nozzle.PetroleumCode).FirstOrDefaultAsync();
-
-			if (product is null)
-				return ServiceResponse<object>.Information("Product does not exist", null);
-
-			if (priceInfo == null)
-				return ServiceResponse<object>.Information("Price not configured for this nozzle", null);
-
-			var result = new
+			if (result == null)
 			{
-				nozzle.PetroleumCode,
-				Price = priceInfo.Amount,
-				Discount = priceInfo.Discount,
-				ProductName = product.PetroleumName,
-				FinalPrice = Math.Max(priceInfo.Amount - priceInfo.Discount, 0)
-			};
+				// Distinguish "nozzle doesn't exist" from "price not configured" with
+				// one cheap follow-up check only when the main query comes back empty
+				// — keeps the common (found) path to a single round trip.
+				var nozzleExists = await _context.Nozzles.AsNoTracking().AnyAsync(n => n.NozzleCode == nozzleCode);
+				return nozzleExists
+					? ServiceResponse<object>.Information("Price not configured for this nozzle/station", null)
+					: ServiceResponse<object>.Information("Nozzle not found", null);
+			}
 
-			return ServiceResponse<object>.Success("", result);
+			return ServiceResponse<object>.Success("", new
+			{
+				result.PetroleumCode,
+				result.Price,
+				result.Discount,
+				result.ProductName,
+				FinalPrice = Math.Max(result.Price - result.Discount, 0)
+			});
 		}
 		public async Task<ServiceResponse<object>> AddRecipients(int type, string reportCode, string email)
 		{

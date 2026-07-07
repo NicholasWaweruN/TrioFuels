@@ -744,8 +744,7 @@ namespace BussinessLogic.Sales.NewSales
 			return (price, 0m);
 		}
 
-		public async Task<ServiceResponse<MpesaManualConfirmationDto?>> ConfirmMpesaManualAsync(
-			string transId, CancellationToken ct)
+		public async Task<ServiceResponse<MpesaManualConfirmationDto?>> ConfirmMpesaManualAsync(string transId, CancellationToken ct)
 		{
 			var tx = await _context.MpesaTransactions
 				.AsNoTracking()
@@ -756,9 +755,9 @@ namespace BussinessLogic.Sales.NewSales
 				return ServiceResponse<MpesaManualConfirmationDto?>.Information(
 					"Transaction not found or already used", null);
 
-			return ServiceResponse<MpesaManualConfirmationDto?>.Success(
-				"Transaction verified successfully",
-				new MpesaManualConfirmationDto(
+			return ServiceResponse<MpesaManualConfirmationDto?>.Success("Transaction verified successfully",
+				new MpesaManualConfirmationDto
+				(
 					TransID: tx.TransID,
 					Amount: tx.UsageBalance.ToString(),
 					TillNumber: tx.TillNumber,
@@ -766,8 +765,8 @@ namespace BussinessLogic.Sales.NewSales
 				));
 		}
 
-		private async Task<ServiceResponse<decimal>> GetTotalUsableMpesaAsync(
-			IEnumerable<string?> transIds, string tillNumber)
+
+		private async Task<ServiceResponse<decimal>> GetTotalUsableMpesaAsync(IEnumerable<string?> transIds, string tillNumber)
 		{
 			decimal total = 0m;
 

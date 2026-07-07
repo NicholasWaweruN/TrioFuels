@@ -136,6 +136,14 @@ namespace FuelFlow.Controllers
 			var response = await _payments.CheckUnusedMpesaCode(tillNumber, shiftNumber, amount);
 			return CreateResponse(response);
 		}
+
+		[HttpPost("ConfirmPayment/{transId}/{dispenserCode}")]
+		public async Task<IActionResult> ConfirmPayment(string transId, string dispenserCode)
+		{
+			var result = await _payments.ConfirmMpesaPayment(transId, dispenserCode);
+			return Ok(result);
+		}
+
 		#endregion
 	}
 }

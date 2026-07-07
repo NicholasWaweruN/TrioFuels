@@ -1,18 +1,19 @@
 ﻿using BusinessLogic.EmailService;
 using BusinessLogic.Sales.CommonSalesTasks;
 using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.Sales.NewSales;
 using BussinessLogic.Setup;
-using ClosedXML.Excel;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Sales;
-using DataAccessLayer.EntityModels.Customer;
-using DataAccessLayer.EntityModels.Messaging;
-using DataAccessLayer.EntityModels.Personal_Wallet;
+using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
 using System.ComponentModel.DataAnnotations;
+using System.Data;
 
 
 namespace BussinessLogic.Sales.MissingSales
@@ -25,8 +26,9 @@ namespace BussinessLogic.Sales.MissingSales
 		private readonly IAuthCommonTasks _authentication;
 		private readonly ICommonSalesTasks _salesTasks;
 		private readonly IMessagingService _isTalking;
+		private readonly ILoyaltyServices _loyalty;
 
-		public MisingSale(OTOContext context, ICommonSetups setups, IAuthCommonTasks authentication, ICommonSalesTasks salesTasks, IMessagingService isTalking, IMemoryCache cache)
+		public MisingSale(OTOContext context, ICommonSetups setups, IAuthCommonTasks authentication, ICommonSalesTasks salesTasks, IMessagingService isTalking, IMemoryCache cache,ILoyaltyServices loyalty)
 		{
 			_context = context;
 			_setups = setups;
@@ -34,12 +36,13 @@ namespace BussinessLogic.Sales.MissingSales
 			_salesTasks = salesTasks;
 			_isTalking = isTalking;
 			_cache = cache;
+			_loyalty = loyalty;
 		}
 
 		// State for the current operation
 		private decimal _unitPrice = 0m;
 		private string _saleId = string.Empty;
-		private string _storeNumber = string.Empty;
+		private string _tillNumber = string.Empty;
 		private string _stationCode = string.Empty;
 		private string _stationName = string.Empty;
 		private decimal _discount = 0;
@@ -58,18 +61,13 @@ namespace BussinessLogic.Sales.MissingSales
 
 				await LoadStationContextAsync(sales.DispenserCode);
 
-				// REFACTORED: no Vehicles table anymore. sales.VehicleCode is now
-				// just a free-text registration number supplied by the user/client
-				// — no entity lookup or validation against it beyond a non-empty
-				// check for payment types that require a vehicle/registration.
-				var paymentType = sales.PaymentTypeCode;
-				if (paymentType != 3 && paymentType != 4 && paymentType != 5 && paymentType != 6 && paymentType != 8 && paymentType != 10)
+				if (sales.PaymentTypeCode == PaymetMethod.Mpesa)
 				{
-					if (string.IsNullOrWhiteSpace(sales.VehicleCode))
+					if (string.IsNullOrWhiteSpace(sales.VehicleRegistrationNumber))
 						return ServiceResponse<object>.Information("Vehicle/registration number is required", null);
 				}
 
-				// Resolve price once — now keyed off the nozzle's product, not a vehicle's product
+				// Resolve price once — now keyed directly off sales.ProductCode
 				var priceResolution = await ResolveUnitPriceAsync(sales);
 				if (priceResolution.ResponseCode != Response.Success)
 					return priceResolution;
@@ -83,127 +81,66 @@ namespace BussinessLogic.Sales.MissingSales
 			}
 		}
 
+		private async Task ReconcileAndUpdateUsageBalanceAsync(string transId)
+		{
+			// Tracked on purpose — this method mutates UsageBalance/Status and
+			// explicitly marks the entity Modified below.
+			var mpesaTx = await _context.MpesaTransactions
+				.FirstOrDefaultAsync(t => t.TransID == transId);
+
+			if (mpesaTx is null)
+			{
+				Console.WriteLine($"[Reconcile] ❌ MpesaTransaction not found for TransID={transId}");
+				return;
+			}
+
+			// ── Sum only the amount actually allocated to THIS code, not the
+			// ── full sale total — a sale can be split across two M-Pesa codes,
+			// ── and each code must only be debited by its own share.
+			var totalUsed = await (
+				from p in _context.PaymentTransactions.AsNoTracking()
+				join q in _context.QuantityTransactions.AsNoTracking() on p.SaleId equals q.SaleId
+				where p.PaymentRefrence == transId && !q.IsReversed
+				select p.TransactionAmount
+			).SumAsync();
+
+			mpesaTx.UsageBalance = Math.Max(0, mpesaTx.TransAmount - totalUsed);
+			mpesaTx.Status = mpesaTx.UsageBalance <= 0 ? 0 : 1;
+			mpesaTx.DateModified = EatTime.Now;
+
+			_context.Entry(mpesaTx).State = EntityState.Modified;
+		}
+
 		// ====== CENTRALIZED PRICE LOGIC ======
 
-		// REFACTORED: dropped Vehicle parameter. Product is now resolved via the
-		// nozzle's PetroleumCode, consistent with vw_SalesData's product join.
+		// REFACTORED: price is now resolved solely from sales.ProductCode
+		// (sourced from PetroleumProducts on the client) against the station's
+		// Prices table. All other price-calculation paths have been removed:
+		// no more nozzle→PetroleumCode lookup, no discount, no price-approval
+		// workflow, and no employee fallback pricing. The unit price used for
+		// the sale IS the station's configured price for that product code —
+		// nothing else adjusts it.
 		private async Task<ServiceResponse<object>> ResolveUnitPriceAsync(MisingSaleDto sales)
 		{
-			var productCode = await _context.Nozzles
-				.Where(n => n.NozzleCode == sales.NozzleCode)
-				.Select(n => n.PetroleumCode)
-				.FirstOrDefaultAsync() ?? string.Empty;
+			var productPrice = await _context.Prices
+				.Where(p => p.ProductCode == sales.ProductCode)
+				.Select(p => (decimal?)p.Amount)
+				.FirstOrDefaultAsync() ?? 0m;
 
-			var prices = await GetStationPricesAsync(_stationCode);
-			var productPrice = prices
-				.Where(p => p.ProductCode == productCode)
-				.Select(p => p.Price)
-				.FirstOrDefault();
-
-			// if user provided a price differing from station price, require approval
-			if (productPrice != 0 && sales.Price != 0 && productPrice != sales.Price)
-			{
-				var (IsValid, Issue) = await HasValidPriceApprovalAsync(sales.VehicleCode, sales.Price, sales.ShiftNumber, sales.Quantity);
-				if (!IsValid)
-					return ServiceResponse<object>.Information(Issue, null);
-
-				_unitPrice = (decimal)sales.Price;
-				await ConsumePriceApprovalAsync(sales.VehicleCode, _unitPrice, sales.ShiftNumber);
-
-				// FIX (carried over): record the approved price as the original
-				// price with no further discount, rather than leaving these at 0.
-				_originalPrice = _unitPrice;
-				_discount = 0;
-
-				return ServiceResponse<object>.Success("Price resolved via approval", null);
-			}
-
-			_discount = await GetDiscount(productCode);
-
-			// normal path
 			if (productPrice == 0)
-			{
-				_unitPrice = await GetEmployeeFallbackPriceAsync(_stationCode);
-			}
-			else
-			{
-				_unitPrice = productPrice;
-			}
-
-			if (_unitPrice == 0)
 				return ServiceResponse<object>.Information("Kindly check the station pricing or product configuration", null);
-			_originalPrice = _unitPrice;
-			_unitPrice -= _discount;
+
+			_unitPrice = productPrice;
+			_originalPrice = productPrice;
+			_discount = 0;
+
 			return ServiceResponse<object>.Success("Price resolved", null);
-		}
-
-		// ─────────────────────────────────────────────
-		// Returns the highest configured discount for a product code,
-		// or 0 if no Prices row exists for that product (MaxAsync throws
-		// on an empty sequence, so we project to a nullable decimal first).
-		// ─────────────────────────────────────────────
-		private async Task<decimal> GetDiscount(string productCode)
-		{
-			return await _context.Prices
-				.Where(d => d.ProductCode == productCode)
-				.MaxAsync(d => (decimal?)d.Discount) ?? 0m;
-		}
-
-
-		private async Task<(bool IsValid, string Issue)> HasValidPriceApprovalAsync(string vehicleRegistration, decimal proposedPrice, string shiftNumber, decimal quantity)
-		{
-			var approval = await _context.PriceApproval.Where(p => p.NumberPlate == vehicleRegistration).OrderByDescending(p => p.Id).FirstOrDefaultAsync();
-
-
-			if (approval == null)
-				return (false, "No approval record found for this vehicle");
-
-			if (approval.ProposedPrice != proposedPrice)
-				return (false, $"Proposed price mismatch. Expected: {approval.ProposedPrice}, Got: {proposedPrice}");
-
-			if (approval.IsApprovalExecuted)
-				return (false, "Approval already executed");
-
-			if (!approval.IsApproved)
-				return (false, "Approval not granted");
-
-			if (approval.ShiftNumber != shiftNumber)
-				return (false, $"Shift number mismatch. Expected: {approval.ShiftNumber}, Got: {shiftNumber}");
-
-			if (approval.Quantity < quantity)
-				return (false, $"Approved quantity exceeded. Approved: {approval.Quantity}, Requested: {quantity}");
-			return (true, "Approval is valid");
-		}
-
-
-		private async Task ConsumePriceApprovalAsync(string vehicleRegistration, decimal proposedPrice, string shiftNumber)
-		{
-			var approval = await _context.PriceApproval.FirstOrDefaultAsync(p =>
-				p.NumberPlate == vehicleRegistration &&
-				p.ProposedPrice == proposedPrice &&
-				p.IsApproved == true &&
-				p.IsApprovalExecuted == false &&
-				p.ShiftNumber == shiftNumber);
-
-			if (approval != null)
-			{
-				approval.IsApprovalExecuted = true;
-				_context.PriceApproval.Update(approval);
-				await _context.SaveChangesAsync();
-			}
-		}
-
-		private async Task<decimal> GetEmployeeFallbackPriceAsync(string stationCode)
-		{
-			return await _context.Prices
-				.Where(x => x.StationCode == stationCode && x.ProductCode == "02")
-				.Select(x => (decimal?)x.Amount)
-				.MaxAsync() ?? 0m;
 		}
 
 		// ====== PAYMENT ROUTING ======
 		// REFACTORED: dropped the Vehicle parameter from the routing signature
 		// and every handler below — there's no vehicle entity to pass anymore.
+		// REMOVED: Insurance payment type/handler.
 		private async Task<ServiceResponse<object>> RoutePaymentAsync(MisingSaleDto sales)
 		{
 			return sales.PaymentTypeCode switch
@@ -211,131 +148,334 @@ namespace BussinessLogic.Sales.MissingSales
 				PaymetMethod.Mpesa => await HandleMpesaAsync(sales),
 				PaymetMethod.Operational_Loss => await HandleOperationalLossAsync(sales),
 				PaymetMethod.Employee_Mpesa_Payments => await HandleEmployeeMpesaAsync(sales),
-				PaymetMethod.Insurance => await HandleInsuranceAsync(sales),
 				PaymetMethod.Calibration => await HandleCalibrationAsync(sales),
+				PaymetMethod.Cash => await HandleCashAsync(sales),
+				PaymetMethod.PDQ => await HandlePDQAsync(sales),
+				PaymetMethod.Credit => await HandleCreditAsync(sales),
+				PaymetMethod.Loyalty => await HandleLoyaltyAsync(sales),
 				_ => ServiceResponse<object>.Information("Invalid payment type", null)
 			};
 		}
 
 		// ====== SMALL PAYMENT HANDLERS (all with detailed audit trails) ======
 
+		// FIXED: wrapped in a transaction so the QuantityTransactions insert
+		// and PaymentTransactions insert (done inside SaveTransactionDataAsync)
+		// commit or roll back together — matches HandleMpesaAsync's pattern.
+		// sales.VehicleRegistrationNumber is treated purely as a registration
+		// string and persisted as-is, with no lookup against Users or any
+		// other table.
 
+		private class CustomerData
+		{
+			public string CustomerCode = string.Empty;
+			public bool IsCreditCustomer;
+			public decimal CreditLimit;
+		}
 
+		private async Task<CustomerData?> GetCustomerByCodeAsync(string customerCode)
+			=> await _context.Customers.AsNoTracking()
+				.Where(c => c.CustomerCode == customerCode)
+				.Select(c => new CustomerData
+				{
+					CustomerCode = c.CustomerCode,
+					IsCreditCustomer = c.IsCreditCustomer,
+					CreditLimit = c.CreditLimit
+				})
+				.FirstOrDefaultAsync();
+
+		private Task<decimal> GetOutstandingCreditAsync(string customerCode)
+			=> _context.CreditTransactions.AsNoTracking()
+				.Where(c => c.CustomerCode == customerCode)
+				.SumAsync(c => c.Debit - c.Credit);
+
+		private async Task<ServiceResponse<object>> HandleCashAsync(MisingSaleDto sales)
+		{
+			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
+
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed a CASH SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
+					await _authentication.AddUserTrail(msg, nameof(HandleCashAsync));
+
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Cash sale entry rolled back: {ex.Message}", null);
+				}
+			});
+		}
+
+		private async Task<ServiceResponse<object>> HandlePDQAsync(MisingSaleDto sales)
+		{
+			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
+
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed a PDQ SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
+					await _authentication.AddUserTrail(msg, nameof(HandlePDQAsync));
+
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"PDQ sale entry rolled back: {ex.Message}", null);
+				}
+			});
+		}
+
+		private async Task<ServiceResponse<object>> HandleCreditAsync(MisingSaleDto sales)
+		{
+			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
+			if (string.IsNullOrWhiteSpace(sales.CustomerCode))
+				return ServiceResponse<object>.Information("Customer code is required for credit sales", null);
+
+			var customer = await GetCustomerByCodeAsync(sales.CustomerCode);
+			if (customer is null)
+				return ServiceResponse<object>.Information("Customer not found", null);
+			if (!customer.IsCreditCustomer)
+				return ServiceResponse<object>.Information("This customer is not approved for credit purchases.", null);
+
+			var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
+			var outstanding = await GetOutstandingCreditAsync(customer.CustomerCode);
+			var newExposure = outstanding + saleTotal;
+
+			if (newExposure > customer.CreditLimit)
+				return ServiceResponse<object>.Information($"Credit limit exceeded. Limit: {customer.CreditLimit:N2}, Outstanding: {outstanding:N2}, This sale: {saleTotal:N2}",new { customer.CreditLimit, Outstanding = outstanding });
+
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					await SaveTransactionDataAsync(sales, customer.CustomerCode);
+
+					_context.CreditTransactions.Add(new CreditTransactions
+					{
+						CustomerCode = customer.CustomerCode,
+						Credit = 0,
+						Debit = saleTotal,
+						SaleId = _saleId,
+						TransactionReference = sales.PaymentDetails.FirstOrDefault()?.TransactionReference ?? _saleId,
+						VehicleCode = sales.VehicleRegistrationNumber,
+						StationCode = _stationCode,
+						DateCreated = EatTime.Now,
+						UserCode = _authentication.Usercode()
+					});
+					await _context.SaveChangesAsync();
+
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed a CREDIT SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Customer={customer.CustomerCode} | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
+					await _authentication.AddUserTrail(msg, nameof(HandleCreditAsync));
+
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Credit sale entry rolled back: {ex.Message}", null);
+				}
+			});
+		}
+
+		private async Task<ServiceResponse<object>> HandleLoyaltyAsync(MisingSaleDto sales)
+		{
+			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
+			if (string.IsNullOrWhiteSpace(sales.CustomerCode))
+				return ServiceResponse<object>.Information("A valid loyalty account is required for this payment method.", null);
+
+			var pointsBalance = await _loyalty.GetPointsBalance(sales.CustomerCode);
+			if (pointsBalance <= 0)
+				return ServiceResponse<object>.Information("No loyalty points available.", null);
+
+			var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
+			var pointsMonetaryValue = pointsBalance * _unitPrice;
+
+			if (pointsMonetaryValue < saleTotal)
+			{
+				var pointsNeeded = Math.Ceiling(saleTotal / _unitPrice);
+				return ServiceResponse<object>.Information(
+					$"Insufficient loyalty points. Available: {pointsBalance:N2} (KES {pointsMonetaryValue:N2}), Required: {pointsNeeded:N2} points (KES {saleTotal:N2}).",
+					new { PointsBalance = pointsBalance, MonetaryValue = pointsMonetaryValue });
+			}
+
+			var pointsToDeduct = Math.Ceiling(saleTotal / _unitPrice);
+
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					await SaveTransactionDataAsync(sales, sales.CustomerCode);
+					await _loyalty.DeductLoyaltyPoints(sales.CustomerCode, pointsToDeduct, _saleId);
+
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed a LOYALTY SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Customer={sales.CustomerCode} | PointsDeducted={pointsToDeduct:N2} | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
+					await _authentication.AddUserTrail(msg, nameof(HandleLoyaltyAsync));
+
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Loyalty sale entry rolled back: {ex.Message}", null);
+				}
+			});
+		}
 		private async Task<ServiceResponse<object>> HandleOperationalLossAsync(MisingSaleDto sales)
 		{
 			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
-			if (!await EmployeeExist(sales.VehicleCode))
-				return ServiceResponse<object>.Information("Employee does not exist", null);
 
-			// If you must force product "02"
-			// NOTE (carried over): this overrides _unitPrice *after*
-			// ResolveUnitPriceAsync already set _originalPrice/_discount based on
-			// the originally-resolved product price. As written, the persisted
-			// Price/Discount fields on QuantityTransactions may not correspond to
-			// the _unitPrice actually used for this sale's total below. Left as-is
-			// pending confirmation of whether operational-loss entries should
-			// always be priced/audited against product "02" regardless of the
-			// nozzle's own product/price.
-			_unitPrice = await GetSpecificProductPriceAsync("02") ?? _unitPrice;
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					await SaveTransactionDataAsync(sales);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
-			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales);
-			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} recorded an OPERATIONAL LOSS | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
+					await _authentication.AddUserTrail(msg, nameof(HandleOperationalLossAsync));
 
-			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
-			var msg = $"{_authentication.Name()} recorded an OPERATIONAL LOSS | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | AttendantUserCode={sales.VehicleCode}";
-			await _authentication.AddUserTrail(msg, nameof(HandleOperationalLossAsync));
-			return ServiceResponse<object>.Success("Sales made successfully", null);
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Operational loss entry rolled back: {ex.Message}", null);
+				}
+			});
 		}
-
-
-
-
 
 		private async Task<ServiceResponse<object>> HandleEmployeeMpesaAsync(MisingSaleDto sales)
 		{
-			if (!await EmployeeExist(sales.VehicleCode))
-				return ServiceResponse<object>.Information("Employee does not exist", null);
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					await SaveTransactionDataAsync(sales);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
-			var price = await GetEmployeeFallbackPriceAsync(_stationCode);
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed an EMPLOYEE MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
+					await _authentication.AddUserTrail(msg, nameof(HandleEmployeeMpesaAsync));
 
-			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales);
-			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-
-			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
-			var msg = $"{_authentication.Name()} completed an EMPLOYEE MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | AttendantUserCode={sales.NozzleCode}";
-			await _authentication.AddUserTrail(msg, nameof(HandleEmployeeMpesaAsync));
-			return ServiceResponse<object>.Success("Sales made successfully", null);
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Employee Mpesa entry rolled back: {ex.Message}", null);
+				}
+			});
 		}
 
 		private async Task<ServiceResponse<object>> HandleCalibrationAsync(MisingSaleDto sales)
 		{
-			if (!await EmployeeExist(sales.VehicleCode))
-				return ServiceResponse<object>.Information("Employee does not exist", null);
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					await SaveTransactionDataAsync(sales);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
-			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales);
-			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed a CALIBRATION entry | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
+					await _authentication.AddUserTrail(msg, nameof(HandleCalibrationAsync));
 
-			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
-			var msg = $"{_authentication.Name()} completed a CALIBRATION entry | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
-			await _authentication.AddUserTrail(msg, nameof(HandleCalibrationAsync));
-			return ServiceResponse<object>.Success("Sales made successfully", null);
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Calibration entry rolled back: {ex.Message}", null);
+				}
+			});
 		}
 
-		private async Task<ServiceResponse<object>> HandleInsuranceAsync(MisingSaleDto sales)
-		{
-			if (!await EmployeeExist(sales.VehicleCode))
-				return ServiceResponse<object>.Information("Employee does not exist", null);
-
-			var amount = sales.PaymentDetails.Sum(x => x.TransactionAmount);
-			await SaveTransactionDataAsync(sales);
-			await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-
-			var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
-			var msg = $"{_authentication.Name()} completed an INSURANCE sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
-			await _authentication.AddUserTrail(msg, nameof(HandleInsuranceAsync));
-			return ServiceResponse<object>.Success("Sales made successfully", null);
-		}
+		// REMOVED: HandleInsuranceAsync — Insurance is no longer a supported
+		// payment type in RoutePaymentAsync.
 
 		private async Task<ServiceResponse<object>> HandleMpesaAsync(MisingSaleDto sales)
 		{
-			await using var tx = await _context.Database.BeginTransactionAsync();
-			try
+			var strategy = _context.Database.CreateExecutionStrategy();
+
+			return await strategy.ExecuteAsync(async () =>
 			{
-				if (!ValidateSalesBasics(sales, out var invalid)) return invalid;
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					if (!ValidateSalesBasics(sales, out var invalid)) return invalid;
 
-				var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
+					var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
 
-				var totalMpesaAvailable = await ValidateAndCalculateMpesaPaymentsAsync(sales.PaymentDetails);
-				if (totalMpesaAvailable < saleTotal)
-					return ServiceResponse<object>.Information("Insufficient MPesa funds to complete this sale", null);
+					var totalMpesaAvailable = await ValidateAndCalculateMpesaPaymentsAsync(sales.PaymentDetails);
+					if (totalMpesaAvailable < saleTotal)
+					{
+						await tx.RollbackAsync();
+						return ServiceResponse<object>.Information("Insufficient MPesa funds to complete this sale", null);
+					}
 
-				await SaveTransactionDataAsync(sales); // writes quantity + capped payments
-				await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					await SaveTransactionDataAsync(sales);
+					foreach (var payment in sales.PaymentDetails)
+					{
+						await ReconcileAndUpdateUsageBalanceAsync(payment.TransactionReference);
+					}
+					
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
-				var details = BuildAuditDetails(sales, sales.VehicleCode, sales.PaymentDetails.Select(p => p.TransactionReference));
-				var msg = $"{_authentication.Name()} completed an MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
-				await _authentication.AddUserTrail(msg, nameof(HandleMpesaAsync));
+					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed an MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
+					await _authentication.AddUserTrail(msg, nameof(HandleMpesaAsync));
 
-				await tx.CommitAsync();
-				return ServiceResponse<object>.Success("Sales made successfully", null);
-			}
-			catch (Exception ex)
-			{
-				await tx.RollbackAsync();
-				return ServiceResponse<object>.Error($"Payment rolled back: {ex.Message}", null);
-			}
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Payment rolled back: {ex.Message}", null);
+				}
+			});
 		}
-
-		// REFACTORED: customer identity can no longer be resolved via
-		// Vehicles.CustomerCode (table doesn't exist). ASSUMPTION: MisingSaleDto
-		// carries a CustomerCode property supplied directly by the client (the
-		// same way SalesActivity resolves and forwards customerCode after its
-		// phone-search step). If that property doesn't exist on the DTO, this
-		// will not compile — tell me what field actually carries customer
-		// identity here and I'll wire it in instead.
 
 
 		// ======== SUPPORTING HELPERS ========
@@ -349,6 +489,9 @@ namespace BussinessLogic.Sales.MissingSales
 			return id;
 		}
 
+		// ASSUMPTION (unchanged from before): DbContext exposes PetroleumProducts
+		// with a PetroleumCode property matching sales.ProductCode — confirm
+		// actual entity/property names if these differ.
 		private async Task<ServiceResponse<object>> ValidateCoreEntitiesAsync(MisingSaleDto sales)
 		{
 			var shiftExist = await _context.Shifts.AnyAsync(x => x.ShiftNumber == sales.ShiftNumber);
@@ -356,6 +499,9 @@ namespace BussinessLogic.Sales.MissingSales
 
 			var nozzleExist = await _context.Nozzles.AnyAsync(x => x.NozzleCode == sales.NozzleCode);
 			if (!nozzleExist) return ServiceResponse<object>.Information("Nozzle does not exist", null);
+
+			var productExist = await _context.PetroleumProducts.AnyAsync(x => x.PetroleumCode == sales.ProductCode);
+			if (!productExist) return ServiceResponse<object>.Information("Product does not exist", null);
 
 			var paymentTypeExist = await _context.PaymentTypes.AnyAsync(x => x.PaymentTypeId == sales.PaymentTypeCode);
 			if (!paymentTypeExist) return ServiceResponse<object>.Information("Payment type does not exist", null);
@@ -374,13 +520,13 @@ namespace BussinessLogic.Sales.MissingSales
 
 			_stationCode = station.StationCode;
 			_stationName = station.StationName;
-			_storeNumber = await StoreNumber(dispenserCode);
+			_tillNumber = await TillNumber(dispenserCode);
 		}
 
 		private static bool ValidateSalesBasics(MisingSaleDto sales, out ServiceResponse<object> response)
 		{
 			response = ServiceResponse<object>.Information("Invalid sales data", null);
-			if (sales == null || sales.PaymentDetails == null || sales.PaymentDetails.Count == 0 || string.IsNullOrEmpty(sales.VehicleCode))
+			if (sales == null || sales.PaymentDetails == null || sales.PaymentDetails.Count == 0 || string.IsNullOrEmpty(sales.VehicleRegistrationNumber))
 				return false;
 			return true;
 		}
@@ -397,6 +543,8 @@ namespace BussinessLogic.Sales.MissingSales
 
 				if (!string.IsNullOrWhiteSpace(pd.TransactionReference))
 				{
+					// FIXED: now takes a row lock for the duration of this
+					// transaction instead of a plain unguarded read.
 					var available = await GetUsageBalanceAsync(pd.TransactionReference) ?? 0;
 					if (available <= 0) continue;
 
@@ -436,13 +584,8 @@ namespace BussinessLogic.Sales.MissingSales
 			await _context.SaveChangesAsync();
 		}
 
-		// REFACTORED: now accepts customerCode so it can be persisted on the
-		// QuantityTransactions row, matching the fix already applied to the
-		// main Sales.BuildQuantityTransaction. Defaults to empty for
-		// payment types that legitimately have no customer (vouchers, bank
-		// transfer, operational loss, calibration, insurance, batch voucher,
-		// new conversions, employee M-Pesa, compensation fuel) — confirm
-		// whether any of those should actually carry a customer link too.
+		// customerCode defaults to empty for payment types that legitimately
+		// have no customer link (operational loss, calibration, employee mpesa).
 		private async Task SaveTransactionDataAsync(MisingSaleDto sales, string customerCode = "")
 		{
 			var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
@@ -451,7 +594,7 @@ namespace BussinessLogic.Sales.MissingSales
 			{
 				ShiftNumber = sales.ShiftNumber,
 				UserCode = _authentication.Usercode(),
-				VehicleRegistrationNumber = sales.VehicleCode,
+				VehicleRegistrationNumber = sales.VehicleRegistrationNumber,
 				QuantityCredit = sales.Quantity,
 				QuantityDebit = 0,
 				DispenserCode = sales.DispenserCode,
@@ -494,21 +637,52 @@ namespace BussinessLogic.Sales.MissingSales
 			}
 		}
 
+		// FIXED: replaced the plain EF read with a locking read. Uses
+		// SELECT ... FOR UPDATE against the connection/transaction currently
+		// open on _context, so the row stays locked from the moment it's
+		// read (during ValidateAndCalculateMpesaPaymentsAsync) until it's
+		// consumed (ConsumeMpesaAsync) later in the same transaction. This is
+		// the fix for the double-spend gap — a second concurrent caller
+		// trying to read the same row will block here until the first
+		// transaction commits or rolls back, at which point it sees the
+		// updated (already-decremented) balance.
+		//
+		// NOTE: only meaningfully locks when called from inside an open
+		// transaction (i.e. from HandleMpesaAsync's flow, which is the only
+		// caller that matters for concurrency safety). If ever called outside
+		// an explicit transaction, Postgres wraps it in an implicit one and
+		// releases the lock immediately after the statement — harmless, just
+		// not protective, so don't call this from a non-transactional path.
 		private async Task<int?> GetUsageBalanceAsync(string transId)
 		{
-			var usageBalance = await (from mt in _context.MpesaTransactions
-									  where mt.BusinessShortCode == _storeNumber
-									  && mt.TransID == transId
-									  select (int?)mt.UsageBalance).FirstOrDefaultAsync();
+			var conn = _context.Database.GetDbConnection();
+			if (conn.State != ConnectionState.Open) await conn.OpenAsync();
 
-			return usageBalance;
+			await using var cmd = conn.CreateCommand();
+			cmd.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+			cmd.CommandText = @"SELECT ""UsageBalance"" FROM ""MpesaTransactions""
+                                 WHERE ""TillNumber"" = @till AND ""TransID"" = @transId
+                                 FOR UPDATE";
+
+			var pTill = cmd.CreateParameter();
+			pTill.ParameterName = "till";
+			pTill.Value = _tillNumber;
+			cmd.Parameters.Add(pTill);
+
+			var pTrans = cmd.CreateParameter();
+			pTrans.ParameterName = "transId";
+			pTrans.Value = transId;
+			cmd.Parameters.Add(pTrans);
+
+			var result = await cmd.ExecuteScalarAsync();
+			return result is null or DBNull ? (int?)null : Convert.ToInt32(result);
 		}
 
 		private async Task<int> ConsumeMpesaAsync(string transId, int amountToConsume)
 		{
 			var transaction = await _context.MpesaTransactions
 				.FirstOrDefaultAsync(x =>
-					x.BusinessShortCode == _storeNumber &&
+					x.BusinessShortCode == _tillNumber &&
 					x.TransID == transId);
 
 			if (transaction == null)
@@ -536,31 +710,6 @@ namespace BussinessLogic.Sales.MissingSales
 		}
 
 		// ====== LOOKUPS / QUERIES ======
-		// REMOVED: GetVehicleAsync and the inner Vehicle class. There is no
-		// Vehicles table anymore — sales.VehicleCode is taken at face value
-		// as the registration number the user typed, with no lookup performed.
-
-		private async Task<List<ThePrices>> GetStationPricesAsync(string stationCode)
-		{
-			return await _context.Prices
-				.Where(p => p.StationCode == stationCode)
-				.Select(p => new ThePrices
-				{
-					ProductCode = p.ProductCode,
-					Price = p.Amount
-				})
-				.ToListAsync();
-		}
-
-		private async Task<decimal?> GetSpecificProductPriceAsync(string productCode)
-		{
-			return await _context.Prices
-				.Where(p => p.StationCode == _stationCode && p.ProductCode == productCode)
-				.Select(p => (decimal?)p.Amount)
-				.FirstOrDefaultAsync();
-		}
-
-
 		public async Task<StationData> StationsName(string dispenserCode)
 		{
 			var stationName = await (from s in _context.Stations
@@ -580,19 +729,16 @@ namespace BussinessLogic.Sales.MissingSales
 			};
 		}
 
-		public async Task<string> StoreNumber(string dispenserCode)
+		public async Task<string> TillNumber(string dispenserCode)
 		{
 			var number = await (from s in _context.Dispensers
 								join t in _context.Tills on s.TillNumber equals t.TillNumber
 								where s.DispenserCode == dispenserCode
-								select t.StoreNumber).FirstOrDefaultAsync();
+								select t.TillNumber).FirstOrDefaultAsync();
 			return number ?? string.Empty;
 		}
 
-		private async Task<bool> EmployeeExist(string userCode)
-		{
-			return await _context.Users.AnyAsync(u => u.UserCode == userCode);
-		}
+
 
 		// ====== Variance Methods ======
 		public async Task<ServiceResponse> DeferVariance(string shiftNumber)
@@ -619,49 +765,11 @@ namespace BussinessLogic.Sales.MissingSales
 			return ServiceResponse<object>.Information("Shift or Stock Summary Not Found");
 		}
 
-		public async Task<ServiceResponse> OffWriteVariance(string shiftNumber)
-		{
-			var shift = await _context.Shifts.FirstOrDefaultAsync(s => s.ShiftNumber == shiftNumber);
-			var summaries = await _context.StockTakeSummaries.Where(s => s.ShiftNumber == shiftNumber).ToListAsync();
-
-			if (shift is not null && summaries is not null)
-			{
-				shift.ShiftStatus = ShiftStatus.Closed;
-				_context.Update(shift);
-
-				foreach (var s in summaries)
-				{
-					s.VarianceStatus = ShiftStatus.Closed;
-					s.ClosingVariance = 0;
-					s.OpeningVariance = 0;
-					_context.Update(s);
-				}
-				await _context.SaveChangesAsync();
-
-				var msg = $"Variance written off for shift {shift.ShiftNumber} by {_authentication.Name()} on {DateTime.UtcNow}";
-				await _authentication.AddUserTrail(msg, nameof(OffWriteVariance));
-
-				return ServiceResponse<object>.Success(msg);
-			}
-			return ServiceResponse<object>.Information("Shift or Stock Summary Not Found");
-		}
 
 		public async Task<ServiceResponse> ReconcileStockSummaries(string shiftNumber)
 		{
 			return await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
 		}
-
-
-		// ====== Excel report ======
-		// REFACTORED: previously joined CustomerTransactions -> Vehicles ->
-		// Customers. Vehicles no longer exists, so this now joins
-		// CustomerTransactions.VehicleCode directly against
-		// QuantityTransactions.VehicleRegistrationNumber/CustomerCode to get
-		// back to the customer. CONFIRM this join is correct for your
-		// CustomerTransactions schema — if VehicleCode there is actually meant
-		// to carry the registration number string (consistent with the rest of
-		// this refactor), this join is right; if it's something else, this
-		// needs adjusting.
 
 		// ====== Inner types ======
 		public class StationData
@@ -671,23 +779,14 @@ namespace BussinessLogic.Sales.MissingSales
 			[StringLength(50)]
 			public string StationName { get; set; } = string.Empty;
 		}
-		public class ThePrices
-		{
-			[Precision(18, 2)] public decimal Price { get; set; }
-			public string ProductCode { get; set; } = string.Empty;
-		}
 
 		// ====== Audit detail builder (centralized, consistent) ======
 		private string BuildAuditDetails(MisingSaleDto sales, string? vehicleReg = null, IEnumerable<string>? paymentRefs = null)
 		{
-
 			var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
 			var paidEntered = sales.PaymentDetails.Sum(p => p.TransactionAmount);
 			var refs = paymentRefs == null ? "" : string.Join(", ", paymentRefs.Where(r => !string.IsNullOrWhiteSpace(r)));
-			return $"Qty={sales.Quantity:N2}L | UnitPrice={_unitPrice:N2} | SaleTotal={saleTotal:N2} | EnteredPayTotal={paidEntered:N2} | Shift={sales.ShiftNumber} | Dispenser={sales.DispenserCode} | Nozzle={sales.NozzleCode} | Vehicle={vehicleReg ?? sales.VehicleCode} | PaymentRefs=[{refs}] | When={DateTime.UtcNow:yyyy/MM/dd HH:mm:ss}";
+			return $"Qty={sales.Quantity:N2}L | UnitPrice={_unitPrice:N2} | SaleTotal={saleTotal:N2} | EnteredPayTotal={paidEntered:N2} | Shift={sales.ShiftNumber} | Dispenser={sales.DispenserCode} | Nozzle={sales.NozzleCode} | Vehicle={vehicleReg ?? sales.VehicleRegistrationNumber} | PaymentRefs=[{refs}] | When={DateTime.UtcNow:yyyy/MM/dd HH:mm:ss}";
 		}
-
-		//validate voucher pass voucherNo
-
 	}
 }

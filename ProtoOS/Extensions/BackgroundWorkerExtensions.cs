@@ -14,9 +14,9 @@ public static class BackgroundWorkerExtensions
 	public static IServiceCollection AddBackgroundWorkers(
 		this IServiceCollection services)
 	{
-		services.AddHostedService<EmailBackgroundService>();
-		services.AddHostedService<SalesSummaryWorker>();
-		services.AddHostedService<AuthenticationWorker>();
+		//services.AddHostedService<EmailBackgroundService>();
+		//services.AddHostedService<SalesSummaryWorker>();
+		//services.AddHostedService<AuthenticationWorker>();
 		//services.AddHostedService<PullTransactionWorker>();
 		//services.AddHostedService<ApiPermissionRoleSeeder>();
 

@@ -1,6 +1,7 @@
 ﻿using BusinessLogic.SetupService;
 using BusinessLogic.Worker.PriceScheduler;
 using BussinessLogic.Setup;
+using DataAccessLayer.Common;
 using DataAccessLayer.DTOs.EmailDtos;
 using DataAccessLayer.DTOs.Setups;
 using Microsoft.AspNetCore.Authorization;
@@ -30,26 +31,31 @@ namespace FuelFlow.Controllers
 
 		#region Price Management
 
-		[HttpPost("ChangePrice")]
-		[Authorize(Roles = "can add price")]
-		public async Task<IActionResult> AddPrice(string productCode,decimal amount)
+	
+
+		[HttpGet("products")]
+		[Authorize]
+		public async Task<IActionResult> GetProducts()
 		{
-			var response = await _setupService.UpdatePrice(productCode,amount);
-			return CreateResponse(response);
+			var result = await _setupService.GetProducts();
+			return Ok(result);
+		}
+
+		[HttpGet("price")]
+		[Authorize]
+		public async Task<IActionResult> GetPriceByStation([FromQuery] string stationCode, [FromQuery] string productCode)
+		{
+			if (string.IsNullOrWhiteSpace(stationCode) || string.IsNullOrWhiteSpace(productCode))
+				return BadRequest(ServiceResponse<object>.Information("stationCode and productCode are required", null));
+
+			var result = await _setupService.GetPriceByStation(stationCode, productCode);
+			return Ok(result);
 		}
 
 		#endregion
 
 		#region Payment Management
 
-		[HttpGet]
-		[Authorize]
-		[Route("GetProducts")]  
-		public async Task<IActionResult> GetProducts()
-		{
-			var response = await _setupService.GetProducts();
-			return CreateResponse(response);
-		}
 
 		[HttpGet]
 		[Authorize]
@@ -76,15 +82,6 @@ namespace FuelFlow.Controllers
 		{
 		     await _setupService.AddPriceSchedule(priceChange);
 			return Ok();
-		}
-
-		[HttpPost]
-		[Route("RegisterPDA")]
-		[Authorize(Roles = "can register pda device")]
-		public async Task<IActionResult> RegisterPDA(string deviceName, string deviceIMEI, string deviceSerialNumber, string deviceModel, string dispensercode)
-		{
-			var response = await _setupService.RegisterPDA(deviceName, deviceIMEI, deviceSerialNumber, deviceModel, dispensercode);
-			return CreateResponse(response);
 		}
 
 

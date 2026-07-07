@@ -603,6 +603,55 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			}
 		}
 
+		public async Task<ServiceResponse<UnusedMpesaTransactionDto>> ConfirmMpesaPayment(string transId, string dispenserCode)
+		{
+			try
+			{
+				if (string.IsNullOrWhiteSpace(transId) || string.IsNullOrWhiteSpace(dispenserCode))
+					return ServiceResponse<UnusedMpesaTransactionDto>.Information(
+						"Transaction reference and dispenser code are required.", null);
+
+				// Same Dispensers ⋈ Tills join as TillNumber()/GetPriceInfo — resolves
+				// which till this dispenser's M-Pesa transactions land on.
+				var tillNumber = await (from d in _context.Dispensers
+										join t in _context.Tills on d.TillNumber equals t.TillNumber
+										where d.DispenserCode == dispenserCode
+										select t.TillNumber).FirstOrDefaultAsync();
+
+				if (string.IsNullOrWhiteSpace(tillNumber))
+					return ServiceResponse<UnusedMpesaTransactionDto>.Information("Invalid dispenser/till mapping.", null);
+
+				// Read-only check — no row lock, no consumption. This just confirms
+				// the code exists on this till and reports its remaining balance.
+				// The FOR UPDATE-locked read stays exclusive to HandleMpesaAsync's
+				// actual spend flow; this endpoint doesn't touch UsageBalance.
+				var txn = await _context.MpesaTransactions
+					.AsNoTracking()
+					.Where(mt => mt.TillNumber == tillNumber && mt.TransID == transId)
+					.Select(mt => new UnusedMpesaTransactionDto
+					{
+						TransID = mt.TransID,
+						TransAmount = mt.TransAmount,
+						UsageBalance = mt.UsageBalance,
+						DateCreated = mt.DateCreated,
+					})
+					.FirstOrDefaultAsync();
+
+				if (txn == null)
+					return ServiceResponse<UnusedMpesaTransactionDto>.Information($"M-Pesa code {transId} does not exist for this dispenser's till.", null);
+
+				if (txn.UsageBalance <= 0)
+					return ServiceResponse<UnusedMpesaTransactionDto>.Information($"Amount fully used for code {transId}.", txn);
+
+				return ServiceResponse<UnusedMpesaTransactionDto>.Success($"Valid M-Pesa code {transId}.", txn);
+			}
+			catch (Exception )
+			{
+				return ServiceResponse<UnusedMpesaTransactionDto>.Error("An error occurred while confirming payment.");
+			}
+		}
+
+
 		public async Task<ServiceResponse<List<UnusedMpesaTransactionDto>>> GetUnusedMpesaTransactionsAsync()
 		{
 			var shift = await _context.Shifts
