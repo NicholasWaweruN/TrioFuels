@@ -39,8 +39,10 @@ using BussinessLogic.Messaging;
 using BussinessLogic.Personal_Wallet;
 using BussinessLogic.Personal_Wallet.Payments.PaymentSetups;
 using BussinessLogic.PlateDetection;
+using BussinessLogic.Reports;
 using BussinessLogic.Reports.Shifts_Clossing;
 using BussinessLogic.Sales.CommonSalesTasks;
+using BussinessLogic.Sales.Credit_Management;
 using BussinessLogic.Sales.MissingSales;
 using BussinessLogic.Sales.NewSales;
 using BussinessLogic.Sales.PriceApproval;
@@ -179,6 +181,8 @@ public static class BusinessServicesExtensions
 		services.AddScoped<IShiftResolver,ShiftResolver>();
 		services.AddScoped<ISalesByPaymentMethod, SalesByPaymentMethod>();
 	
+		services.AddScoped<ICreditManagement,CreditManagement>();
+		services.AddScoped<IAllReports, AllReports>();		
 
 
 
