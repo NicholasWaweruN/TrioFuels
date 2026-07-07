@@ -263,7 +263,7 @@ namespace BussinessLogic.Stock.Shifts
 
 			var sales = await _context.FuelSales
 				.AsNoTracking()
-				.Where(x => x.ShiftNumber == shiftNumber && !x.IsReversed)
+				.Where(x => x.ShiftNumber == shiftNumber && !x.IsReversed && x.Litres >= 0)
 				.Select(qt => new
 				{
 					VehicleRegistrationNumber = qt.Vehicle,
