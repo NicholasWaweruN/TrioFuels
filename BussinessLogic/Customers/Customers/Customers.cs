@@ -700,6 +700,8 @@ namespace BusinessLogic.CustomerService
 					return ServiceResponse<object>.Information("Customer not found", null);
 
 				customer.CreditLimit = limit.CreditLimit;
+				if(limit.CreditLimit > 0)
+					customer.IsCreditCustomer = true;
 				_context.Customers.Update(customer);
 
 				var message = $"Credit Limit for {customer.CustomerName} has been updated by {_authentication.Name()} on {DateTime.UtcNow} to {limit.CreditLimit}";

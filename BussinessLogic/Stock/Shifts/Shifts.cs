@@ -15,6 +15,12 @@ namespace BussinessLogic.Stock.Shifts
 		private readonly IAuthCommonTasks _authentication;
 		private readonly ICommonSetups _setups;
 		private readonly IStockTakeVarianceService _stockTakeVarianceService;
+
+		// Status codes: 0 = Closed, 2 = Variance, 3 = Deferred
+		private static readonly int[] TargetStatuses = { 0, 2, 3 };
+
+		// Shift runs 07:00-07:00; start before 13:00 (1pm) = Day shift, else Night shift
+		private const int DayShiftCutoffHour = 13;
 		public Shifts(OTOContext context, IAuthCommonTasks authentication, ICommonSetups setups, IStockTakeVarianceService stockTakeVarianceService)
 		{
 			_context = context;
@@ -23,6 +29,37 @@ namespace BussinessLogic.Stock.Shifts
 			_stockTakeVarianceService = stockTakeVarianceService;
 		}
 		//check if a user has an open shift
+
+	
+
+		public async Task<List<ShiftStatusDto>> GetClosedVarianceDeferredShiftsAsync()
+		{
+			var query =
+				from s in _context.Shifts.AsNoTracking()
+				join u in _context.Users.AsNoTracking()
+					on s.UserCode equals u.UserCode
+				where TargetStatuses.Contains(s.ShiftStatus)
+				select new ShiftStatusDto
+				{
+					ShiftNumber = s.ShiftNumber,
+					ClientFullName = u.FirstName + " " + u.LastName, // adjust if AspNetUsers uses different name fields
+					StartShiftDate = s.ShiftStartTime,
+					Status = s.ShiftStatus
+				};
+
+			var shifts = await query.ToListAsync();
+
+			foreach (var shift in shifts)
+			{
+				shift.DisplayDate = shift.StartShiftDate.ToString("MMM-dd").ToLowerInvariant();
+				shift.ShiftType = shift.StartShiftDate.Hour < DayShiftCutoffHour
+					? "Day"
+					: "Night";
+			}
+
+			return shifts;
+		}
+	
 
 
 		//All dispenser status either closed or open
@@ -420,6 +457,15 @@ namespace BussinessLogic.Stock.Shifts
 
 			await _context.SaveChangesAsync();
 			return ServiceResponse<object>.Success("Stock reconciled successfully", null);
+		}
+		public class ShiftStatusDto
+		{
+			public string ShiftNumber { get; set; } = string.Empty;
+			public string ClientFullName { get; set; } = string.Empty;
+			public DateTime StartShiftDate { get; set; }
+			public int Status { get; set; }
+			public string DisplayDate { get; set; } = string.Empty;  // e.g. "july-06"
+			public string ShiftType { get; set; } = string.Empty;     // "Day" or "Night"
 		}
 	}
 }

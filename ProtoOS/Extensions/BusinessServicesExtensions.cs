@@ -182,10 +182,7 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ISalesByPaymentMethod, SalesByPaymentMethod>();
 	
 		services.AddScoped<ICreditManagement,CreditManagement>();
-		services.AddScoped<IAllReports, AllReports>();		
-
-
-
+		services.AddScoped<IAllReports, AllReports>();
 
 		return services;
 	}

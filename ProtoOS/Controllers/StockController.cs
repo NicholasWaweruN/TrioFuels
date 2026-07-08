@@ -59,6 +59,8 @@ namespace FuelFlow.Controllers
 			return HandleResponse(response);
 		}
 
+
+
 		[HttpGet]
 		[Route("Getstocktakes")]
 		[Authorize(Roles = "can view stock takes")]
@@ -222,6 +224,28 @@ namespace FuelFlow.Controllers
 
 			var result = await _varianceService.CheckVarianceAsync(request);
 			return Ok(result);
+		}
+
+		[HttpGet("closed-variance-deferred")]
+
+		public async Task<IActionResult> GetClosedVarianceDeferredShifts()
+		{
+			try
+			{
+				var result = await _shiftsService.GetClosedVarianceDeferredShiftsAsync();
+
+				return Ok(result);
+			}
+			catch (Exception ex)
+			{
+				// swap in your standard logger here
+				return StatusCode(500, new
+				{
+					success = false,
+					message = "An error occurred while fetching shift statuses.",
+					error = ex.Message
+				});
+			}
 		}
 	}
 
