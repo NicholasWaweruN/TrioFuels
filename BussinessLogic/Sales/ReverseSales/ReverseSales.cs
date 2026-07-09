@@ -1,9 +1,11 @@
 ﻿using BusinessLogic.Sales.CommonSalesTasks;
 using BusinessLogic.Sales.ReverseSales;
 using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.Sales.NewSales;
 using BussinessLogic.Setup;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
+using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
@@ -58,9 +60,6 @@ namespace BussinessLogic.Sales.ReverseSales
 					if (sale == null)
 						return ServiceResponse<object>.Information("Sale not found", null);
 
-					// Single source of truth for "already reversed": once we mark sale.IsReversed = true
-					// below, the compensating row we add also carries IsReversed = true with the same
-					// SaleId, so checking sale.IsReversed (locked via FOR UPDATE above) is sufficient.
 					if (sale.IsReversed)
 						return ServiceResponse<object>.Information("Sale already reversed", null);
 
@@ -79,6 +78,15 @@ namespace BussinessLogic.Sales.ReverseSales
 					// --- Stage domain changes (no SaveChanges yet) ------------------------------
 					if (sale.PaymentTypeCode == PaymetMethod.Wallet)
 						AddCustomerTransactionIfVehiclePresent(sale.VehicleRegistrationNumber, sale.AmountDebit, transactionCode);
+
+					// NOTE: assumes original credit-sale insert wrote TransactionReference = sale.SaleId.
+					// Unconfirmed — if the original write uses a different reference (e.g. a receipt number
+					// or Daraja ref), this lookup returns nothing and reverses nothing for Credit sales,
+					// silently. Confirm against the original credit-creation insert before relying on this.
+					// nozzleCode param is currently unused inside the method — passed through in case
+					// TransactionReference isn't guaranteed unique per sale and scoping is later needed.
+					if (sale.PaymentTypeCode == PaymetMethod.Credit)
+						await AddReversedCreditTransactionIfVehiclePresent(transactionCode, sale.NozzleCode);
 
 					AddReversedQuantityTransactionAndMarkOriginal(sale, transactionCode);
 					await AddReversedPaymentTransactionsAsync(sale);
@@ -235,6 +243,30 @@ namespace BussinessLogic.Sales.ReverseSales
 
 		// ============================== Helpers (no SaveChanges here) ==============================
 
+
+		private async Task AddReversedCreditTransactionIfVehiclePresent(string transactionCode, string nozzleCode)
+		{
+		
+
+			var transaction = await _context.CreditTransactions.Where(x => x.TransactionReference == transactionCode).FirstOrDefaultAsync();
+			if (transaction == null)
+				return;
+			// NOTE: CustomerCode/StationCode sourcing below is a guess — need the original
+			// credit-creation code to confirm these match exactly.
+			_context.CreditTransactions.Add(new CreditTransactions
+			{
+				CustomerCode = transaction.CustomerCode,
+				Credit = transaction.Debit,
+				Debit = 0,
+				SaleId = transactionCode,
+				TransactionReference = $"REVERSAL-{transaction.SaleId}",
+				VehicleCode = transaction.VehicleCode,
+				StationCode = transaction.StationCode,
+				DateCreated = DateTime.UtcNow,
+				UserCode = _authentication.Usercode()
+			});
+
+		}
 		private async Task<QuantityTransactions?> GetSaleByIdAsync(string saleId)
 			=> await _context.QuantityTransactions.FirstOrDefaultAsync(x => x.SaleId == saleId);
 

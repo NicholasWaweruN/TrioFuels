@@ -1089,19 +1089,14 @@ namespace BussinessLogic.Stock.Stock
 		{
 			try
 			{
-				var variances = await (
-					from vs in _context.StockTakeSummaries
-					where vs.ShiftNumber == shiftNumber
-					select vs
-				).ToListAsync();
+				var variances = await ( from vs in _context.StockTakeSummaries where vs.ShiftNumber == shiftNumber
+					select vs).ToListAsync();
 
 				var dispenserStation = await (
-					from s in _context.Shifts
-					where s.ShiftNumber == shiftNumber
+					from s in _context.Shifts where s.ShiftNumber == shiftNumber
 					join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
 					from d in dj.DefaultIfEmpty()
-					select new { DispenserCode = s.DispenserCode, StationCode = d != null ? d.StationCode : null }
-				).FirstOrDefaultAsync();
+					select new { DispenserCode = s.DispenserCode, StationCode = d != null ? d.StationCode : null } ).FirstOrDefaultAsync();
 
 				var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
 				var stationCode = dispenserStation?.StationCode ?? string.Empty;
@@ -1125,7 +1120,19 @@ namespace BussinessLogic.Stock.Stock
 
 				var totalVarianceLitres = variances.Sum(x => x.ClosingVariance + x.OpeningVariance);
 
-				if (totalVarianceValue <= threshold)
+				// Two independent auto-clear conditions:
+				//  1. Money-value of variance is within the configured threshold (existing behaviour), OR
+				//  2. Net litres across the whole shift is within ±1L, regardless of value.
+				//
+				// NOTE: totalVarianceLitres is a SIGNED sum across all nozzles, not a sum of magnitudes.
+				// That means a +6L variance on one nozzle and a -6L variance on another nets to 0L here
+				// and would pass this check, even though each nozzle individually moved 6L. If that's not
+				// the intent, this needs to sum Math.Abs(netVarianceForNozzle) per nozzle instead — flag
+				// this back to me if per-nozzle magnitude is actually what you want checked.
+				var isWithinValueThreshold = totalVarianceValue <= threshold;
+				var isWithinLitreThreshold = Math.Abs(totalVarianceLitres) <= 1m;
+
+				if (isWithinValueThreshold || isWithinLitreThreshold)
 				{
 					foreach (var variance in variances)
 					{
@@ -1183,7 +1190,12 @@ namespace BussinessLogic.Stock.Stock
 
 					await _context.SaveChangesAsync();
 					await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
-					var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, it falls within the allowed threshold of KES {threshold:N2}.";
+
+					var reasonText = isWithinValueThreshold
+						? $"it falls within the allowed threshold of KES {threshold:N2}"
+						: $"net litre variance ({totalVarianceLitres:N2}L) falls within the ±1L auto-clear allowance";
+
+					var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, {reasonText}.";
 					await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
 					return ServiceResponse<object>.Success("Variance cleared successfully", null);

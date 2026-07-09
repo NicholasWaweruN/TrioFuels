@@ -100,7 +100,8 @@ namespace BussinessLogic.Sales.SalesData
 					ProductCode = g.Key.PetroleumCode,
 					ProductName = g.Key.PetroleumName,
 					QuantitySold = g.Sum(x => x.qt != null ? x.qt.QuantityCredit : 0),
-					Amount = g.Sum(x => x.qt != null ? x.qt.AmountCredit : 0)
+					Amount = g.Sum(x => x.qt != null ? x.qt.AmountCredit : 0),
+					
 				};
 
 			var results = await query.ToListAsync();
