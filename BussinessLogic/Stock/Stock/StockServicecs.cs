@@ -4,20 +4,17 @@ using BusinessLogic.Stock.Stock;
 using BussinessLogic.Authentication.CommonTasks;
 using BussinessLogic.Messaging;
 using BussinessLogic.Setup;
-using BussinessLogic.Stock.Variance_Service;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Sales;
 using DataAccessLayer.DTOs.Transactions;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Transactions;
-using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Reflection;
-using static BussinessLogic.Sales.MissingSales.MisingSale;
 
 namespace BussinessLogic.Stock.Stock
 {
@@ -30,6 +27,11 @@ namespace BussinessLogic.Stock.Stock
 		private readonly IMainData MainData;
 		private readonly ICommonSalesTasks _salesTasks;
 		private readonly IStockTakeVarianceService _varianceService;
+
+		// Minimum time an attendant must wait after closing a shift before
+		// they are allowed to open a new one. Guards against accidentally
+		// re-opening a shift immediately after closing it.
+		private static readonly TimeSpan ShiftReopenCooldown = TimeSpan.FromMinutes(5);
 
 		public StockServicecs(IAuthCommonTasks authentication, OTOContext context, ICommonSetups setups, IEmailService emails, IMainData data, ICommonSalesTasks salesTasks, IStockTakeVarianceService varianceService)
 		{
@@ -46,6 +48,8 @@ namespace BussinessLogic.Stock.Stock
 		// PERF: nozzle-existence and initial-stock-take-done checks are now
 		// each a single batched query instead of two DB round trips per
 		// reading in the loop (was 2N round trips for N readings, now 2 total).
+		// VALIDATION: same attendant cannot open a new shift within
+		// ShiftReopenCooldown of closing their last one (see GetLastClosedShiftAsync).
 		public async Task<ServiceResponse<object>> StockTakeAsync(StockTakeDto stockTake)
 		{
 			var requestedNozzleCodes = stockTake.Readings.Select(r => r.NozzleCode).Distinct().ToList();
@@ -85,7 +89,23 @@ namespace BussinessLogic.Stock.Stock
 				return ServiceResponse<object>.Information("Dispenser not found for user", null);
 
 			if (userShift is null)
+			{
+				var lastClosedShift = await GetLastClosedShiftAsync();
+				if (lastClosedShift?.ShiftEndTime != null)
+				{
+					var timeSinceClose = DateTime.UtcNow - lastClosedShift.ShiftEndTime.Value;
+
+					if (timeSinceClose < ShiftReopenCooldown)
+					{
+						var remainingSeconds = (int)(ShiftReopenCooldown - timeSinceClose).TotalSeconds;
+						return ServiceResponse<object>.Information(
+							$"You closed shift {lastClosedShift.ShiftNumber} {(int)timeSinceClose.TotalSeconds}s ago. " +
+							$"This looks like it may have been by mistake — please wait {remainingSeconds}s before opening a new shift.", null);
+					}
+				}
+
 				return await CreateNewShiftAndProcessStockTakeAsync(stockTake, dispenser);
+			}
 			else if (userShift.ShiftStatus == ShiftStatus.Open)
 				return await ProcessExistingShiftStockTakeAsync(stockTake, userShift);
 			return ServiceResponse<object>.Information("Shift already closed or in variance", null);
@@ -334,6 +354,20 @@ namespace BussinessLogic.Stock.Stock
 			else
 				return null;
 		}
+
+		// VALIDATION: used by StockTakeAsync to enforce ShiftReopenCooldown.
+		// Returns the attendant's most recently closed shift (by ShiftEndTime),
+		// or null if they have never closed a shift.
+		private async Task<Shift?> GetLastClosedShiftAsync()
+		{
+			return await _context.Shifts
+				.Where(x => x.UserCode == _authentication.Usercode()
+						 && x.ShiftStatus == ShiftStatus.Closed
+						 && x.ShiftEndTime != null)
+				.OrderByDescending(x => x.ShiftEndTime)
+				.FirstOrDefaultAsync();
+		}
+
 		private async Task<string> GetDispenserAssignedToUserAsync()
 		{
 			var dispenser = await _context.DispenserAssignments
@@ -1089,14 +1123,16 @@ namespace BussinessLogic.Stock.Stock
 		{
 			try
 			{
-				var variances = await ( from vs in _context.StockTakeSummaries where vs.ShiftNumber == shiftNumber
-					select vs).ToListAsync();
+				var variances = await (from vs in _context.StockTakeSummaries
+									   where vs.ShiftNumber == shiftNumber
+									   select vs).ToListAsync();
 
 				var dispenserStation = await (
-					from s in _context.Shifts where s.ShiftNumber == shiftNumber
+					from s in _context.Shifts
+					where s.ShiftNumber == shiftNumber
 					join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
 					from d in dj.DefaultIfEmpty()
-					select new { DispenserCode = s.DispenserCode, StationCode = d != null ? d.StationCode : null } ).FirstOrDefaultAsync();
+					select new { DispenserCode = s.DispenserCode, StationCode = d != null ? d.StationCode : null }).FirstOrDefaultAsync();
 
 				var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
 				var stationCode = dispenserStation?.StationCode ?? string.Empty;
