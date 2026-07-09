@@ -54,22 +54,23 @@ namespace FuelFlow.Controllers
 			var response = await _payments.AssignTillToDispenser(till);
 			return CreateResponse(response);
 		}
-	
+
 
 
 		[HttpGet("ExportMpesaTransactions")]
 		[Authorize("Can download Mpesa Statement")]
 		public async Task<IActionResult> ExportMpesaTransactions(
-			string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct)
+		string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct)
 		{
 			var result = await _payments.ExportMpesaTransactions(tillNumber, dateFrom, dateTo, transId, ct);
 
-			if (result is null)
-				return NotFound(result!.ResponseMessage);
+			if (result.ResponseObject is null)
+				return NotFound(result.ResponseMessage);
 
-			return File(result.ResponseObject!, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			return File(result.ResponseObject, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 				$"mpesa_transactions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
 		}
+
 
 		[HttpGet]
 		[Authorize(Roles = "can view mpesa transactions")]

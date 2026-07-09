@@ -292,7 +292,6 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				return GetErrorResponse("Error getting mpesa transactions");
 			}
 		}
-
 		public async Task<ServiceResponse<byte[]>> ExportMpesaTransactions(string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct = default)
 		{
 			// ─────────────────────────────────────────────────────────────────────────
@@ -343,21 +342,18 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 								mt.Status,
 							};
 
+				// All filters are independent and optional — whichever are supplied get AND'd together.
 				if (!string.IsNullOrWhiteSpace(transId))
-				{
 					query = query.Where(t => t.TransID == transId.Trim());
-				}
-				else
-				{
-					if (!string.IsNullOrWhiteSpace(tillNumber))
-						query = query.Where(t => t.TillNumber == tillNumber);
 
-					if (fromDate.HasValue)
-						query = query.Where(t => t.DateTimeStamp >= fromDate.Value);
+				if (!string.IsNullOrWhiteSpace(tillNumber))
+					query = query.Where(t => t.TillNumber == tillNumber);
 
-					if (toDate.HasValue)
-						query = query.Where(t => t.DateTimeStamp <= toDate.Value);
-				}
+				if (fromDate.HasValue)
+					query = query.Where(t => t.DateTimeStamp >= fromDate.Value);
+
+				if (toDate.HasValue)
+					query = query.Where(t => t.DateTimeStamp <= toDate.Value);
 
 				var transactions = await query
 					.OrderByDescending(t => t.DateTimeStamp)
@@ -492,7 +488,6 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				_context.Database.SetCommandTimeout(originalTimeout);
 			}
 		}
-
 
 		public async Task<ServiceResponse<object>> BlockMpesa(string transId)
 		{
@@ -695,7 +690,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				return ServiceResponse<List<UnusedMpesaTransactionDto>>.Information("No open shift found", null);
 
 			var transactions = await _context.MpesaTransactions
-				.Where(t => t.ShiftNumber == shift.ShiftNumber)
+				.Where(t => t.ShiftNumber == shift.ShiftNumber && t.Status != 0)
 				.OrderByDescending(t => t.DateCreated)
 				.Select(t => new UnusedMpesaTransactionDto
 				{
