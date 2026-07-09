@@ -103,20 +103,29 @@ namespace BussinessLogic.Stock.Stock
 		{
 			var threshold = await GetThresholdForDispenserAsync(request.DispenserCode);
 
-			// Resolve the current open shift once, server-side, and reuse it
-			// for every nozzle in the request rather than re-querying per nozzle.
+			// Resolve the current open shift by dispenser only. A dispenser can only have
+			// one open shift at a time (enforced at shift-open), so the closing attendant
+			// may legitimately be a different user than whoever opened it (shift handover).
+			// Filtering by UserCode here was a bug: it silently returned "no shift found"
+			// for any handover scenario, which caused ExceedsThreshold to fall back to
+			// false with no variance check actually performed.
 			var shift = await _db.Shifts
 				.Where(x => x.DispenserCode == request.DispenserCode
-							&& x.UserCode == _authentication.Usercode()
 							&& x.ShiftStatus == ShiftStatus.Open)
 				.FirstOrDefaultAsync();
 
 			if (shift == null)
 			{
+				// No open shift is an invalid state at this point in the flow (the attendant
+				// shouldn't be able to reach stock take submission without one). Treat it as
+				// a hard failure rather than silently reporting "no variance" — surfacing this
+				// to the client prevents a stock take from ever slipping through unchecked.
 				return new StockTakeVarianceCheckResponse
 				{
-					Message = "No open shift found for this dispenser/user.",
-					ExceedsThreshold = false
+					Message = "No open shift found for this dispenser. Please contact support before proceeding.",
+					ExceedsThreshold = true,
+					TotalVariance = 0m,
+					Threshold = threshold
 				};
 			}
 
@@ -152,7 +161,6 @@ namespace BussinessLogic.Stock.Stock
 				NozzleBreakdown = breakdown
 			};
 		}
-
 		/// <summary>
 		/// Each dispenser carries its own variance threshold (Dispenser.ThreshHold).
 		/// Falls back to a conservative appsettings default only if the dispenser
