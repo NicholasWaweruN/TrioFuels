@@ -367,6 +367,7 @@ namespace BussinessLogic.Sales.MissingSales
 				try
 				{
 					await SaveTransactionDataAsync(sales);
+					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -393,6 +394,7 @@ namespace BussinessLogic.Sales.MissingSales
 				try
 				{
 					await SaveTransactionDataAsync(sales);
+					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -419,6 +421,7 @@ namespace BussinessLogic.Sales.MissingSales
 				try
 				{
 					await SaveTransactionDataAsync(sales);
+					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
