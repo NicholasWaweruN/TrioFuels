@@ -18,7 +18,13 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 		Task<ServiceResponse<object>> GetMpesaCodeUsage(string transId);
 		Task<ServiceResponse<object>> GetTills();
 		Task<ServiceResponse<List<UnusedMpesaTransactionDto>>> GetUnusedMpesaTransactionsAsync();
-		Task<ServiceResponse<object>> MpesaTransactions(string? tillNumber, DateTime? dateFrom, DateTime? dateTo, string? transId);
+		Task<ServiceResponse<object>> MpesaTransactions(
+					string? tillNumber,
+					DateTime? dateFrom,
+					DateTime? dateTo,
+					string? transId,
+					int pageNumber = 1,
+					int pageSize = 50);
 		Task<ServiceResponse<object>> UpdateTill(UpdateTillDto till);
 	}
 }

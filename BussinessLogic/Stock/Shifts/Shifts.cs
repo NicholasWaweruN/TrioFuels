@@ -42,7 +42,7 @@ namespace BussinessLogic.Stock.Shifts
 				select new ShiftStatusDto
 				{
 					ShiftNumber = s.ShiftNumber,
-					ClientFullName = u.FirstName + " " + u.LastName, // adjust if AspNetUsers uses different name fields
+					ClientFullName =  string.Join(' ',new object[] { u.FirstName, u.MiddName, u.LastName }), // adjust if AspNetUsers uses different name fields
 					StartShiftDate = s.ShiftStartTime,
 					Status = s.ShiftStatus
 				};

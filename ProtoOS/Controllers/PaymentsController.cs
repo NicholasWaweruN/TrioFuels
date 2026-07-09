@@ -74,9 +74,15 @@ namespace FuelFlow.Controllers
 		[HttpGet]
 		[Authorize(Roles = "can view mpesa transactions")]
 		[Route("MpesaTransactions")]
-		public async Task<IActionResult> MpesaTransactions(string? tillNumber, DateTime? dateFrom, DateTime? dateTo, string? transId)
+		public async Task<IActionResult> MpesaTransactions(
+		string? tillNumber,
+		DateTime? dateFrom,
+		DateTime? dateTo,
+		string? transId,
+		int pageNumber = 1,
+		int pageSize = 50)
 		{
-			var response = await _payments.MpesaTransactions(tillNumber, dateFrom, dateTo, transId);
+			var response = await _payments.MpesaTransactions(tillNumber, dateFrom, dateTo, transId, pageNumber, pageSize);
 			return CreateResponse(response);
 		}
 		/// <summary>

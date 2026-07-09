@@ -47,6 +47,10 @@ namespace DataAccessLayer.DTOs.Payments
 		public double UsageBalance { get; set; }
 		public DateTime DateTimeStamp { get; set; } = new DateTime();
 		public string Status { get; set; } = string.Empty;
+		public string PaymentMethod { get; set; } = string.Empty;
+		public string MpesaReceiptNumber { get; set; } = string.Empty;
+		public string MSISDN { get; set; } = string.Empty;
+		public string ShiftNumber { get; set; } = string.Empty;
 	}
 	public class MpesaC2BPayment
 	{

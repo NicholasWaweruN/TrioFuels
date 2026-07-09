@@ -176,89 +176,122 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			string? tillNumber,
 			DateTime? dateFrom,
 			DateTime? dateTo,
-			string? transId)
+			string? transId,
+			int pageNumber = 1,
+			int pageSize = 50)
 		{
-			// ─────────────────────────────────────────────────────────────────────
-			// Base query
-			// ─────────────────────────────────────────────────────────────────────
-			var sql = new StringBuilder(@"
-       SELECT
-            Mp.""TransID"",
-            Mp.""BusinessShortCode"",
-            Mp.""TransAmount"",
-            t.""StoreNumber"",
-            t.""TillNumber""    AS ""Till"",
-            Mp.""UsageBalance"",
-            Mp.""DateTimeStamp"",
-            Mp.""TransactionType"",
-            Mp.""FirstName"" || ' ' || Mp.""LastName"" || ' ' || Mp.""MiddName"" AS ""Name"",
-            CASE
-                WHEN Mp.""Status"" = 0 THEN 'Fully Used'
-                WHEN Mp.""Status"" = 1 THEN 'Has Usage Balance'
-				WHEN Mp.""Status"" = 2 THEN 'Partially Used'
-                WHEN Mp.""Status"" = 3 THEN 'Blocked'
-                ELSE ''
-            END AS ""Status""
-        FROM ""MpesaTransactions"" Mp
-        INNER JOIN ""Tills"" t
-               ON CAST(Mp.""TillNumber"" AS VARCHAR(50)) = CAST(t.""TillNumber"" AS VARCHAR(50))
-        WHERE 1=1");
+			if (pageNumber < 1) pageNumber = 1;
+			if (pageSize < 1) pageSize = 50;
+			if (pageSize > 500) pageSize = 500; // guard against someone passing pageSize=999999
 
 			// ─────────────────────────────────────────────────────────────────────
-			// Dynamic filters
+			// Shared WHERE clause + params (used by both count and data queries)
 			// ─────────────────────────────────────────────────────────────────────
+			var whereClause = new StringBuilder(" WHERE 1=1");
 			var parameters = new List<NpgsqlParameter>();
 
 			if (!string.IsNullOrWhiteSpace(transId))
 			{
-				sql.Append(@" AND Mp.""TransID"" = @transId");
+				whereClause.Append(@" AND Mp.""TransID"" = @transId");
 				parameters.Add(new NpgsqlParameter("@transId", transId));
 			}
 
 			if (!string.IsNullOrWhiteSpace(tillNumber))
 			{
-				sql.Append(@" AND t.""TillNumber"" = @tillNumber");
+				whereClause.Append(@" AND t.""TillNumber"" = @tillNumber");
 				parameters.Add(new NpgsqlParameter("@tillNumber", tillNumber));
 			}
 
 			if (dateFrom.HasValue)
 			{
-				sql.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) >= @dateFrom");
+				whereClause.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) >= @dateFrom");
 				parameters.Add(new NpgsqlParameter("@dateFrom", NpgsqlDbType.Date) { Value = dateFrom.Value });
 			}
 
 			if (dateTo.HasValue)
 			{
-				sql.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) <= @dateTo");
+				whereClause.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) <= @dateTo");
 				parameters.Add(new NpgsqlParameter("@dateTo", NpgsqlDbType.Date) { Value = dateTo.Value });
 			}
 
-			// ─────────────────────────────────────────────────────────────────────
-			// Execute
-			// ─────────────────────────────────────────────────────────────────────
+			var joinSql = @"
+        FROM ""MpesaTransactions"" Mp INNER JOIN ""Tills"" t
+               ON CAST(Mp.""TillNumber"" AS VARCHAR(50)) = CAST(t.""TillNumber"" AS VARCHAR(50))";
+
 			try
 			{
+				// ─────────────────────────────────────────────────────────────────
+				// Total count (for pagination metadata) — cheap, no join columns
+				// ─────────────────────────────────────────────────────────────────
+				var countSql = "SELECT COUNT(*)::int AS Value" + joinSql + whereClause;
+
+				var totalCount = (await _context.Database
+						.SqlQueryRaw<int>(countSql, parameters.ToArray())
+						.ToListAsync())
+					.FirstOrDefault();
+
+				if (totalCount == 0)
+					return ServiceResponse<object>.Information("No Mpesa transactions found", null);
+
+				// ─────────────────────────────────────────────────────────────────
+				// Page of results, latest first
+				// ─────────────────────────────────────────────────────────────────
+				var dataSql = new StringBuilder(@"
+            SELECT
+                Mp.""TransID"",
+                Mp.""BusinessShortCode"",
+                Mp.""TransAmount"",
+                t.""StoreNumber"",
+                t.""TillNumber""        AS ""Till"",
+                Mp.""UsageBalance"",
+                Mp.""DateTimeStamp"",
+                Mp.""TransactionType"",
+                Mp.""PaymentMethod"",
+                Mp.""MpesaReceiptNumber"",
+                Mp.""MSISDN"",
+                Mp.""ShiftNumber"",
+                Mp.""FirstName"" || ' ' || Mp.""MiddName"" || ' ' || Mp.""LastName"" AS ""Name"",
+                CASE
+                    WHEN Mp.""Status"" = 0 THEN 'Fully Used'
+                    WHEN Mp.""Status"" = 1 THEN 'Has Usage Balance'
+                    WHEN Mp.""Status"" = 2 THEN 'Partially Used'
+                    WHEN Mp.""Status"" = 3 THEN 'Blocked'
+                    ELSE ''
+                END AS ""Status""
+        ").Append(joinSql).Append(whereClause).Append(@"
+            ORDER BY Mp.""DateTimeStamp"" DESC
+            LIMIT @pageSize OFFSET @offset");
+
+				var pagedParameters = new List<NpgsqlParameter>(parameters)
+		{
+			new NpgsqlParameter("@pageSize", pageSize),
+			new NpgsqlParameter("@offset", (pageNumber - 1) * pageSize)
+		};
+
 				var transactions = await _context.Database
-					.SqlQueryRaw<MpesaTransactionsDto>(sql.ToString(), parameters.ToArray())
+					.SqlQueryRaw<MpesaTransactionsDto>(dataSql.ToString(), pagedParameters.ToArray())
 					.AsNoTracking()
 					.ToListAsync();
 
-				if (transactions.Count == 0)
-					return ServiceResponse<object>.Information("No Mpesa transactions found", null);
+				var result = new
+				{
+					totalCount,
+					pageNumber,
+					pageSize,
+					totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+					data = transactions
+				};
 
-				return ServiceResponse<object>.Success("Mpesa transactions retrieved successfully", transactions);
+				return ServiceResponse<object>.Success("Mpesa transactions retrieved successfully", result);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving Mpesa transactions for Till={Till}, TransId={TransId}, From={From}, To={To}.",
-					tillNumber, transId, dateFrom, dateTo);
+				_logger.LogError(ex, "Error retrieving Mpesa transactions for Till={Till}, TransId={TransId}, From={From}, To={To}, Page={Page}, Size={Size}.",
+					tillNumber, transId, dateFrom, dateTo, pageNumber, pageSize);
 
 				return GetErrorResponse("Error getting mpesa transactions");
 			}
 		}
-		//update MpesaTransactions status to 3 for blocked
-
-
 
 		public async Task<ServiceResponse<byte[]>> ExportMpesaTransactions(string? tillNumber, string? dateFrom, string? dateTo, string? transId, CancellationToken ct = default)
 		{
