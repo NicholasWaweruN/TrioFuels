@@ -177,6 +177,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			DateTime? dateFrom,
 			DateTime? dateTo,
 			string? transId,
+			string shiftNumber,
 			int pageNumber = 1,
 			int pageSize = 50)
 		{
@@ -196,6 +197,12 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				parameters.Add(new NpgsqlParameter("@transId", transId));
 			}
 
+			if (!string.IsNullOrWhiteSpace(transId))
+			{
+				whereClause.Append(@" AND Mp.""ShiftNumber"" = @shiftNumber");
+				parameters.Add(new NpgsqlParameter("@transId", shiftNumber));
+			}
+
 			if (!string.IsNullOrWhiteSpace(tillNumber))
 			{
 				whereClause.Append(@" AND t.""TillNumber"" = @tillNumber");
@@ -213,6 +220,8 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				whereClause.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) <= @dateTo");
 				parameters.Add(new NpgsqlParameter("@dateTo", NpgsqlDbType.Date) { Value = dateTo.Value });
 			}
+
+
 
 			var joinSql = @"
         FROM ""MpesaTransactions"" Mp INNER JOIN ""Tills"" t

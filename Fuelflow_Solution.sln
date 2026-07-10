@@ -20,6 +20,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FuelFlow_Tests", "FuelFlow_
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnFonMessaging", "OnFonMessaging\OnFonMessaging.csproj", "{7E54245E-681F-4111-97C0-B70CA262BA9C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrioCarWash", "TrioCarWash\TrioCarWash.csproj", "{D956FE94-CE9D-4335-BA64-86F09597D12E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,10 @@ Global
 		{7E54245E-681F-4111-97C0-B70CA262BA9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7E54245E-681F-4111-97C0-B70CA262BA9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7E54245E-681F-4111-97C0-B70CA262BA9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D956FE94-CE9D-4335-BA64-86F09597D12E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D956FE94-CE9D-4335-BA64-86F09597D12E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D956FE94-CE9D-4335-BA64-86F09597D12E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D956FE94-CE9D-4335-BA64-86F09597D12E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

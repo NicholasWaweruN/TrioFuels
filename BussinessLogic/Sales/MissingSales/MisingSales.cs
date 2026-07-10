@@ -665,9 +665,7 @@ namespace BussinessLogic.Sales.MissingSales
 				var mpesaAmount = await GetUsageBalanceAsync(transId);
 				if (mpesaAmount == null || mpesaAmount <= 0)
 				{
-					string message = mpesaAmount == null
-						? $"M-Pesa code {transId} does not exist."
-						: $"Amount fully used for code {transId}.";
+					string message = mpesaAmount == null ? $"M-Pesa code {transId} does not exist." : $"Amount fully used for code {transId}.";
 					return ServiceResponse<int?>.Information(message, mpesaAmount);
 				}
 				return ServiceResponse<int?>.Success($"Valid Mpesa Code {transId}.", mpesaAmount);
