@@ -759,7 +759,7 @@ namespace BussinessLogic.Sales.MissingSales
 								select t.TillNumber).FirstOrDefaultAsync();
 			return number ?? string.Empty;
 		}
-		private async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
+		public async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
 		{
 			try
 			{
@@ -769,9 +769,11 @@ namespace BussinessLogic.Sales.MissingSales
 					select vs
 				).ToListAsync();
 
-				var dispenserStation = await (from s in _context.Shifts where s.ShiftNumber == shiftNumber
-					join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
-					from d in dj.DefaultIfEmpty() select new { s.DispenserCode, StationCode = d != null ? d.StationCode : null }).FirstOrDefaultAsync();
+				var dispenserStation = await (from s in _context.Shifts
+											  where s.ShiftNumber == shiftNumber
+											  join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
+											  from d in dj.DefaultIfEmpty()
+											  select new { s.DispenserCode, StationCode = d != null ? d.StationCode : null }).FirstOrDefaultAsync();
 
 				var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
 				var stationCode = dispenserStation?.StationCode ?? string.Empty;
@@ -779,7 +781,11 @@ namespace BussinessLogic.Sales.MissingSales
 				var threshold = await _varianceService.GetThresholdForDispenserAsync(dispenserId);
 
 				var nozzlePrices = new Dictionary<string, decimal>();
-				decimal totalVarianceValue = 0m;
+
+				// SIGNED and NETTED across all nozzles in the shift — an overage on one
+				// nozzle offsets a shortage on another, in money terms just like in litres.
+				// e.g. Nozzle A +8L, Nozzle B -5L => net = +3L worth, NOT (8L + 5L) = 13L worth.
+				decimal netVarianceValue = 0m;
 
 				foreach (var variance in variances)
 				{
@@ -790,20 +796,26 @@ namespace BussinessLogic.Sales.MissingSales
 					}
 
 					var netVarianceForNozzle = variance.ClosingVariance + variance.OpeningVariance;
-					totalVarianceValue += Math.Abs(netVarianceForNozzle) * pricePerLitre;
+					netVarianceValue += netVarianceForNozzle * pricePerLitre; // signed - do NOT Math.Abs here
 				}
 
+				// Magnitude of the netted value — used for both the threshold check and the audit message.
+				var totalVarianceValue = Math.Abs(netVarianceValue);
+
+				// Shift-level (not per-nozzle) signed variance in litres.
+				// e.g. Nozzle A +8L, Nozzle B -5L => shift net = +3L => overage, goes through value threshold.
 				var totalVarianceLitres = variances.Sum(x => x.ClosingVariance + x.OpeningVariance);
 
-				// Two independent auto-clear conditions:
-				//  1. Money-value of variance is within the configured threshold (existing behaviour), OR
-				//  2. Net litres across the whole shift falls in the range [-1L, 0L] — a shortage of up to
-				//     1L auto-clears regardless of value; any overage (> 0L) must go through the value
-				//     threshold instead, and any shortage beyond -1L never auto-clears on litres alone.
-				//
-				// NOTE: totalVarianceLitres is a SIGNED sum across all nozzles, not a sum of magnitudes.
-				var isWithinValueThreshold = totalVarianceValue <= threshold;
-				var isWithinLitreThreshold = totalVarianceLitres >= -1m && totalVarianceLitres <= 0m;
+				// Auto-clear conditions are evaluated on the SHIFT-LEVEL NET variance (all nozzles
+				// combined), partitioned strictly by sign:
+				//   • Shift net overage  (totalVarianceLitres > 0)          -> must pass the money-value threshold (netted value).
+				//   • Shift net shortage (totalVarianceLitres in [-1L, 0L]) -> auto-clears on litres alone, regardless of value.
+				//   • Shift net shortage beyond -1L (< -1L, e.g. -2L, -3L)  -> never auto-clears, under any condition.
+				var isOverage = totalVarianceLitres > 0m;
+				var isMinorShortage = totalVarianceLitres >= -1m && totalVarianceLitres <= 0m;
+
+				var isWithinValueThreshold = isOverage && totalVarianceValue <= threshold;
+				var isWithinLitreThreshold = isMinorShortage;
 
 				if (isWithinValueThreshold || isWithinLitreThreshold)
 				{
@@ -866,7 +878,9 @@ namespace BussinessLogic.Sales.MissingSales
 					await _context.SaveChangesAsync();
 					await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
 
-					var reasonText = isWithinValueThreshold ? $"it falls within the allowed threshold of KES {threshold:N2}" : $"net litre variance ({totalVarianceLitres:N2}L) falls within the shortage auto-clear allowance (-1L to 0L)";
+					var reasonText = isWithinValueThreshold
+						? $"it falls within the allowed threshold of KES {threshold:N2}"
+						: $"net litre variance ({totalVarianceLitres:N2}L) falls within the shortage auto-clear allowance (-1L to 0L)";
 
 					var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, {reasonText}.";
 					await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
