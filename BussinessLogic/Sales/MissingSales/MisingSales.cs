@@ -204,6 +204,7 @@ namespace BussinessLogic.Sales.MissingSales
 				{
 					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
 
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
@@ -234,6 +235,8 @@ namespace BussinessLogic.Sales.MissingSales
 				try
 				{
 					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
+
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
@@ -294,9 +297,10 @@ namespace BussinessLogic.Sales.MissingSales
 					});
 					await _context.SaveChangesAsync();
 
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-				
+
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a CREDIT SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Customer={customer.CustomerCode} | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -347,6 +351,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a LOYALTY SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Customer={sales.CustomerCode} | PointsDeducted={pointsToDeduct:N2} | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -374,6 +379,7 @@ namespace BussinessLogic.Sales.MissingSales
 				{
 					await SaveTransactionDataAsync(sales);
 
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
@@ -402,6 +408,7 @@ namespace BussinessLogic.Sales.MissingSales
 				{
 					await SaveTransactionDataAsync(sales);
 
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
@@ -432,6 +439,7 @@ namespace BussinessLogic.Sales.MissingSales
 				{
 					await SaveTransactionDataAsync(sales);
 
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
@@ -479,9 +487,9 @@ namespace BussinessLogic.Sales.MissingSales
 						await ReconcileAndUpdateUsageBalanceAsync(payment.TransactionReference);
 					}
 
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					await ClearVariance(sales.ShiftNumber);
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-				
 
 					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed an MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
@@ -785,6 +793,7 @@ namespace BussinessLogic.Sales.MissingSales
 				// SIGNED and NETTED across all nozzles in the shift — an overage on one
 				// nozzle offsets a shortage on another, in money terms just like in litres.
 				// e.g. Nozzle A +8L, Nozzle B -5L => net = +3L worth, NOT (8L + 5L) = 13L worth.
+				// Each nozzle's own retail price is used for its own portion of the net value.
 				decimal netVarianceValue = 0m;
 
 				foreach (var variance in variances)
@@ -819,26 +828,31 @@ namespace BussinessLogic.Sales.MissingSales
 
 				if (isWithinValueThreshold || isWithinLitreThreshold)
 				{
+					// Mark every nozzle's variance row as closed. No per-nozzle transaction is
+					// written here — opposing nozzles (e.g. A=+8, B=-0.08) no longer generate
+					// their own separate debit/credit entries.
 					foreach (var variance in variances)
 					{
-						var netVariance = variance.ClosingVariance + variance.OpeningVariance;
-						if (netVariance == 0)
-							continue;
+						variance.VarianceStatus = ShiftStatus.Closed;
+						_context.StockTakeSummaries.Update(variance);
+					}
 
-						var pricePerLitre = nozzlePrices[variance.NozzleCode];
+					// Write ONE consolidated transaction pair reflecting the NET shift-level
+					// position (totalVarianceLitres / totalVarianceValue), not one per nozzle.
+					if (totalVarianceLitres != 0m)
+					{
+						var isShortage = totalVarianceLitres < 0m;
+						var magnitude = Math.Abs(totalVarianceLitres);
 						var saleId = _setups.GenerateSaleId();
-
-						var isShortage = netVariance < 0;
-						var magnitude = Math.Abs(netVariance);
-						var moneyValue = magnitude * pricePerLitre;
+						var firstVariance = variances.FirstOrDefault();
 
 						var quantityTransaction = new QuantityTransactions
 						{
 							DateCreated = DateTime.UtcNow,
-							UserCode = variance.UserCode ?? "",
-							NozzleCode = variance.NozzleCode,
-							QuantityCredit = isShortage ? 0 : magnitude,
-							QuantityDebit = isShortage ? magnitude : 0,
+							UserCode = firstVariance?.UserCode ?? "",
+							NozzleCode = firstVariance?.NozzleCode ?? "", // TODO: confirm convention for a shift-level net entry
+							QuantityCredit = isShortage ? magnitude : 0,
+							QuantityDebit = isShortage ? 0 : magnitude,
 							ShiftNumber = shiftNumber,
 							SaleId = saleId,
 							PaymentTypeCode = 3,
@@ -859,16 +873,13 @@ namespace BussinessLogic.Sales.MissingSales
 						var paymentTransaction = new PaymentTransactions
 						{
 							DateCreated = DateTime.UtcNow,
-							UserCode = variance.UserCode ?? string.Empty,
+							UserCode = firstVariance?.UserCode ?? string.Empty,
 							SaleId = saleId,
 							PaymentRefrence = _setups.GenerateShiftNumber(),
-							TransactionAmount = isShortage ? 0 : moneyValue,
-							TransactionAmountDebit = isShortage ? moneyValue : 0
+							TransactionAmount = isShortage ? 0 : totalVarianceValue,
+							TransactionAmountDebit = isShortage ? totalVarianceValue : 0
 						};
 						await _context.PaymentTransactions.AddAsync(paymentTransaction);
-
-						variance.VarianceStatus = ShiftStatus.Closed;
-						_context.StockTakeSummaries.Update(variance);
 					}
 
 					var shiftToClose = await (from s in _context.Shifts where s.ShiftNumber == shiftNumber select s).FirstOrDefaultAsync();
@@ -894,8 +905,7 @@ namespace BussinessLogic.Sales.MissingSales
 			{
 				return ServiceResponse<object>.Error(ex.Message, null);
 			}
-		}
-		// ====== Variance Methods ======
+		}       // ====== Variance Methods ======
 		public async Task<ServiceResponse> DeferVariance(string shiftNumber)
 		{
 			var shift = await _context.Shifts.FirstOrDefaultAsync(s => s.ShiftNumber == shiftNumber);

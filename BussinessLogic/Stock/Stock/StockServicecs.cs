@@ -1118,7 +1118,8 @@ namespace BussinessLogic.Stock.Stock
 		// definition of Variance = ClosingVariance + OpeningVariance.
 		// PERF: dispenser code + station code lookups merged into a single
 		// joined query instead of two sequential round trips.
-		private async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
+
+		public async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
 		{
 			try
 			{
@@ -1128,13 +1129,11 @@ namespace BussinessLogic.Stock.Stock
 					select vs
 				).ToListAsync();
 
-				var dispenserStation = await (
-					from s in _context.Shifts
-					where s.ShiftNumber == shiftNumber
-					join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
-					from d in dj.DefaultIfEmpty()
-					select new { DispenserCode = s.DispenserCode, StationCode = d != null ? d.StationCode : null }
-				).FirstOrDefaultAsync();
+				var dispenserStation = await (from s in _context.Shifts
+											  where s.ShiftNumber == shiftNumber
+											  join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
+											  from d in dj.DefaultIfEmpty()
+											  select new { s.DispenserCode, StationCode = d != null ? d.StationCode : null }).FirstOrDefaultAsync();
 
 				var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
 				var stationCode = dispenserStation?.StationCode ?? string.Empty;
@@ -1142,7 +1141,12 @@ namespace BussinessLogic.Stock.Stock
 				var threshold = await _varianceService.GetThresholdForDispenserAsync(dispenserId);
 
 				var nozzlePrices = new Dictionary<string, decimal>();
-				decimal totalVarianceValue = 0m;
+
+				// SIGNED and NETTED across all nozzles in the shift — an overage on one
+				// nozzle offsets a shortage on another, in money terms just like in litres.
+				// e.g. Nozzle A +8L, Nozzle B -5L => net = +3L worth, NOT (8L + 5L) = 13L worth.
+				// Each nozzle's own retail price is used for its own portion of the net value.
+				decimal netVarianceValue = 0m;
 
 				foreach (var variance in variances)
 				{
@@ -1153,43 +1157,54 @@ namespace BussinessLogic.Stock.Stock
 					}
 
 					var netVarianceForNozzle = variance.ClosingVariance + variance.OpeningVariance;
-					totalVarianceValue += Math.Abs(netVarianceForNozzle) * pricePerLitre;
+					netVarianceValue += netVarianceForNozzle * pricePerLitre; // signed - do NOT Math.Abs here
 				}
 
+				// Magnitude of the netted value — used for both the threshold check and the audit message.
+				var totalVarianceValue = Math.Abs(netVarianceValue);
+
+				// Shift-level (not per-nozzle) signed variance in litres.
+				// e.g. Nozzle A +8L, Nozzle B -5L => shift net = +3L => overage, goes through value threshold.
 				var totalVarianceLitres = variances.Sum(x => x.ClosingVariance + x.OpeningVariance);
 
-				// Two independent auto-clear conditions:
-				//  1. Money-value of variance is within the configured threshold (existing behaviour), OR
-				//  2. Net litres across the whole shift falls in the range [-1L, 0L] — a shortage of up to
-				//     1L auto-clears regardless of value; any overage (> 0L) must go through the value
-				//     threshold instead, and any shortage beyond -1L never auto-clears on litres alone.
-				//
-				// NOTE: totalVarianceLitres is a SIGNED sum across all nozzles, not a sum of magnitudes.
-				var isWithinValueThreshold = totalVarianceValue <= threshold;
-				var isWithinLitreThreshold = totalVarianceLitres >= -1m && totalVarianceLitres <= 0m;
+				// Auto-clear conditions are evaluated on the SHIFT-LEVEL NET variance (all nozzles
+				// combined), partitioned strictly by sign:
+				//   • Shift net overage  (totalVarianceLitres > 0)          -> must pass the money-value threshold (netted value).
+				//   • Shift net shortage (totalVarianceLitres in [-1L, 0L]) -> auto-clears on litres alone, regardless of value.
+				//   • Shift net shortage beyond -1L (< -1L, e.g. -2L, -3L)  -> never auto-clears, under any condition.
+				var isOverage = totalVarianceLitres > 0m;
+				var isMinorShortage = totalVarianceLitres >= -1m && totalVarianceLitres <= 0m;
+
+				var isWithinValueThreshold = isOverage && totalVarianceValue <= threshold;
+				var isWithinLitreThreshold = isMinorShortage;
 
 				if (isWithinValueThreshold || isWithinLitreThreshold)
 				{
+					// Mark every nozzle's variance row as closed. No per-nozzle transaction is
+					// written here — opposing nozzles (e.g. A=+8, B=-0.08) no longer generate
+					// their own separate debit/credit entries.
 					foreach (var variance in variances)
 					{
-						var netVariance = variance.ClosingVariance + variance.OpeningVariance;
-						if (netVariance == 0)
-							continue;
+						variance.VarianceStatus = ShiftStatus.Closed;
+						_context.StockTakeSummaries.Update(variance);
+					}
 
-						var pricePerLitre = nozzlePrices[variance.NozzleCode];
+					// Write ONE consolidated transaction pair reflecting the NET shift-level
+					// position (totalVarianceLitres / totalVarianceValue), not one per nozzle.
+					if (totalVarianceLitres != 0m)
+					{
+						var isShortage = totalVarianceLitres < 0m;
+						var magnitude = Math.Abs(totalVarianceLitres);
 						var saleId = _setups.GenerateSaleId();
-
-						var isShortage = netVariance < 0;
-						var magnitude = Math.Abs(netVariance);
-						var moneyValue = magnitude * pricePerLitre;
+						var firstVariance = variances.FirstOrDefault();
 
 						var quantityTransaction = new QuantityTransactions
 						{
 							DateCreated = DateTime.UtcNow,
-							UserCode = variance.UserCode ?? "",
-							NozzleCode = variance.NozzleCode,
-							QuantityCredit = isShortage ? 0 : magnitude,
-							QuantityDebit = isShortage ? magnitude : 0,
+							UserCode = firstVariance?.UserCode ?? "",
+							NozzleCode = firstVariance?.NozzleCode ?? "", // TODO: confirm convention for a shift-level net entry
+							QuantityCredit = isShortage ? magnitude : 0,
+							QuantityDebit = isShortage ? 0 : magnitude,
 							ShiftNumber = shiftNumber,
 							SaleId = saleId,
 							PaymentTypeCode = 3,
@@ -1210,28 +1225,18 @@ namespace BussinessLogic.Stock.Stock
 						var paymentTransaction = new PaymentTransactions
 						{
 							DateCreated = DateTime.UtcNow,
-							UserCode = variance.UserCode ?? "",
+							UserCode = firstVariance?.UserCode ?? string.Empty,
 							SaleId = saleId,
 							PaymentRefrence = _setups.GenerateShiftNumber(),
-							TransactionAmount = isShortage ? 0 : moneyValue,
-							TransactionAmountDebit = isShortage ? moneyValue : 0
+							TransactionAmount = isShortage ? 0 : totalVarianceValue,
+							TransactionAmountDebit = isShortage ? totalVarianceValue : 0
 						};
 						await _context.PaymentTransactions.AddAsync(paymentTransaction);
-
-						variance.VarianceStatus = ShiftStatus.Closed;
-						_context.StockTakeSummaries.Update(variance);
 					}
 
-					var shiftToClose = await (
-						from s in _context.Shifts
-						where s.ShiftNumber == shiftNumber
-						select s
-					).FirstOrDefaultAsync();
+					var shiftToClose = await (from s in _context.Shifts where s.ShiftNumber == shiftNumber select s).FirstOrDefaultAsync();
 
-					if (shiftToClose != null)
-					{
-						shiftToClose.ShiftStatus = ShiftStatus.Closed;
-					}
+					shiftToClose?.ShiftStatus = ShiftStatus.Closed;
 
 					await _context.SaveChangesAsync();
 					await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
