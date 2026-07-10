@@ -400,22 +400,33 @@ namespace BussinessLogic.Sales.MissingSales
 
 		private async Task<ServiceResponse<object>> HandleEmployeeMpesaAsync(MisingSaleDto sales)
 		{
+			if (!ValidateSalesBasics(sales, out var invalid)) return invalid;
+
 			var strategy = _context.Database.CreateExecutionStrategy();
 			return await strategy.ExecuteAsync(async () =>
 			{
 				await using var tx = await _context.Database.BeginTransactionAsync();
 				try
 				{
+					var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
+
+					var totalMpesaAvailable = await ValidateAndCalculateMpesaPaymentsAsync(sales.PaymentDetails);
+					if (totalMpesaAvailable < saleTotal)
+					{
+						await tx.RollbackAsync();
+						return ServiceResponse<object>.Information("Insufficient MPesa funds to complete this sale", null);
+					}
+
 					await SaveTransactionDataAsync(sales);
+					foreach (var payment in sales.PaymentDetails)
+					{
+						await ReconcileAndUpdateUsageBalanceAsync(payment.TransactionReference);
+					}
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
-
-
-					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
-					var msg = $"{_authentication.Name()} completed an EMPLOYEE MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
+					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} completed an EMPLOYEE MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
 					await _authentication.AddUserTrail(msg, nameof(HandleEmployeeMpesaAsync));
 
 					await tx.CommitAsync();
