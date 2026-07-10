@@ -499,7 +499,7 @@ namespace BussinessLogic.Stock.Stock
 			{
 			   
 				await _salesTasks.ReconcileStockSummariesAsync(shift.ShiftNumber);
-				await ClearVariance(shiftNumber);
+				//await ClearVariance(shiftNumber);
 
 				totalVariance = await (from q in _context.StockTakeSummaries
 									   where q.ShiftNumber == shiftNumber
