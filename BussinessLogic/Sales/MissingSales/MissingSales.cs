@@ -1,15 +1,10 @@
-﻿using BussinessLogic.Authentication.CommonTasks;
-using BusinessLogic.Sales.CommonSalesTasks;
-using BusinessLogic.SetupService;
-using BussinessLogic.PlateDetection;
+﻿using BusinessLogic.Sales.CommonSalesTasks;
+using BussinessLogic.Authentication.CommonTasks;
+using BussinessLogic.Setup;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
-using DataAccessLayer.DTOs.Sales;
-using DataAccessLayer.EntityModels.Customer;
-using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
-using BussinessLogic.Setup;
 
 namespace BusinessLogic.Sales.MissingSales
 {

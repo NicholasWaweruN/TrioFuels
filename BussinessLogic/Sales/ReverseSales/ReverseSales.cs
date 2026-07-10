@@ -178,6 +178,10 @@ namespace BussinessLogic.Sales.ReverseSales
 					if (shift.ShiftStatus == ShiftStatus.Closed)
 						return ServiceResponse<object>.Information("Nozzle transfer allowed only when shift is in Variance", null);
 
+					if (shift.ShiftStatus == ShiftStatus.Open)
+						return ServiceResponse<object>.Information("Nozzle transfer allowed only when shift is in Variance", null);
+
+
 					if (sale.IsReversed)
 						return ServiceResponse<object>.Information("Sale already reversed, cannot be moved to another nozzle", null);
 
