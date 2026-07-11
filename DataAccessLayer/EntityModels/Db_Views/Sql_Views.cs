@@ -68,9 +68,8 @@ namespace DataAccessLayer.EntityModels.Db_Views
 		public decimal Amount { get; set; }
 		public DateTime SalesDate { get; set; }
 		public string? TillNumber { get; set; }
-		public string TransId { get; set; } = string.Empty;
+		public string? TransId { get; set; }   // ← was non-nullable
 		public decimal RunningBalance { get; set; }
 		public bool IsReversed { get; set; }
-		
 	}
 }
