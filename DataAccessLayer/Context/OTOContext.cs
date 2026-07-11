@@ -10,6 +10,7 @@ using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Daraja;
 using DataAccessLayer.EntityModels.Db_Views;
 using DataAccessLayer.EntityModels.Emails;
+using DataAccessLayer.EntityModels.Grleamify;
 using DataAccessLayer.EntityModels.Loyalty_Program;
 using DataAccessLayer.EntityModels.Messaging;
 using DataAccessLayer.EntityModels.Personal_Wallet;
@@ -134,7 +135,15 @@ namespace DataAccessLayer.Context
 
 		public DbSet<FuelSale> FuelSales { get; set; }
 
-	
+		/// <summary>
+		/// 
+		/// </summary>
+
+		public DbSet<CarWashProduct> CarWashProducts => Set<CarWashProduct>();
+		public DbSet<CarWashShift> CarWashShifts => Set<CarWashShift>();
+		public DbSet<CarWashTransaction> CarWashTransactions => Set<CarWashTransaction>();
+		public DbSet<CarWashTransactionItem> CarWashTransactionItems => Set<CarWashTransactionItem>();
+
 		//Daraja
 
 		public DbSet<StkTransaction> StkTransactions { get; set; }

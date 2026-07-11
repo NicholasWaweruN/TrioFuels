@@ -62,8 +62,10 @@ using BussinessLogic.Worker.StockReports;
 
 // ── External ───────────────────────────────────────────────────────────────
 using DataAccessLayer.DTOs.Messaging;
+using FuelFlow.Services.CarWash;
 using Safaricom_Daraja.Helpers;
 using Syncfusion.Pdf;
+using TrioCarWash.Services.Services;
 
 namespace FuelFlow.Extensions;
 
@@ -184,6 +186,10 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ICreditManagement,CreditManagement>();
 		services.AddScoped<IAllReports, AllReports>();
 
+
+		services.AddScoped<ICarWashShiftService, CarWashShiftService>();
+		services.AddScoped<ICarWashSalesService, CarWashSalesService>();
+		services.AddScoped<ICarWashDashboardService, CarWashDashboardService>();
 		return services;
 	}
 }

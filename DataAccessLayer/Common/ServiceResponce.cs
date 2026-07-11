@@ -125,8 +125,15 @@ namespace DataAccessLayer.Common
 		public const int Credit = 13;
 		public const int Loyalty = 14;
 		public const int PDQ = 15;
-	} 
-    public class Constants
+	}
+
+	public static class CarWashPaymetMethod
+	{
+		public const int Mpesa = 0;
+		public const int Voucher = 7;
+		public const int Cash = 12;
+	}
+	public class Constants
     {
         public const string baseurl = "https://localhost:44300";
     }
@@ -143,10 +150,7 @@ namespace DataAccessLayer.Common
         public const string Bulk = "Bulk";
         public const string Otogas = "Otogas";
     }
-	public class ProtoEmail
-	{
-		public const string Email = "@protoenergy.com";
-	}
+	
 	public class VehicleStatus
     {
         [Comment("Vehicle is active")]

@@ -48,6 +48,7 @@
 	  <ProjectReference Include="..\Safaricom_Daraja\Safaricom_Daraja.csproj" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Folder Include="CarWash\" />
 	  <Folder Include="NewFolder\" />
 	  <Folder Include="Sales\NewFolder\" />
 	  <Folder Include="Sales\ShiftsStatus\" />

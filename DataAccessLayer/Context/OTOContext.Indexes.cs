@@ -9,6 +9,7 @@ using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Daraja;
 using DataAccessLayer.EntityModels.Db_Views;
 using DataAccessLayer.EntityModels.Emails;
+using DataAccessLayer.EntityModels.Grleamify;
 using DataAccessLayer.EntityModels.Loyalty_Program;
 using DataAccessLayer.EntityModels.Messaging;
 using DataAccessLayer.EntityModels.Personal_Wallet;
@@ -315,17 +316,42 @@ namespace DataAccessLayer.Context
                 .HasIndex(f => f.OrderId)
                 .HasDatabaseName("IX_FailedTransactions_TransactionId");
 
-			modelBuilder.Entity<StkTransaction>(entity =>
+			modelBuilder.Entity<CarWashProduct>(e =>
 			{
-				entity.Property(x => x.CheckoutRequestId).HasMaxLength(100);
-				entity.Property(x => x.MerchantRequestId).HasMaxLength(100);
-				entity.Property(x => x.PhoneNumber).HasMaxLength(15);
-				entity.Property(x => x.TillNumber).HasMaxLength(20);
-				entity.Property(x => x.AccountReference).HasMaxLength(50);
-				entity.Property(x => x.Status).HasMaxLength(20);
-				entity.Property(x => x.MpesaReceiptNumber).HasMaxLength(20);
-				entity.Property(x => x.ResultCode).HasMaxLength(10);
-				entity.Property(x => x.ResultDescription).HasMaxLength(255);
+				e.Property(p => p.Price).HasPrecision(12, 2);
+			});
+
+			modelBuilder.Entity<CarWashShift>(e =>
+			{
+				e.Property(s => s.ExpectedCash).HasPrecision(12, 2);
+				e.Property(s => s.ActualCashCounted).HasPrecision(12, 2);
+				e.Property(s => s.Difference).HasPrecision(12, 2);
+				e.HasIndex(s => new { s.UserCode, s.Status }); // fast "find my open shift"
+			});
+
+			modelBuilder.Entity<CarWashTransaction>(e =>
+			{
+				e.Property(t => t.TotalAmount).HasPrecision(12, 2);
+				e.Property(t => t.AmountReceived).HasPrecision(12, 2);
+				e.Property(t => t.Change).HasPrecision(12, 2);
+				e.HasIndex(t => t.ReceiptNumber).IsUnique();
+				e.HasOne(t => t.Shift)
+					.WithMany(s => s.Transactions)
+					.HasForeignKey(t => t.ShiftId);
+					
+			});
+
+			modelBuilder.Entity<CarWashTransactionItem>(e =>
+			{
+				e.Property(i => i.UnitPrice).HasPrecision(12, 2);
+				e.HasOne(i => i.Transaction)
+					.WithMany(t => t.Items)
+					.HasForeignKey(i => i.TransactionId);
+			
+				e.HasOne(i => i.Product)
+					.WithMany()
+					.HasForeignKey(i => i.ProductId);
+					
 			});
 		}
     }

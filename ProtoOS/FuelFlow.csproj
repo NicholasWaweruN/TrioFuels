@@ -72,6 +72,7 @@
 	  <ProjectReference Include="..\BussinessLogic\BussinessLogic.csproj" />
 	  <ProjectReference Include="..\OnFonMessaging\OnFonMessaging.csproj" />
 	  <ProjectReference Include="..\Safaricom_Daraja\Safaricom_Daraja.csproj" />
+	  <ProjectReference Include="..\TrioCarWash\TrioCarWash.csproj" />
 	</ItemGroup>
 
 </Project>
