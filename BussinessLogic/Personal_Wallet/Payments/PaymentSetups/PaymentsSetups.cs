@@ -177,7 +177,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			DateTime? dateFrom,
 			DateTime? dateTo,
 			string? transId,
-			string shiftNumber,
+			string? shiftNumber,
 			int pageNumber = 1,
 			int pageSize = 50)
 		{

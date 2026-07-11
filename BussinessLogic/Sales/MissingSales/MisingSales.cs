@@ -265,6 +265,7 @@ namespace BussinessLogic.Sales.MissingSales
 			var customer = await GetCustomerByCodeAsync(sales.CustomerCode);
 			if (customer is null)
 				return ServiceResponse<object>.Information("Customer not found", null);
+
 			if (!customer.IsCreditCustomer)
 				return ServiceResponse<object>.Information("This customer is not approved for credit purchases.", null);
 

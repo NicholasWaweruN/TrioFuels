@@ -80,10 +80,11 @@ namespace FuelFlow.Controllers
 		DateTime? dateFrom,
 		DateTime? dateTo,
 		string? transId,
+		string? shiftNumber,
 		int pageNumber = 1,
 		int pageSize = 50)
 		{
-			var response = await _payments.MpesaTransactions(tillNumber, dateFrom, dateTo, transId, pageNumber, pageSize);
+			var response = await _payments.MpesaTransactions(tillNumber, dateFrom, dateTo, transId,shiftNumber, pageNumber, pageSize);
 			return CreateResponse(response);
 		}
 		/// <summary>
