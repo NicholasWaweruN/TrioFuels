@@ -11,7 +11,7 @@ public interface ICarWashSalesService
 {
 	Task<ServiceResponse<List<ProductDto>>> GetProductsAsync();
 	Task<ServiceResponse<SaleResponseDto>> CreateSaleAsync(string userCode, CreateSaleRequestDto request);
-	Task<ServiceResponse<List<SaleResponseDto>>> GetSalesHistoryAsync(string userCode, DateTime? from, DateTime? to);
+	Task<ServiceResponse<List<SaleResponseDto>>> GetSalesHistoryAsync(long shiftId);
 }
 
 public class CarWashSalesService : ICarWashSalesService
@@ -44,8 +44,7 @@ public class CarWashSalesService : ICarWashSalesService
 		return ServiceResponse<List<ProductDto>>.Success("OK", products);
 	}
 
-	public async Task<ServiceResponse<SaleResponseDto>> CreateSaleAsync(
-		string userCode, CreateSaleRequestDto request)
+	public async Task<ServiceResponse<SaleResponseDto>> CreateSaleAsync(string userCode, CreateSaleRequestDto request)
 	{
 		if (request.Items.Count == 0)
 			return ServiceResponse<SaleResponseDto>.Error("Sale must have at least one item");
@@ -80,9 +79,7 @@ public class CarWashSalesService : ICarWashSalesService
 			&& string.IsNullOrWhiteSpace(request.PhoneNumber))
 			return ServiceResponse<SaleResponseDto>.Error("Phone number is required for M-Pesa payment");
 
-		decimal change = request.PaymentMethod == CarWashPaymetMethod.Cash
-			? request.AmountReceived! - total
-			: 0;
+		decimal change = request.PaymentMethod == CarWashPaymetMethod.Cash ? request.AmountReceived! - total : 0;
 
 		// EnableRetryOnFailure requires the whole transaction to run inside
 		// the execution strategy so a transient failure can retry the entire
@@ -142,31 +139,31 @@ public class CarWashSalesService : ICarWashSalesService
 				PaymentMethod = request.PaymentMethod,
 				MpesaReference = sale.MpesaReference,
 				CreatedAt = sale.DateCreated,
-				Items = request.Items.Select(i => new SaleItemLineDto
+				Items = [.. request.Items.Select(i => new SaleItemLineDto
 				{
 					ProductName = products[i.ProductId].Name,
 					Quantity = i.Quantity,
 					UnitPrice = products[i.ProductId].Price
-				}).ToList()
+				})]
 			};
 		});
 
 		return ServiceResponse<SaleResponseDto>.Success("Sale completed", dto);
 	}
 
-	public async Task<ServiceResponse<List<SaleResponseDto>>> GetSalesHistoryAsync(string userCode, DateTime? from, DateTime? to)
+	public async Task<ServiceResponse<List<SaleResponseDto>>> GetSalesHistoryAsync(long shiftId)
 	{
+		if (shiftId <= 0)
+			return ServiceResponse<List<SaleResponseDto>>.Error("A valid shiftId is required");
+
 		var query = _db.CarWashTransactions
 			.AsNoTracking()
 			.Include(t => t.Items).ThenInclude(i => i.Product)
-			.Where(t => t.UserCode == userCode && !t.IsReversed);
-
-		if (from.HasValue) query = query.Where(t => t.DateCreated >= from.Value);
-		if (to.HasValue) query = query.Where(t => t.DateCreated <= to.Value);
+			.Where(t => t.ShiftId == shiftId && !t.IsReversed);
 
 		var sales = await query
 			.OrderByDescending(t => t.DateCreated)
-			.Take(200) // TODO: real pagination
+			.Take(200)
 			.ToListAsync();
 
 		var result = sales.Select(t => new SaleResponseDto
@@ -188,7 +185,6 @@ public class CarWashSalesService : ICarWashSalesService
 
 		return ServiceResponse<List<SaleResponseDto>>.Success("OK", result);
 	}
-
 	private static string GenerateReceiptNumber(long shiftId) =>
 		$"CW{shiftId:D4}{DateTime.UtcNow:HHmmssfff}";
 

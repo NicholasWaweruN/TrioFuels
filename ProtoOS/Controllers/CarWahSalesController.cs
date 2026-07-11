@@ -55,11 +55,11 @@ public class CarWashSalesController : ControllerBase
 	}
 
 	[HttpGet("GetSalesHistory")]
-	public async Task<IActionResult> GetSalesHistory([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+	public async Task<IActionResult> GetSalesHistory([FromQuery] long shiftId)
 	{
 		if (string.IsNullOrEmpty(UserCode))
 			return Unauthorized(ServiceResponse<object>.Error("Missing UserCode claim"));
-		return Ok(await _salesService.GetSalesHistoryAsync(UserCode, from, to));
+		return Ok(await _salesService.GetSalesHistoryAsync(shiftId));
 	}
 }
 
