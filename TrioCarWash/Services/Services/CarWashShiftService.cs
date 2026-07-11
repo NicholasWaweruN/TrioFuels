@@ -72,6 +72,7 @@ public class CarWashShiftService(OTOContext db) : ICarWashShiftService
 		shift.VarianceReason = request.VarianceReason;
 		shift.Status = CarWashShiftStatus.Closed;
 		shift.ClosedAt = DateTime.UtcNow;
+	
 
 		await _db.SaveChangesAsync();
 

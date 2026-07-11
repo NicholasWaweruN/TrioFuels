@@ -3,6 +3,7 @@ using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.CarWash;
 using DataAccessLayer.EntityModels.Grleamify;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace TrioCarWash.Services.Services;
 
@@ -83,70 +84,77 @@ public class CarWashSalesService : ICarWashSalesService
 			? request.AmountReceived! - total
 			: 0;
 
-		using var tx = await _db.Database.BeginTransactionAsync();
+		// EnableRetryOnFailure requires the whole transaction to run inside
+		// the execution strategy so a transient failure can retry the entire
+		// unit atomically — a bare BeginTransactionAsync() throws.
+		var strategy = _db.Database.CreateExecutionStrategy();
 
-		var sale = new CarWashTransaction
+		var dto = await strategy.ExecuteAsync(async () =>
 		{
-			UserCode = userCode,
-			ShiftId = shift.Id,
-			TotalAmount = total,
-			PaymentMethod = request.PaymentMethod,
-			AmountReceived = request.AmountReceived,
-			Change = change,
-			PhoneNumber = request.PhoneNumber,
-			MpesaReference = null, // TODO: wire real Daraja STK push here, don't fabricate a reference
-			ReceiptNumber = GenerateReceiptNumber(shift.Id)
-		};
+			using var tx = await _db.Database.BeginTransactionAsync();
 
-		_db.CarWashTransactions.Add(sale);
-
-		try
-		{
-			await _db.SaveChangesAsync();
-		}
-		catch (DbUpdateException) when (IsUniqueViolation())
-		{
-			// extremely unlikely collision on receipt number — regenerate once and retry
-			sale.ReceiptNumber = GenerateReceiptNumber(shift.Id);
-			await _db.SaveChangesAsync();
-		}
-
-		foreach (var item in request.Items)
-		{
-			_db.CarWashTransactionItems.Add(new CarWashTransactionItem
+			var sale = new CarWashTransaction
 			{
 				UserCode = userCode,
-				TransactionId = sale.Id,
-				ProductId = item.ProductId,
-				Quantity = item.Quantity,
-				UnitPrice = products[item.ProductId].Price // snapshot, not live price
-			});
-		}
-		await _db.SaveChangesAsync();
-		await tx.CommitAsync();
+				ShiftId = shift.Id,
+				TotalAmount = total,
+				PaymentMethod = request.PaymentMethod,
+				AmountReceived = request.AmountReceived,
+				Change = change,
+				PhoneNumber = request.PhoneNumber,
+				MpesaReference = null, // TODO: wire real Daraja STK push here, don't fabricate a reference
+				ReceiptNumber = GenerateReceiptNumber(shift.Id)
+			};
 
-		var dto = new SaleResponseDto
-		{
-			SaleId = sale.Id,
-			ReceiptNumber = sale.ReceiptNumber,
-			Total = total,
-			Change = change,
-			PaymentMethod = request.PaymentMethod,
-			MpesaReference = sale.MpesaReference,
-			CreatedAt = sale.DateCreated,
-			Items = request.Items.Select(i => new SaleItemLineDto
+			_db.CarWashTransactions.Add(sale);
+
+			try
 			{
-				ProductName = products[i.ProductId].Name,
-				Quantity = i.Quantity,
-				UnitPrice = products[i.ProductId].Price
-			}).ToList()
-		};
+				await _db.SaveChangesAsync();
+			}
+			catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+			{
+				// extremely unlikely collision on receipt number — regenerate once and retry
+				sale.ReceiptNumber = GenerateReceiptNumber(shift.Id);
+				await _db.SaveChangesAsync();
+			}
+
+			foreach (var item in request.Items)
+			{
+				_db.CarWashTransactionItems.Add(new CarWashTransactionItem
+				{
+					UserCode = userCode,
+					TransactionId = sale.Id,
+					ProductId = item.ProductId,
+					Quantity = item.Quantity,
+					UnitPrice = products[item.ProductId].Price // snapshot, not live price
+				});
+			}
+			await _db.SaveChangesAsync();
+			await tx.CommitAsync();
+
+			return new SaleResponseDto
+			{
+				SaleId = sale.Id,
+				ReceiptNumber = sale.ReceiptNumber,
+				Total = total,
+				Change = change,
+				PaymentMethod = request.PaymentMethod,
+				MpesaReference = sale.MpesaReference,
+				CreatedAt = sale.DateCreated,
+				Items = request.Items.Select(i => new SaleItemLineDto
+				{
+					ProductName = products[i.ProductId].Name,
+					Quantity = i.Quantity,
+					UnitPrice = products[i.ProductId].Price
+				}).ToList()
+			};
+		});
 
 		return ServiceResponse<SaleResponseDto>.Success("Sale completed", dto);
 	}
 
-	public async Task<ServiceResponse<List<SaleResponseDto>>> GetSalesHistoryAsync(
-		string userCode, DateTime? from, DateTime? to)
+	public async Task<ServiceResponse<List<SaleResponseDto>>> GetSalesHistoryAsync(string userCode, DateTime? from, DateTime? to)
 	{
 		var query = _db.CarWashTransactions
 			.AsNoTracking()
@@ -184,5 +192,6 @@ public class CarWashSalesService : ICarWashSalesService
 	private static string GenerateReceiptNumber(long shiftId) =>
 		$"CW{shiftId:D4}{DateTime.UtcNow:HHmmssfff}";
 
-	private static bool IsUniqueViolation() => true; // TODO: inspect inner exception for the real DB unique-constraint error code
+	private static bool IsUniqueViolation(Exception ex) =>
+		ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation;
 }
