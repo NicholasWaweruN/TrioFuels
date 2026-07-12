@@ -784,7 +784,9 @@ namespace BussinessLogic.Stock.Stock
 				{
 					var nozzleCodes = adjust.Readings.Select(x => x.NozzleCode).ToList();
 
-					var stockTakes = await _context.StockTakeSummaries.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode)).ToListAsync();
+					var stockTakes = await _context.StockTakeSummaries
+						.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode))
+						.ToListAsync();
 
 					if (stockTakes.Count == 0)
 					{
@@ -792,10 +794,30 @@ namespace BussinessLogic.Stock.Stock
 						return ServiceResponse<object>.Information("Stock take summary not found", null);
 					}
 
+					var missing = nozzleCodes.Except(stockTakes.Select(x => x.NozzleCode)).ToList();
+					if (missing.Count > 0)
+					{
+						await transaction.RollbackAsync();
+						return ServiceResponse<object>.Information(
+							$"No stock take found for nozzle(s): {string.Join(", ", missing)}", null);
+					}
+
+					var changeLog = new List<string>();
+
 					foreach (var stockTake in stockTakes)
 					{
-						var item = adjust.Readings
-							.First(x => x.NozzleCode == stockTake.NozzleCode);
+						var item = adjust.Readings.First(x => x.NozzleCode == stockTake.NozzleCode);
+
+						if (item.ClosingReading < item.OpeningReading)
+						{
+							await transaction.RollbackAsync();
+							return ServiceResponse<object>.Information(
+								$"Closing reading cannot be less than opening reading for nozzle {stockTake.NozzleCode}", null);
+						}
+
+						changeLog.Add(
+							$"Nozzle {stockTake.NozzleCode}: Opening {stockTake.OpeningReading}->{item.OpeningReading}, " +
+							$"Closing {stockTake.ClosingReading}->{item.ClosingReading}");
 
 						stockTake.ClosingReading = item.ClosingReading;
 						stockTake.OpeningReading = item.OpeningReading;
@@ -806,21 +828,17 @@ namespace BussinessLogic.Stock.Stock
 
 					await ReconcileStockSummaries(adjust.ShiftNumber);
 
-					var messages = $"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} for shift {adjust.ShiftNumber}";
+					var message = $"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow:u} for shift {adjust.ShiftNumber}. {string.Join(" | ", changeLog)}";
 
-					await _authentication.AddUserTrail(messages, MethodBase.GetCurrentMethod()?.Name ?? "");
+					await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
 					await transaction.CommitAsync();
 
-					return ServiceResponse<object>.Success(
-						"Stock take summary adjusted successfully",
-						null
-					);
+					return ServiceResponse<object>.Success("Stock take summary adjusted successfully", null);
 				}
 				catch (Exception ex)
 				{
 					await transaction.RollbackAsync();
-
 					return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 				}
 			});
