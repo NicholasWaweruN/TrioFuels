@@ -118,7 +118,8 @@ namespace BussinessLogic.Reports
 						stk.VarianceStatus,
 						PricePerLitre = p.Amount,
 						ExpectedLitres = stk.ClosingReading - stk.OpeningReading,
-						ExpectedAmount = (stk.ClosingReading - stk.OpeningReading) * p.Amount
+						ExpectedAmount = (stk.ClosingReading - stk.OpeningReading) * p.Amount,
+						UserCode = stk.UserCode,
 					};
 
 				if (!string.IsNullOrEmpty(stationCode))
@@ -158,6 +159,9 @@ namespace BussinessLogic.Reports
 						.OrderBy(p => p.PaymentType)
 						.ToList();
 
+					var userName = await _context.Users.Where(x => x.UserCode == t.UserCode).FirstOrDefaultAsync();
+					var attedantName = string.Join(' ', userName!.FirstName, userName.MiddName, userName.LastName);
+
 					var totalActualLitres = byPaymentType.Sum(p => p.Litres);
 					var totalActualAmount = byPaymentType.Sum(p => p.Amount);
 
@@ -178,12 +182,14 @@ namespace BussinessLogic.Reports
 						TotalActualAmount = totalActualAmount,
 						VarianceLitres = totalActualLitres - totalizerDifference,
 						VarianceAmount = totalActualAmount - expectedAmount,
-						VarianceStatus = t.VarianceStatus
+						VarianceStatus = t.VarianceStatus,
+						AttedantName = attedantName
 					});
 				}
 
 				var result = new ShiftReconciliationResult
 				{
+					AttedantName = nozzleResults[0].AttedantName,
 					ShiftNumber = shiftNumber,
 					Nozzles = nozzleResults.OrderBy(n => n.StationName).ThenBy(n => n.NozzleName).ToList(),
 					TotalTotalizerLitres = nozzleResults.Sum(n => n.TotalizerDifference),
@@ -673,6 +679,7 @@ namespace BussinessLogic.Reports
 		}
 		public class NozzleReconciliationDto
 		{
+			public string AttedantName { get; set; } = string.Empty;
 			public string NozzleCode { get; set; } = string.Empty;
 			public string NozzleName { get; set; } = string.Empty;
 			public string DispenserName { get; set; } = string.Empty;
@@ -695,6 +702,7 @@ namespace BussinessLogic.Reports
 
 		public class ShiftReconciliationResult
 		{
+			public string AttedantName { get; set; } = string.Empty;
 			public string ShiftNumber { get; set; } = string.Empty;
 			public List<NozzleReconciliationDto> Nozzles { get; set; } = new();
 
