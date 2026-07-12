@@ -100,19 +100,25 @@ namespace BussinessLogic.Reports
 				var totalizerQuery =
 					from stk in _context.StockTakeSummaries.AsNoTracking()
 					join n in _context.Nozzles on stk.NozzleCode equals n.NozzleCode
+					join pp in _context.PetroleumProducts on n.PetroleumCode equals pp.PetroleumCode
+					join p in _context.Prices on pp.PetroleumCode equals p.ProductCode
 					join d in _context.Dispensers on n.DispenserCode equals d.DispenserCode
 					join s in _context.Stations on d.StationCode equals s.StationCode
 					where stk.ShiftNumber == shiftNumber
 					select new
 					{
 						stk.NozzleCode,
-						NozzleName = n.NozzleName,
-						DispenserName = d.DispenserName,
-						StationName = s.StationName,
-						StationCode = s.StationCode,
+						n.NozzleName,
+						d.DispenserName,
+						s.StationName,
+						s.StationCode,
+						ProductName = pp.PetroleumName, 
 						stk.OpeningReading,
 						stk.ClosingReading,
-						stk.VarianceStatus
+						stk.VarianceStatus,
+						PricePerLitre = p.Amount,
+						ExpectedLitres = stk.ClosingReading - stk.OpeningReading,
+						ExpectedAmount = (stk.ClosingReading - stk.OpeningReading) * p.Amount
 					};
 
 				if (!string.IsNullOrEmpty(stationCode))
@@ -134,6 +140,7 @@ namespace BussinessLogic.Reports
 				foreach (var t in totalizerRows)
 				{
 					var totalizerDifference = t.ClosingReading - t.OpeningReading;
+					var expectedAmount = totalizerDifference * t.PricePerLitre;
 
 					// Match actual sales to this nozzle by name (scoped by station name to reduce collision risk)
 					var matchedSales = salesRows
@@ -160,13 +167,17 @@ namespace BussinessLogic.Reports
 						NozzleName = t.NozzleName,
 						DispenserName = t.DispenserName,
 						StationName = t.StationName,
+						ProductName = t.ProductName,
+						PricePerLitre = t.PricePerLitre,
 						OpeningReading = t.OpeningReading,
 						ClosingReading = t.ClosingReading,
 						TotalizerDifference = totalizerDifference,
+						ExpectedAmount = expectedAmount,
 						ActualSalesByPaymentType = byPaymentType,
 						TotalActualLitres = totalActualLitres,
 						TotalActualAmount = totalActualAmount,
 						VarianceLitres = totalActualLitres - totalizerDifference,
+						VarianceAmount = totalActualAmount - expectedAmount,
 						VarianceStatus = t.VarianceStatus
 					});
 				}
@@ -176,9 +187,11 @@ namespace BussinessLogic.Reports
 					ShiftNumber = shiftNumber,
 					Nozzles = nozzleResults.OrderBy(n => n.StationName).ThenBy(n => n.NozzleName).ToList(),
 					TotalTotalizerLitres = nozzleResults.Sum(n => n.TotalizerDifference),
+					TotalExpectedAmount = nozzleResults.Sum(n => n.ExpectedAmount),
 					TotalActualLitres = nozzleResults.Sum(n => n.TotalActualLitres),
 					TotalActualAmount = nozzleResults.Sum(n => n.TotalActualAmount),
-					TotalVarianceLitres = nozzleResults.Sum(n => n.VarianceLitres)
+					TotalVarianceLitres = nozzleResults.Sum(n => n.VarianceLitres),
+					TotalVarianceAmount = nozzleResults.Sum(n => n.VarianceAmount)
 				};
 
 				return ServiceResponse<ShiftReconciliationResult>.Success("Shift Reconciliation Retrieved", result);
@@ -188,6 +201,7 @@ namespace BussinessLogic.Reports
 				return ServiceResponse<ShiftReconciliationResult>.Error($"An error occurred while fetching shift reconciliation: {ex.Message}", null);
 			}
 		}
+
 
 		public async Task<ServiceResponse<CreditAgingResult>> GetCreditAging(string? stationCode = null)
 		{
@@ -671,9 +685,12 @@ namespace BussinessLogic.Reports
 			public List<PaymentTypeSalesDto> ActualSalesByPaymentType { get; set; } = new();
 			public decimal TotalActualLitres { get; set; }
 			public decimal TotalActualAmount { get; set; }
-
 			public decimal VarianceLitres { get; set; }         // ActualLitres - TotalizerDifference
 			public int VarianceStatus { get; set; }
+			public decimal PricePerLitre { get; set; }
+			public string? ProductName { get; set; }
+			public decimal ExpectedAmount { get; set; }
+			public decimal VarianceAmount { get; set; }
 		}
 
 		public class ShiftReconciliationResult
@@ -685,6 +702,8 @@ namespace BussinessLogic.Reports
 			public decimal TotalActualLitres { get; set; }
 			public decimal TotalActualAmount { get; set; }
 			public decimal TotalVarianceLitres { get; set; }
+			public decimal TotalExpectedAmount { get; set; }
+			public decimal TotalVarianceAmount { get; set; }
 		}
 		public class PaymentTypeBreakdownDto
 		{

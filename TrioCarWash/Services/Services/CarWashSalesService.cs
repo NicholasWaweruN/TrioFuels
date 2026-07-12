@@ -156,6 +156,11 @@ public class CarWashSalesService : ICarWashSalesService
 		if (shiftId <= 0)
 			return ServiceResponse<List<SaleResponseDto>>.Error("A valid shiftId is required");
 
+		var shiftBelongsToUser = await _db.CarWashShifts.AnyAsync(s => s.Id == shiftId);
+
+		if (!shiftBelongsToUser)
+			return ServiceResponse<List<SaleResponseDto>>.Error("Shift not found");
+
 		var query = _db.CarWashTransactions
 			.AsNoTracking()
 			.Include(t => t.Items).ThenInclude(i => i.Product)
@@ -185,8 +190,7 @@ public class CarWashSalesService : ICarWashSalesService
 
 		return ServiceResponse<List<SaleResponseDto>>.Success("OK", result);
 	}
-	private static string GenerateReceiptNumber(long shiftId) =>
-		$"CW{shiftId:D4}{DateTime.UtcNow:HHmmssfff}";
+	private static string GenerateReceiptNumber(long shiftId) => $"CW{shiftId:D4}{DateTime.UtcNow:HHmmssfff}";
 
 	private static bool IsUniqueViolation(Exception ex) =>
 		ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation;
