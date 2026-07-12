@@ -785,6 +785,7 @@ namespace BussinessLogic.Stock.Stock
 					var nozzleCodes = adjust.Readings.Select(x => x.NozzleCode).ToList();
 
 					var stockTakes = await _context.StockTakeSummaries
+						.AsTracking()
 						.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode))
 						.ToListAsync();
 
@@ -815,18 +816,33 @@ namespace BussinessLogic.Stock.Stock
 								$"Closing reading cannot be less than opening reading for nozzle {stockTake.NozzleCode}", null);
 						}
 
+						if (stockTake.OpeningReading == item.OpeningReading && stockTake.ClosingReading == item.ClosingReading)
+							continue; // no-op, skip logging/updating unchanged rows
+
 						changeLog.Add(
 							$"Nozzle {stockTake.NozzleCode}: Opening {stockTake.OpeningReading}->{item.OpeningReading}, " +
 							$"Closing {stockTake.ClosingReading}->{item.ClosingReading}");
 
-						stockTake.ClosingReading = item.ClosingReading;
 						stockTake.OpeningReading = item.OpeningReading;
+						stockTake.ClosingReading = item.ClosingReading;
 						stockTake.OpeningVariance = 0;
+					}
+
+					if (changeLog.Count == 0)
+					{
+						await transaction.RollbackAsync();
+						return ServiceResponse<object>.Information("No changes detected — readings already match", null);
 					}
 
 					await _context.SaveChangesAsync();
 
-					await ReconcileStockSummaries(adjust.ShiftNumber);
+					var reconcileResult = await ReconcileStockSummaries(adjust.ShiftNumber);
+					if (reconcileResult.ResponseCode != Response.Success)
+					{
+						await transaction.RollbackAsync();
+						return ServiceResponse<object>.Error(
+							"Stock adjustment failed during reconciliation", reconcileResult.ResponseMessage);
+					}
 
 					var message = $"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow:u} for shift {adjust.ShiftNumber}. {string.Join(" | ", changeLog)}";
 
@@ -843,7 +859,6 @@ namespace BussinessLogic.Stock.Stock
 				}
 			});
 		}
-
 		public async Task<ServiceResponse<byte[]>> ExportAllVariances()
 		{
 			try
