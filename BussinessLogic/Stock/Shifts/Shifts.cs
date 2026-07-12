@@ -30,19 +30,22 @@ namespace BussinessLogic.Stock.Shifts
 		}
 		//check if a user has an open shift
 
-	
+
 
 		public async Task<List<ShiftStatusDto>> GetClosedVarianceDeferredShiftsAsync()
 		{
+			var targetStatuses = new[] { 2, 3 };
+
 			var query =
 				from s in _context.Shifts.AsNoTracking()
 				join u in _context.Users.AsNoTracking()
 					on s.UserCode equals u.UserCode
-				where TargetStatuses.Contains(s.ShiftStatus)
+				where targetStatuses.Contains((int)s.ShiftStatus)
+
 				select new ShiftStatusDto
 				{
 					ShiftNumber = s.ShiftNumber,
-					ClientFullName =  string.Join(' ',new object[] { u.FirstName, u.MiddName, u.LastName }), // adjust if AspNetUsers uses different name fields
+					ClientFullName = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
 					StartShiftDate = s.ShiftStartTime,
 					Status = s.ShiftStatus
 				};
@@ -52,14 +55,11 @@ namespace BussinessLogic.Stock.Shifts
 			foreach (var shift in shifts)
 			{
 				shift.DisplayDate = shift.StartShiftDate.ToString("MMM-dd").ToLowerInvariant();
-				shift.ShiftType = shift.StartShiftDate.Hour < DayShiftCutoffHour
-					? "Day"
-					: "Night";
+				shift.ShiftType = shift.StartShiftDate.Hour < DayShiftCutoffHour ? "Day" : "Night";
 			}
 
 			return shifts;
 		}
-	
 
 
 		//All dispenser status either closed or open
