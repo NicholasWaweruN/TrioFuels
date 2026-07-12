@@ -1,4 +1,4 @@
-﻿using DataAccessLayer.Common;
+using DataAccessLayer.Common;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;

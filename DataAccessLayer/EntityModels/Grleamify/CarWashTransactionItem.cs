@@ -1,4 +1,4 @@
-﻿using DataAccessLayer.Common;
+using DataAccessLayer.Common;
 
 namespace DataAccessLayer.EntityModels.Grleamify
 {

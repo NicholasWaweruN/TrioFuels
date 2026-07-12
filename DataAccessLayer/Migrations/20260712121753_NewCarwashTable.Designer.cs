@@ -3,6 +3,7 @@ using System;
 using DataAccessLayer.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DataAccessLayer.Migrations
 {
     [DbContext(typeof(OTOContext))]
-    partial class OTOContextModelSnapshot : ModelSnapshot
+    [Migration("20260712121753_NewCarwashTable")]
+    partial class NewCarwashTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -406,27 +409,27 @@ namespace DataAccessLayer.Migrations
                             Id = "f9b3e4d7-5a8c-3f2d-9b6f-4a7e5d8b6f9a",
                             AccessApps = "",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "82ac803b-a343-451d-9d84-0bb6c509fe76",
+                            ConcurrencyStamp = "0a22f82d-f794-4033-9841-91b9bb5f921a",
                             CreatedBy = "",
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7979),
-                            DateModified = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7978),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9168),
+                            DateModified = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9167),
                             DepartmentCode = "",
                             Email = "nicholas@fuelflo.com",
                             EmailConfirmed = true,
                             FirstName = "Admin",
                             IsActive = true,
-                            LastLoginDate = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7981),
+                            LastLoginDate = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9170),
                             LastName = "Fuel Flow",
                             LockoutEnabled = false,
                             MiddName = "",
                             ModifiedBy = "",
                             NormalizedEmail = "NICHOLAS@FUELFLOW.COM",
                             PasswordHash = "AQAAAAIAAYagAAAAEE6B8ismqB4S3ovK4di5qY7F2cwEDfBiowzxCzmmnRa1w0kuyR/ADNBR4B6D0h9sew==",
-                            PasswordLastUpdated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7973),
+                            PasswordLastUpdated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9164),
                             PayrollNumber = "",
                             PhoneNumber = "+254715821303",
                             PhoneNumberConfirmed = true,
-                            SecurityStamp = "ef6dfd0a-f9f8-40cf-9040-22cc7d22391b",
+                            SecurityStamp = "f537e4f4-831e-4ea1-b0e0-143973320741",
                             StationCode = "",
                             TwoFactorEnabled = false,
                             UserCode = "99999",
@@ -567,7 +570,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8602),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9950),
                             RoleCode = "001",
                             RoleName = "Administrator",
                             UserCode = "99999"
@@ -575,7 +578,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8606),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9953),
                             RoleCode = "002",
                             RoleName = "SuperVisor",
                             UserCode = "99999"
@@ -583,7 +586,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8610),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9956),
                             RoleCode = "003",
                             RoleName = "Attendant",
                             UserCode = "99999"
@@ -591,7 +594,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8613),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9959),
                             RoleCode = "004",
                             RoleName = "Accountant",
                             UserCode = "99999"
@@ -1413,7 +1416,7 @@ namespace DataAccessLayer.Migrations
                             CustomerEmail = "test@fuelflow.com",
                             CustomerName = "System Test Vehicle",
                             CustomerPhone = "0715821303",
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9741),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1199),
                             IdentificationNumber = "27838753",
                             IsCreditCustomer = true,
                             KRAPin = "",
@@ -1846,7 +1849,7 @@ namespace DataAccessLayer.Migrations
                             ConversionStation = "",
                             CreditLimit = 1000m,
                             CustomerCode = "C00001",
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9798),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1257),
                             Discount = 0m,
                             IsActive = true,
                             IsTelematicInstalled = false,
@@ -2289,89 +2292,6 @@ namespace DataAccessLayer.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("CarWashProducts");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(198),
-                            IsActive = true,
-                            Name = "Base Wash",
-                            Price = 300m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(202),
-                            IsActive = true,
-                            Name = "Top Wash",
-                            Price = 200m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(205),
-                            IsActive = true,
-                            Name = "Engine Wash",
-                            Price = 400m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 4L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(208),
-                            IsActive = true,
-                            Name = "Under Wash",
-                            Price = 400m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 5L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(210),
-                            IsActive = true,
-                            Name = "Vacuum",
-                            Price = 400m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 6L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(213),
-                            IsActive = true,
-                            Name = "Wax Machine",
-                            Price = 1000m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 7L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(215),
-                            IsActive = true,
-                            Name = "Waxing",
-                            Price = 400m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 8L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(217),
-                            IsActive = true,
-                            Name = "Rim Wash",
-                            Price = 1000m,
-                            UserCode = ""
-                        },
-                        new
-                        {
-                            Id = 9L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(220),
-                            IsActive = true,
-                            Name = "Buffing",
-                            Price = 500m,
-                            UserCode = ""
-                        });
                 });
 
             modelBuilder.Entity("DataAccessLayer.EntityModels.Grleamify.CarWashProductPrice", b =>
@@ -2408,494 +2328,6 @@ namespace DataAccessLayer.Migrations
                     b.HasIndex("VehicleTypeId");
 
                     b.ToTable("CarWashProductPrices");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9974),
-                            Price = 300m,
-                            ProductId = 1L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9978),
-                            Price = 200m,
-                            ProductId = 2L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9981),
-                            Price = 400m,
-                            ProductId = 3L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 4L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9983),
-                            Price = 400m,
-                            ProductId = 4L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 5L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9985),
-                            Price = 400m,
-                            ProductId = 5L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 6L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9987),
-                            Price = 1000m,
-                            ProductId = 6L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 7L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9989),
-                            Price = 400m,
-                            ProductId = 7L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 8L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9991),
-                            Price = 1000m,
-                            ProductId = 8L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 9L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9993),
-                            Price = 500m,
-                            ProductId = 9L,
-                            UserCode = "",
-                            VehicleTypeId = 1L
-                        },
-                        new
-                        {
-                            Id = 10L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9995),
-                            Price = 400m,
-                            ProductId = 1L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 11L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9998),
-                            Price = 250m,
-                            ProductId = 2L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 12L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified),
-                            Price = 500m,
-                            ProductId = 3L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 13L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(2),
-                            Price = 500m,
-                            ProductId = 4L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 14L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(4),
-                            Price = 500m,
-                            ProductId = 5L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 15L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(6),
-                            Price = 1300m,
-                            ProductId = 6L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 16L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(8),
-                            Price = 500m,
-                            ProductId = 7L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 17L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(10),
-                            Price = 1300m,
-                            ProductId = 8L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 18L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(12),
-                            Price = 650m,
-                            ProductId = 9L,
-                            UserCode = "",
-                            VehicleTypeId = 2L
-                        },
-                        new
-                        {
-                            Id = 19L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(14),
-                            Price = 1000m,
-                            ProductId = 1L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 20L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(17),
-                            Price = 700m,
-                            ProductId = 2L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 21L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(19),
-                            Price = 1300m,
-                            ProductId = 3L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 22L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(21),
-                            Price = 1300m,
-                            ProductId = 4L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 23L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(31),
-                            Price = 1300m,
-                            ProductId = 5L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 24L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(33),
-                            Price = 3300m,
-                            ProductId = 6L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 25L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(36),
-                            Price = 1300m,
-                            ProductId = 7L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 26L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(38),
-                            Price = 3300m,
-                            ProductId = 8L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 27L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(40),
-                            Price = 1700m,
-                            ProductId = 9L,
-                            UserCode = "",
-                            VehicleTypeId = 3L
-                        },
-                        new
-                        {
-                            Id = 28L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(43),
-                            Price = 1200m,
-                            ProductId = 1L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 29L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(45),
-                            Price = 800m,
-                            ProductId = 2L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 30L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(47),
-                            Price = 1600m,
-                            ProductId = 3L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 31L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(49),
-                            Price = 1600m,
-                            ProductId = 4L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 32L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(51),
-                            Price = 1600m,
-                            ProductId = 5L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 33L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(53),
-                            Price = 4000m,
-                            ProductId = 6L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 34L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(55),
-                            Price = 1600m,
-                            ProductId = 7L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 35L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(58),
-                            Price = 4000m,
-                            ProductId = 8L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 36L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(61),
-                            Price = 2000m,
-                            ProductId = 9L,
-                            UserCode = "",
-                            VehicleTypeId = 4L
-                        },
-                        new
-                        {
-                            Id = 37L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(63),
-                            Price = 150m,
-                            ProductId = 1L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 38L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(65),
-                            Price = 100m,
-                            ProductId = 2L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 39L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(67),
-                            Price = 200m,
-                            ProductId = 3L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 40L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(69),
-                            Price = 200m,
-                            ProductId = 4L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 41L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(74),
-                            Price = 200m,
-                            ProductId = 5L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 42L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(77),
-                            Price = 500m,
-                            ProductId = 6L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 43L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(79),
-                            Price = 200m,
-                            ProductId = 7L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 44L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(81),
-                            Price = 500m,
-                            ProductId = 8L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 45L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(83),
-                            Price = 250m,
-                            ProductId = 9L,
-                            UserCode = "",
-                            VehicleTypeId = 5L
-                        },
-                        new
-                        {
-                            Id = 46L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(85),
-                            Price = 180m,
-                            ProductId = 1L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 47L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(88),
-                            Price = 120m,
-                            ProductId = 2L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 48L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(90),
-                            Price = 240m,
-                            ProductId = 3L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 49L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(92),
-                            Price = 240m,
-                            ProductId = 4L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 50L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(94),
-                            Price = 240m,
-                            ProductId = 5L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 51L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(96),
-                            Price = 600m,
-                            ProductId = 6L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 52L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(98),
-                            Price = 240m,
-                            ProductId = 7L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 53L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(100),
-                            Price = 600m,
-                            ProductId = 8L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        },
-                        new
-                        {
-                            Id = 54L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 711, DateTimeKind.Unspecified).AddTicks(102),
-                            Price = 300m,
-                            ProductId = 9L,
-                            UserCode = "",
-                            VehicleTypeId = 6L
-                        });
                 });
 
             modelBuilder.Entity("DataAccessLayer.EntityModels.Grleamify.CarWashShift", b =>
@@ -3091,7 +2523,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 5L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9912),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1381),
                             IsActive = true,
                             Name = "Motorcycle",
                             UserCode = ""
@@ -3099,7 +2531,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9915),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1387),
                             IsActive = true,
                             Name = "Tuk Tuk",
                             UserCode = ""
@@ -3107,7 +2539,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9918),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1389),
                             IsActive = true,
                             Name = "Saloon",
                             UserCode = ""
@@ -3115,7 +2547,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9920),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1391),
                             IsActive = true,
                             Name = "SUV",
                             UserCode = ""
@@ -3123,7 +2555,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9922),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1393),
                             IsActive = true,
                             Name = "Truck",
                             UserCode = ""
@@ -3131,7 +2563,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9924),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1395),
                             IsActive = true,
                             Name = "Trailer",
                             UserCode = ""
@@ -4140,7 +3572,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8228),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9447),
                             DeviceCode = "1234567890",
                             DeviceIMEI = "1234567890",
                             DeviceMacAddress = "1234567890",
@@ -4154,7 +3586,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8238),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9453),
                             DeviceCode = "1234567890",
                             DeviceIMEI = "1234567890",
                             DeviceMacAddress = "1234567890",
@@ -4168,7 +3600,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8242),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9457),
                             DeviceCode = "1234567890",
                             DeviceIMEI = "1234567890",
                             DeviceMacAddress = "1234567890",
@@ -4182,7 +3614,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8246),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9461),
                             DeviceCode = "1234567890",
                             DeviceIMEI = "1234567890",
                             DeviceMacAddress = "1234567890",
@@ -4239,7 +3671,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8179),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9387),
                             IsActive = true,
                             ProductCode = "02",
                             ProductName = "Diesel",
@@ -4248,7 +3680,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8184),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9391),
                             IsActive = true,
                             ProductCode = "01",
                             ProductName = "Petrol",
@@ -4257,7 +3689,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8188),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9394),
                             IsActive = true,
                             ProductCode = "03",
                             ProductName = "Autogas",
@@ -4407,7 +3839,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8133),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9337),
                             DispenserCode = "D01",
                             DispenserName = "D1",
                             IsActive = true,
@@ -4473,7 +3905,7 @@ namespace DataAccessLayer.Migrations
                             Id = 1L,
                             AssignedBy = "99999",
                             AttedantUserCode = "99999",
-                            DateAssigned = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8336),
+                            DateAssigned = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9552),
                             DispenserCode = "D01",
                             IsActive = true,
                             StationCode = "S001"
@@ -4536,7 +3968,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8032),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9229),
                             IsActive = true,
                             LocationId = "Test Station",
                             StationAddress = "Test Station",
@@ -4602,7 +4034,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8287),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9508),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N01",
@@ -4613,7 +4045,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8293),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9512),
                             DispenserCode = "D01",
                             IsActive = true,
                             NozzleCode = "N02",
@@ -4660,7 +4092,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8547),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9888),
                             PetroleumCode = "01",
                             PetroleumName = "Autogas",
                             UserCode = "99999"
@@ -4668,7 +4100,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8552),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9891),
                             PetroleumCode = "02",
                             PetroleumName = "Petrol",
                             UserCode = "99999"
@@ -4676,7 +4108,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8555),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9894),
                             PetroleumCode = "03",
                             PetroleumName = "Diesel",
                             UserCode = "99999"
@@ -5110,7 +4542,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7183),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8355),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -5122,7 +4554,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7191),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8363),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "D",
@@ -5134,7 +4566,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 3L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7196),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8366),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "N",
@@ -5146,7 +4578,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7202),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8369),
                             Length = 3,
                             NextNumber = 0,
                             Prefix = "S",
@@ -5158,7 +4590,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 5L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7206),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8372),
                             Length = 5,
                             NextNumber = 10000,
                             Prefix = "",
@@ -5170,7 +4602,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7210),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8376),
                             Length = 4,
                             NextNumber = 0,
                             Prefix = "PD",
@@ -5182,7 +4614,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7214),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8379),
                             Length = 2,
                             NextNumber = 0,
                             Prefix = "",
@@ -5194,7 +4626,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 16L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7232),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8391),
                             Length = 5,
                             NextNumber = 0,
                             Prefix = "",
@@ -5206,7 +4638,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 17L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7237),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8395),
                             Length = 5,
                             NextNumber = 1,
                             Prefix = "",
@@ -5626,7 +5058,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 1L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7598),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8824),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 0,
@@ -5637,7 +5069,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 2L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7603),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8827),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 1,
@@ -5648,7 +5080,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 4L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7607),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8830),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 3,
@@ -5659,7 +5091,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 6L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7610),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8834),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 5,
@@ -5670,7 +5102,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 7L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7614),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8836),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 6,
@@ -5681,7 +5113,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 8L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7617),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8845),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 7,
@@ -5692,7 +5124,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 9L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7665),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8864),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 8,
@@ -5703,7 +5135,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 10L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7668),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8867),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 9,
@@ -5714,7 +5146,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 11L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7672),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8870),
                             HasValue = true,
                             IsAppUsed = false,
                             PaymentTypeId = 10,
@@ -5725,7 +5157,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 13L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7675),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8873),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 12,
@@ -5736,7 +5168,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 14L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7678),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8876),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 13,
@@ -5747,7 +5179,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 15L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7682),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8879),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 14,
@@ -5758,7 +5190,7 @@ namespace DataAccessLayer.Migrations
                         new
                         {
                             Id = 16L,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(7685),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(8882),
                             HasValue = true,
                             IsAppUsed = true,
                             PaymentTypeId = 15,
@@ -5823,7 +5255,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = 1L,
                             Amount = 234m,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9851),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1314),
                             Discount = 0m,
                             DispenserCode = "D01",
                             ProductCode = "02",
@@ -5834,7 +5266,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = 2L,
                             Amount = 214m,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9857),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1320),
                             Discount = 0m,
                             DispenserCode = "D01",
                             ProductCode = "01",
@@ -5845,7 +5277,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = 3L,
                             Amount = 105m,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(9861),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 288, DateTimeKind.Unspecified).AddTicks(1323),
                             Discount = 0m,
                             DispenserCode = "D01",
                             ProductCode = "03",
@@ -5975,7 +5407,7 @@ namespace DataAccessLayer.Migrations
                             AmountCredit = 0m,
                             AmountDebit = 0m,
                             CustomerCode = "",
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8444),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9726),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -5985,7 +5417,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8451),
+                            RoundedDate = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9730),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -5999,7 +5431,7 @@ namespace DataAccessLayer.Migrations
                             AmountCredit = 0m,
                             AmountDebit = 0m,
                             CustomerCode = "",
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8459),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9737),
                             Discount = 0m,
                             DispenserCode = "D01",
                             IsReversed = false,
@@ -6009,7 +5441,7 @@ namespace DataAccessLayer.Migrations
                             Price = 0m,
                             QuantityCredit = 50m,
                             QuantityDebit = 0m,
-                            RoundedDate = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8462),
+                            RoundedDate = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9739),
                             SaleId = "",
                             ShiftNumber = "",
                             StationCode = "S001",
@@ -6203,7 +5635,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = 1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8501),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9824),
                             NozzleCode = "N01",
                             OpeningReading = 50m,
                             ShiftNumber = "",
@@ -6214,7 +5646,7 @@ namespace DataAccessLayer.Migrations
                         {
                             Id = -1L,
                             ClosingReading = 0m,
-                            DateCreated = new DateTime(2026, 7, 12, 16, 50, 12, 710, DateTimeKind.Unspecified).AddTicks(8507),
+                            DateCreated = new DateTime(2026, 7, 12, 15, 17, 52, 287, DateTimeKind.Unspecified).AddTicks(9829),
                             NozzleCode = "N02",
                             OpeningReading = 50m,
                             ShiftNumber = "",

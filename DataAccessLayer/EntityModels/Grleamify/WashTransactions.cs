@@ -1,4 +1,4 @@
-﻿using DataAccessLayer.Common;
+using DataAccessLayer.Common;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +9,9 @@ namespace DataAccessLayer.EntityModels.Grleamify
 	{
 		public long ShiftId { get; set; }
 		public CarWashShift Shift { get; set; } = null!;
+
+		public long VehicleTypeId { get; set; }
+		public VehicleType VehicleType { get; set; } = null!;
 
 		[StringLength(30), Unicode(false)]
 		public string ReceiptNumber { get; set; } = string.Empty;

@@ -25,7 +25,7 @@ public class CarWashDashboardService : ICarWashDashboardService
 	public async Task<ServiceResponse<DashboardSummaryDto>> GetDashboardSummaryAsync(string userCode)
 	{
 		var shift = await _shiftService.GetActiveShiftAsync(userCode);
-		if (shift == null)
+		if (shift is null)
 			return ServiceResponse<DashboardSummaryDto>.Information("No active shift", new DashboardSummaryDto
 			{
 				ShiftActive = false

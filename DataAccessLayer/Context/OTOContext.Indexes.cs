@@ -2,21 +2,12 @@ using BusinessLogic.CustomerService;
 using BusinessLogic.Sales.Archirve;
 using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.DTOs.Payments;
-using DataAccessLayer.EntityModels.Approvals;
-using DataAccessLayer.EntityModels.Authorisations;
-using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.Customer;
-using DataAccessLayer.EntityModels.Daraja;
-using DataAccessLayer.EntityModels.Db_Views;
-using DataAccessLayer.EntityModels.Emails;
 using DataAccessLayer.EntityModels.Grleamify;
-using DataAccessLayer.EntityModels.Loyalty_Program;
 using DataAccessLayer.EntityModels.Messaging;
-using DataAccessLayer.EntityModels.Personal_Wallet;
 using DataAccessLayer.EntityModels.ProtoBase;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Stations;
-using DataAccessLayer.EntityModels.StockTake;
 using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.EntityModels.Views;
 using Microsoft.EntityFrameworkCore;
@@ -321,14 +312,7 @@ namespace DataAccessLayer.Context
 				e.Property(p => p.Price).HasPrecision(12, 2);
 			});
 
-			modelBuilder.Entity<CarWashShift>(e =>
-			{
-				e.Property(s => s.ExpectedCash).HasPrecision(12, 2);
-				e.Property(s => s.ActualCashCounted).HasPrecision(12, 2);
-				e.Property(s => s.Difference).HasPrecision(12, 2);
-				e.HasIndex(s => new { s.UserCode, s.Status }); // fast "find my open shift"
-			});
-
+		
 			modelBuilder.Entity<CarWashTransaction>(e =>
 			{
 				e.Property(t => t.TotalAmount).HasPrecision(12, 2);
@@ -338,20 +322,6 @@ namespace DataAccessLayer.Context
 				e.HasOne(t => t.Shift)
 					.WithMany(s => s.Transactions)
 					.HasForeignKey(t => t.ShiftId);
-					
-			});
-
-			modelBuilder.Entity<CarWashTransactionItem>(e =>
-			{
-				e.Property(i => i.UnitPrice).HasPrecision(12, 2);
-				e.HasOne(i => i.Transaction)
-					.WithMany(t => t.Items)
-					.HasForeignKey(i => i.TransactionId);
-			
-				e.HasOne(i => i.Product)
-					.WithMany()
-					.HasForeignKey(i => i.ProductId);
-					
 			});
 		}
     }

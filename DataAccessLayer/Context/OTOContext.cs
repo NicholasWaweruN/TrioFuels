@@ -140,12 +140,13 @@ namespace DataAccessLayer.Context
 		/// </summary>
 
 		public DbSet<CarWashProduct> CarWashProducts => Set<CarWashProduct>();
-		public DbSet<CarWashShift> CarWashShifts => Set<CarWashShift>();
 		public DbSet<CarWashTransaction> CarWashTransactions => Set<CarWashTransaction>();
 		public DbSet<CarWashTransactionItem> CarWashTransactionItems => Set<CarWashTransactionItem>();
+		public DbSet<CarWashShift> CarWashShifts => Set<CarWashShift>();
 
+		public DbSet<VehicleType> VehicleTypes { get; set; }
+		public DbSet<CarWashProductPrice> CarWashProductPrices { get; set; }
 		//Daraja
-
 		public DbSet<StkTransaction> StkTransactions { get; set; }
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

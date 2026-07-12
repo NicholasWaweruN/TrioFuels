@@ -31,6 +31,7 @@ public class CreateSaleRequestDto
 	public int PaymentMethod { get; set; } // CarWashPaymetMethod.Cash or .Mpesa only, for now
 	public decimal AmountReceived { get; set; } = 0m; // cash only
 	public string? PhoneNumber { get; set; }      // M-Pesa STK only
+	public long VehicleTypeId { get; set; }
 }
 
 public class SaleItemLineDto
@@ -79,4 +80,11 @@ public class CloseShiftResponseDto
 	public decimal ActualCashCounted { get; set; }
 	public decimal Difference { get; set; }
 	public DateTime ClosedAt { get; set; }
+}
+
+
+public class VehicleTypeDto
+{
+	public long VehicleTypeId { get; set; }
+	public string Name { get; set; } = string.Empty;
 }

@@ -43,8 +43,12 @@ public class CarWashSalesController : ControllerBase
 
 	private string? UserCode => User.FindFirst("UserCode")?.Value;
 
+	[HttpGet("GetVehicleTypes")]
+	public async Task<IActionResult> GetVehicleTypes() => Ok(await _salesService.GetVehicleTypesAsync());
+
 	[HttpGet("GetProducts")]
-	public async Task<IActionResult> GetProducts() => Ok(await _salesService.GetProductsAsync());
+	public async Task<IActionResult> GetProducts([FromQuery] long vehicleTypeId) =>
+		Ok(await _salesService.GetProductsAsync(vehicleTypeId));
 
 	[HttpPost("CreateSale")]
 	public async Task<IActionResult> CreateSale([FromBody] CreateSaleRequestDto request)

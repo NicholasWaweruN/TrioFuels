@@ -9,7 +9,8 @@ namespace TrioCarWash.Services.Services;
 
 public interface ICarWashSalesService
 {
-	Task<ServiceResponse<List<ProductDto>>> GetProductsAsync();
+	Task<ServiceResponse<List<VehicleTypeDto>>> GetVehicleTypesAsync();
+	Task<ServiceResponse<List<ProductDto>>> GetProductsAsync(long vehicleTypeId);
 	Task<ServiceResponse<SaleResponseDto>> CreateSaleAsync(string userCode, CreateSaleRequestDto request);
 	Task<ServiceResponse<List<SaleResponseDto>>> GetSalesHistoryAsync(long shiftId);
 }
@@ -32,13 +33,38 @@ public class CarWashSalesService : ICarWashSalesService
 		_shiftService = shiftService;
 	}
 
-	public async Task<ServiceResponse<List<ProductDto>>> GetProductsAsync()
+	public async Task<ServiceResponse<List<VehicleTypeDto>>> GetVehicleTypesAsync()
 	{
+		var types = await _db.VehicleTypes
+			.AsNoTracking()
+			.Where(v => v.IsActive)
+			.OrderBy(v => v.Name)
+			.Select(v => new VehicleTypeDto { VehicleTypeId = v.Id, Name = v.Name })
+			.ToListAsync();
+
+		return ServiceResponse<List<VehicleTypeDto>>.Success("OK", types);
+	}
+
+	public async Task<ServiceResponse<List<ProductDto>>> GetProductsAsync(long vehicleTypeId)
+	{
+		var vehicleTypeExists = await _db.VehicleTypes.AnyAsync(v => v.Id == vehicleTypeId && v.IsActive);
+		if (!vehicleTypeExists)
+			return ServiceResponse<List<ProductDto>>.Error("Vehicle type not found or inactive");
+
+		// base products, left-joined against this vehicle type's price overrides
 		var products = await _db.CarWashProducts
 			.AsNoTracking()
 			.Where(p => p.IsActive)
 			.OrderBy(p => p.Name)
-			.Select(p => new ProductDto { ProductId = p.Id, Name = p.Name, Price = p.Price })
+			.Select(p => new ProductDto
+			{
+				ProductId = p.Id,
+				Name = p.Name,
+				Price = p.VehicleTypePrices
+					.Where(vp => vp.VehicleTypeId == vehicleTypeId)
+					.Select(vp => (decimal?)vp.Price)
+					.FirstOrDefault() ?? p.Price
+			})
 			.ToListAsync();
 
 		return ServiceResponse<List<ProductDto>>.Success("OK", products);
@@ -51,6 +77,11 @@ public class CarWashSalesService : ICarWashSalesService
 
 		if (!AllowedPaymentMethods.Contains(request.PaymentMethod))
 			return ServiceResponse<SaleResponseDto>.Error("Unsupported payment method");
+
+		var vehicleType = await _db.VehicleTypes
+			.FirstOrDefaultAsync(v => v.Id == request.VehicleTypeId && v.IsActive);
+		if (vehicleType == null)
+			return ServiceResponse<SaleResponseDto>.Error("Vehicle type not found or inactive");
 
 		var shift = await _shiftService.GetActiveShiftAsync(userCode);
 		if (shift == null)
@@ -67,7 +98,15 @@ public class CarWashSalesService : ICarWashSalesService
 		if (request.Items.Any(i => i.Quantity <= 0))
 			return ServiceResponse<SaleResponseDto>.Error("Quantity must be greater than zero");
 
-		var total = request.Items.Sum(i => products[i.ProductId].Price * i.Quantity);
+		// per-vehicle-type overrides for just the products in this sale
+		var priceOverrides = await _db.CarWashProductPrices
+			.Where(vp => vp.VehicleTypeId == request.VehicleTypeId && productIds.Contains(vp.ProductId))
+			.ToDictionaryAsync(vp => vp.ProductId, vp => vp.Price);
+
+		decimal PriceFor(long productId) =>
+			priceOverrides.TryGetValue(productId, out var overridePrice) ? overridePrice : products[productId].Price;
+
+		var total = request.Items.Sum(i => PriceFor(i.ProductId) * i.Quantity);
 
 		if (request.PaymentMethod == CarWashPaymetMethod.Cash)
 		{
@@ -94,6 +133,7 @@ public class CarWashSalesService : ICarWashSalesService
 			{
 				UserCode = userCode,
 				ShiftId = shift.Id,
+				VehicleTypeId = request.VehicleTypeId,
 				TotalAmount = total,
 				PaymentMethod = request.PaymentMethod,
 				AmountReceived = request.AmountReceived,
@@ -124,7 +164,7 @@ public class CarWashSalesService : ICarWashSalesService
 					TransactionId = sale.Id,
 					ProductId = item.ProductId,
 					Quantity = item.Quantity,
-					UnitPrice = products[item.ProductId].Price // snapshot, not live price
+					UnitPrice = PriceFor(item.ProductId) // snapshot for this vehicle type, not live price
 				});
 			}
 			await _db.SaveChangesAsync();
@@ -143,7 +183,7 @@ public class CarWashSalesService : ICarWashSalesService
 				{
 					ProductName = products[i.ProductId].Name,
 					Quantity = i.Quantity,
-					UnitPrice = products[i.ProductId].Price
+					UnitPrice = PriceFor(i.ProductId)
 				})]
 			};
 		});
