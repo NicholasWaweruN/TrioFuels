@@ -510,6 +510,7 @@ namespace BussinessLogic.Sales.SalesData
         ""StationName"",
         ""AttendantName"",
         ""CustomerName"",
+        ""CustomerPhone""  AS ""PhoneNumber"",
         ""TillNumber"",
         ""ShiftNumber"",
         ""Vehicle"",
@@ -565,11 +566,11 @@ namespace BussinessLogic.Sales.SalesData
 
 				var headers = new[]
 				{
-			"Sale ID", "Sales Date", "Transaction ID", "Station Name", "Attendant Name",
-			"Customer Name", "Till Number", "Shift Number", "Vehicle", "Product Name",
-			"Payment Type", "Litres", "Price", "Discount", "Sales Amount",
-			"Dispenser Name", "Nozzle Name", "Storage Location", "Running Balance"
-		};
+					"Sale ID", "Sales Date", "Transaction ID", "Station Name", "Attendant Name",
+					"Customer Name", "Phone Number", "Till Number", "Shift Number", "Vehicle", "Product Name",
+					"Payment Type", "Litres", "Price", "Discount", "Sales Amount",
+					"Dispenser Name", "Nozzle Name", "Storage Location", "Running Balance"
+				};
 
 				for (int i = 0; i < headers.Length; i++)
 					worksheet.Cell(1, i + 1).Value = headers[i];
@@ -589,20 +590,20 @@ namespace BussinessLogic.Sales.SalesData
 					worksheet.Cell(row, 4).Value = sale.StationName ?? string.Empty;
 					worksheet.Cell(row, 5).Value = sale.AttendantName ?? string.Empty;
 					worksheet.Cell(row, 6).Value = sale.CustomerName ?? string.Empty;
-					worksheet.Cell(row, 7).Value = sale.TillNumber ?? string.Empty;
-					worksheet.Cell(row, 8).Value = sale.ShiftNumber ?? string.Empty;
-					worksheet.Cell(row, 9).Value = sale.Vehicle ?? string.Empty;
-					worksheet.Cell(row, 10).Value = sale.ProductName ?? string.Empty;
-					worksheet.Cell(row, 11).Value = sale.PaymentType ?? string.Empty;
-					worksheet.Cell(row, 12).Value = sale.Litres;
-					worksheet.Cell(row, 13).Value = sale.Price;
-					worksheet.Cell(row, 14).Value = sale.Discount;
-					worksheet.Cell(row, 15).Value = sale.Amount;
-					worksheet.Cell(row, 16).Value = sale.DispenserName ?? string.Empty;
-					worksheet.Cell(row, 17).Value = sale.NozzleName ?? string.Empty;
-					worksheet.Cell(row, 18).Value = sale.StorageLocation ?? string.Empty;
-					worksheet.Cell(row, 19).Value = sale.RunningBalance;
-
+					worksheet.Cell(row, 7).Value = sale.PhoneNumber ?? string.Empty;
+					worksheet.Cell(row, 8).Value = sale.TillNumber ?? string.Empty;
+					worksheet.Cell(row, 9).Value = sale.ShiftNumber ?? string.Empty;
+					worksheet.Cell(row, 10).Value = sale.Vehicle ?? string.Empty;
+					worksheet.Cell(row, 11).Value = sale.ProductName ?? string.Empty;
+					worksheet.Cell(row, 12).Value = sale.PaymentType ?? string.Empty;
+					worksheet.Cell(row, 13).Value = sale.Litres;
+					worksheet.Cell(row, 14).Value = sale.Price;
+					worksheet.Cell(row, 15).Value = sale.Discount;
+					worksheet.Cell(row, 16).Value = sale.Amount;
+					worksheet.Cell(row, 17).Value = sale.DispenserName ?? string.Empty;
+					worksheet.Cell(row, 18).Value = sale.NozzleName ?? string.Empty;
+					worksheet.Cell(row, 19).Value = sale.StorageLocation ?? string.Empty;
+					worksheet.Cell(row, 20).Value = sale.RunningBalance;
 				}
 
 				// ─────────────────────────────────────────────────────────────────────
@@ -614,8 +615,13 @@ namespace BussinessLogic.Sales.SalesData
 				worksheet.Range(2, 2, dataRowCount + 1, 2)
 						 .Style.NumberFormat.Format = "yyyy-MM-dd HH:mm:ss";
 
+				// Phone Number column — force text format so Excel doesn't strip a leading
+				// '+' or leading zeros, or mis-render long numbers in scientific notation
+				worksheet.Range(2, 7, dataRowCount + 1, 7)
+						 .Style.NumberFormat.Format = "@";
+
 				// Numeric columns — 2 decimal places
-				var numericCols = new[] { 12, 13, 14, 15, 19 };
+				var numericCols = new[] { 13, 14, 15, 16, 20 };
 				foreach (var col in numericCols)
 					worksheet.Range(2, col, dataRowCount + 1, col)
 							 .Style.NumberFormat.Format = "#,##0.00";
@@ -631,7 +637,7 @@ namespace BussinessLogic.Sales.SalesData
 				// Fixed widths — AdjustToContents() is O(rows × cols), too slow on large sets
 				var columnWidths = new double[]
 				{
-					18, 22, 18, 22, 22, 22, 14, 16, 18, 20,16, 12, 12, 12, 16, 20, 18, 20, 18
+			18, 22, 18, 22, 22, 22, 18, 14, 16, 18, 20, 16, 12, 12, 12, 16, 20, 18, 20, 18
 				};
 
 				for (int i = 0; i < columnWidths.Length; i++)
@@ -675,7 +681,6 @@ namespace BussinessLogic.Sales.SalesData
 				_context.Database.SetCommandTimeout(originalTimeout);
 			}
 		}
-
 
 
 	}

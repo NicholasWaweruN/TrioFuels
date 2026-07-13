@@ -24,5 +24,6 @@ namespace DataAccessLayer.Context
 		public string? NozzleName { get; set; }
 		public string? StorageLocation { get; set; }
 		public decimal? RunningBalance { get; set; }
+		public string? PhoneNumber { get; set; } 
 	}
 }
