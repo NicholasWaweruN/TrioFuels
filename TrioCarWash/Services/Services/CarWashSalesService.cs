@@ -224,6 +224,7 @@ public class CarWashSalesService : ICarWashSalesService
 			PaymentMethod = t.PaymentMethod,
 			MpesaReference = t.MpesaReference,
 			CreatedAt = t.DateCreated,
+			VehicleRegistrationNumber = t.VehicleRegistrationNumber,
 			Items = t.Items.Select(i => new SaleItemLineDto
 			{
 				ProductName = i.Product.Name,

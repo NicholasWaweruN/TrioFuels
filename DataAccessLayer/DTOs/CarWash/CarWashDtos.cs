@@ -51,6 +51,7 @@ public class SaleResponseDto
 	public decimal? Change { get; set; }
 	public int PaymentMethod { get; set; }
 	public string? MpesaReference { get; set; }
+	public string VehicleRegistrationNumber { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; }
 	public List<SaleItemLineDto> Items { get; set; } = new();
 }
