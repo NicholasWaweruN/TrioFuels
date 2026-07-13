@@ -16,9 +16,8 @@ namespace DataAccessLayer.EntityModels.Grleamify
 		[StringLength(30), Unicode(false)]
 		public string ReceiptNumber { get; set; } = string.Empty;
 		public decimal TotalAmount { get; set; }
-
+		public string VehicleRegistrationNumber { get; set; } = string.Empty;
 		public int PaymentMethod { get; set; } // see CarWashPaymetMethod constants
-
 		public decimal AmountReceived { get; set; } = 0;  // cash only
 		public decimal Change { get; set; } = 0;          // cash only
 

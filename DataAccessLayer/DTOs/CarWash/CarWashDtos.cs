@@ -32,6 +32,7 @@ public class CreateSaleRequestDto
 	public decimal AmountReceived { get; set; } = 0m; // cash only
 	public string? PhoneNumber { get; set; }      // M-Pesa STK only
 	public long VehicleTypeId { get; set; }
+	public string VehiceRegistrationNumber { get; set; } = string.Empty;
 }
 
 public class SaleItemLineDto

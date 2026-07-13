@@ -40,41 +40,41 @@ namespace DataAccessLayer.Context
 			SeedCarWashProductPrices(modelBuilder);
 			SeedCarWashProducts(modelBuilder);
 		}
+		private static readonly DateTime SeedDate = new DateTime(2026, 7, 13, 0, 0, 0, DateTimeKind.Utc);
+		private const string SeedUserCode = "99999";
+
 		private static void SeedVehicleTypes(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<VehicleType>().HasData(
-
-				new VehicleType { Id = 5, Name = "Motorcycle", IsActive = true },
-				new VehicleType { Id = 6, Name = "Tuk Tuk", IsActive = true },
-				new VehicleType { Id = 1, Name = "Saloon", IsActive = true },
-				new VehicleType { Id = 2, Name = "SUV", IsActive = true },
-				new VehicleType { Id = 3, Name = "Truck", IsActive = true },
-				new VehicleType { Id = 4, Name = "Trailer", IsActive = true });
+				new VehicleType { Id = 1, Name = "Saloon", IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode},
+				new VehicleType { Id = 2, Name = "SUV", IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new VehicleType { Id = 3, Name = "Truck", IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new VehicleType { Id = 4, Name = "Trailer", IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new VehicleType { Id = 5, Name = "Motorcycle", IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new VehicleType { Id = 6, Name = "Tuk Tuk", IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode }
+			);
 		}
-
 
 		// ── Flat/base products. Price here = Saloon-tier price, used only as a
 		// fallback if a vehicle type has no row in CarWashProductPrice below. ──
 		private static void SeedCarWashProducts(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<CarWashProduct>().HasData(
-				new CarWashProduct { Id = 1, Name = "Base Wash", Price = 300, IsActive = true },
-				new CarWashProduct { Id = 2, Name = "Top Wash", Price = 200, IsActive = true },
-				new CarWashProduct { Id = 3, Name = "Engine Wash", Price = 400, IsActive = true },
-				new CarWashProduct { Id = 4, Name = "Under Wash", Price = 400, IsActive = true },
-				new CarWashProduct { Id = 5, Name = "Vacuum", Price = 400, IsActive = true },
-				new CarWashProduct { Id = 6, Name = "Wax Machine", Price = 1000, IsActive = true },
-				new CarWashProduct { Id = 7, Name = "Waxing", Price = 400, IsActive = true },
-				new CarWashProduct { Id = 8, Name = "Rim Wash", Price = 1000, IsActive = true },
-				new CarWashProduct { Id = 9, Name = "Buffing", Price = 500, IsActive = true }
+				new CarWashProduct { Id = 1, Name = "Base Wash", Price = 300, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 2, Name = "Top Wash", Price = 200, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 3, Name = "Engine Wash", Price = 400, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 4, Name = "Under Wash", Price = 400, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 5, Name = "Vacuum", Price = 400, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 6, Name = "Wax Machine", Price = 1000, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 7, Name = "Waxing", Price = 400, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 8, Name = "Rim Wash", Price = 1000, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProduct { Id = 9, Name = "Buffing", Price = 500, IsActive = true, DateCreated = SeedDate, UserCode = SeedUserCode }
 			);
 		}
 
 		// ── Per-vehicle-type pricing overrides. ALL VALUES ARE PLACEHOLDERS
-		// except Base Wash for Saloon (300) and SUV (400, standing in for
-		// "Van") and Truck (1000, standing in for "Tractor") — everything
-		// else was scaled up/down by vehicle size for structure only.
-		// Replace before going live.
+		// except Base Wash for Saloon (300) — everything else was scaled up/down
+		// by vehicle size for structure only. Replace before going live.
 		//
 		// VehicleType IDs: 1=Saloon, 2=SUV, 3=Truck, 4=Trailer, 5=Motorcycle, 6=Tuk Tuk
 		// Product IDs:     1=Base Wash, 2=Top Wash, 3=Engine Wash, 4=Under Wash,
@@ -82,72 +82,71 @@ namespace DataAccessLayer.Context
 		private static void SeedCarWashProductPrices(ModelBuilder modelBuilder)
 		{
 			modelBuilder.Entity<CarWashProductPrice>().HasData(
-
 				// ── Saloon (VehicleTypeId = 1) ─────────────────────────────
-				new CarWashProductPrice { Id = 1, ProductId = 1, VehicleTypeId = 1, Price = 300 },
-				new CarWashProductPrice { Id = 2, ProductId = 2, VehicleTypeId = 1, Price = 200 },
-				new CarWashProductPrice { Id = 3, ProductId = 3, VehicleTypeId = 1, Price = 400 },
-				new CarWashProductPrice { Id = 4, ProductId = 4, VehicleTypeId = 1, Price = 400 },
-				new CarWashProductPrice { Id = 5, ProductId = 5, VehicleTypeId = 1, Price = 400 },
-				new CarWashProductPrice { Id = 6, ProductId = 6, VehicleTypeId = 1, Price = 1000 },
-				new CarWashProductPrice { Id = 7, ProductId = 7, VehicleTypeId = 1, Price = 400 },
-				new CarWashProductPrice { Id = 8, ProductId = 8, VehicleTypeId = 1, Price = 1000 },
-				new CarWashProductPrice { Id = 9, ProductId = 9, VehicleTypeId = 1, Price = 500 },
+				new CarWashProductPrice { Id = 1, ProductId = 1, VehicleTypeId = 1, Price = 300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 2, ProductId = 2, VehicleTypeId = 1, Price = 200, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 3, ProductId = 3, VehicleTypeId = 1, Price = 400, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 4, ProductId = 4, VehicleTypeId = 1, Price = 400, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 5, ProductId = 5, VehicleTypeId = 1, Price = 400, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 6, ProductId = 6, VehicleTypeId = 1, Price = 1000, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 7, ProductId = 7, VehicleTypeId = 1, Price = 400, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 8, ProductId = 8, VehicleTypeId = 1, Price = 1000, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 9, ProductId = 9, VehicleTypeId = 1, Price = 500, DateCreated = SeedDate, UserCode = SeedUserCode },
 
-				// ── SUV (VehicleTypeId = 2) — "Van" tier ───────────────────
-				new CarWashProductPrice { Id = 10, ProductId = 1, VehicleTypeId = 2, Price = 400 },
-				new CarWashProductPrice { Id = 11, ProductId = 2, VehicleTypeId = 2, Price = 250 },
-				new CarWashProductPrice { Id = 12, ProductId = 3, VehicleTypeId = 2, Price = 500 },
-				new CarWashProductPrice { Id = 13, ProductId = 4, VehicleTypeId = 2, Price = 500 },
-				new CarWashProductPrice { Id = 14, ProductId = 5, VehicleTypeId = 2, Price = 500 },
-				new CarWashProductPrice { Id = 15, ProductId = 6, VehicleTypeId = 2, Price = 1300 },
-				new CarWashProductPrice { Id = 16, ProductId = 7, VehicleTypeId = 2, Price = 500 },
-				new CarWashProductPrice { Id = 17, ProductId = 8, VehicleTypeId = 2, Price = 1300 },
-				new CarWashProductPrice { Id = 18, ProductId = 9, VehicleTypeId = 2, Price = 650 },
+				// ── SUV (VehicleTypeId = 2) ─────────────────────────────────
+				new CarWashProductPrice { Id = 10, ProductId = 1, VehicleTypeId = 2, Price = 400, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 11, ProductId = 2, VehicleTypeId = 2, Price = 250, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 12, ProductId = 3, VehicleTypeId = 2, Price = 500, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 13, ProductId = 4, VehicleTypeId = 2, Price = 500, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 14, ProductId = 5, VehicleTypeId = 2, Price = 500, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 15, ProductId = 6, VehicleTypeId = 2, Price = 1300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 16, ProductId = 7, VehicleTypeId = 2, Price = 500, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 17, ProductId = 8, VehicleTypeId = 2, Price = 1300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 18, ProductId = 9, VehicleTypeId = 2, Price = 650, DateCreated = SeedDate, UserCode = SeedUserCode },
 
-				// ── Truck (VehicleTypeId = 3) — "Tractor" tier ─────────────
-				new CarWashProductPrice { Id = 19, ProductId = 1, VehicleTypeId = 3, Price = 1000 },
-				new CarWashProductPrice { Id = 20, ProductId = 2, VehicleTypeId = 3, Price = 700 },
-				new CarWashProductPrice { Id = 21, ProductId = 3, VehicleTypeId = 3, Price = 1300 },
-				new CarWashProductPrice { Id = 22, ProductId = 4, VehicleTypeId = 3, Price = 1300 },
-				new CarWashProductPrice { Id = 23, ProductId = 5, VehicleTypeId = 3, Price = 1300 },
-				new CarWashProductPrice { Id = 24, ProductId = 6, VehicleTypeId = 3, Price = 3300 },
-				new CarWashProductPrice { Id = 25, ProductId = 7, VehicleTypeId = 3, Price = 1300 },
-				new CarWashProductPrice { Id = 26, ProductId = 8, VehicleTypeId = 3, Price = 3300 },
-				new CarWashProductPrice { Id = 27, ProductId = 9, VehicleTypeId = 3, Price = 1700 },
+				// ── Truck (VehicleTypeId = 3) ───────────────────────────────
+				new CarWashProductPrice { Id = 19, ProductId = 1, VehicleTypeId = 3, Price = 1000, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 20, ProductId = 2, VehicleTypeId = 3, Price = 700, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 21, ProductId = 3, VehicleTypeId = 3, Price = 1300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 22, ProductId = 4, VehicleTypeId = 3, Price = 1300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 23, ProductId = 5, VehicleTypeId = 3, Price = 1300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 24, ProductId = 6, VehicleTypeId = 3, Price = 3300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 25, ProductId = 7, VehicleTypeId = 3, Price = 1300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 26, ProductId = 8, VehicleTypeId = 3, Price = 3300, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 27, ProductId = 9, VehicleTypeId = 3, Price = 1700, DateCreated = SeedDate, UserCode = SeedUserCode },
 
 				// ── Trailer (VehicleTypeId = 4) ─────────────────────────────
-				new CarWashProductPrice { Id = 28, ProductId = 1, VehicleTypeId = 4, Price = 1200 },
-				new CarWashProductPrice { Id = 29, ProductId = 2, VehicleTypeId = 4, Price = 800 },
-				new CarWashProductPrice { Id = 30, ProductId = 3, VehicleTypeId = 4, Price = 1600 },
-				new CarWashProductPrice { Id = 31, ProductId = 4, VehicleTypeId = 4, Price = 1600 },
-				new CarWashProductPrice { Id = 32, ProductId = 5, VehicleTypeId = 4, Price = 1600 },
-				new CarWashProductPrice { Id = 33, ProductId = 6, VehicleTypeId = 4, Price = 4000 },
-				new CarWashProductPrice { Id = 34, ProductId = 7, VehicleTypeId = 4, Price = 1600 },
-				new CarWashProductPrice { Id = 35, ProductId = 8, VehicleTypeId = 4, Price = 4000 },
-				new CarWashProductPrice { Id = 36, ProductId = 9, VehicleTypeId = 4, Price = 2000 },
+				new CarWashProductPrice { Id = 28, ProductId = 1, VehicleTypeId = 4, Price = 1200, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 29, ProductId = 2, VehicleTypeId = 4, Price = 800, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 30, ProductId = 3, VehicleTypeId = 4, Price = 1600, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 31, ProductId = 4, VehicleTypeId = 4, Price = 1600, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 32, ProductId = 5, VehicleTypeId = 4, Price = 1600, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 33, ProductId = 6, VehicleTypeId = 4, Price = 4000, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 34, ProductId = 7, VehicleTypeId = 4, Price = 1600, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 35, ProductId = 8, VehicleTypeId = 4, Price = 4000, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 36, ProductId = 9, VehicleTypeId = 4, Price = 2000, DateCreated = SeedDate, UserCode = SeedUserCode },
 
 				// ── Motorcycle (VehicleTypeId = 5) ──────────────────────────
-				new CarWashProductPrice { Id = 37, ProductId = 1, VehicleTypeId = 5, Price = 150 },
-				new CarWashProductPrice { Id = 38, ProductId = 2, VehicleTypeId = 5, Price = 100 },
-				new CarWashProductPrice { Id = 39, ProductId = 3, VehicleTypeId = 5, Price = 200 },
-				new CarWashProductPrice { Id = 40, ProductId = 4, VehicleTypeId = 5, Price = 200 },
-				new CarWashProductPrice { Id = 41, ProductId = 5, VehicleTypeId = 5, Price = 200 },
-				new CarWashProductPrice { Id = 42, ProductId = 6, VehicleTypeId = 5, Price = 500 },
-				new CarWashProductPrice { Id = 43, ProductId = 7, VehicleTypeId = 5, Price = 200 },
-				new CarWashProductPrice { Id = 44, ProductId = 8, VehicleTypeId = 5, Price = 500 },
-				new CarWashProductPrice { Id = 45, ProductId = 9, VehicleTypeId = 5, Price = 250 },
+				new CarWashProductPrice { Id = 37, ProductId = 1, VehicleTypeId = 5, Price = 150, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 38, ProductId = 2, VehicleTypeId = 5, Price = 100, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 39, ProductId = 3, VehicleTypeId = 5, Price = 200, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 40, ProductId = 4, VehicleTypeId = 5, Price = 200, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 41, ProductId = 5, VehicleTypeId = 5, Price = 200, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 42, ProductId = 6, VehicleTypeId = 5, Price = 500, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 43, ProductId = 7, VehicleTypeId = 5, Price = 200, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 44, ProductId = 8, VehicleTypeId = 5, Price = 500, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 45, ProductId = 9, VehicleTypeId = 5, Price = 250, DateCreated = SeedDate, UserCode = SeedUserCode },
 
 				// ── Tuk Tuk (VehicleTypeId = 6) ─────────────────────────────
-				new CarWashProductPrice { Id = 46, ProductId = 1, VehicleTypeId = 6, Price = 180 },
-				new CarWashProductPrice { Id = 47, ProductId = 2, VehicleTypeId = 6, Price = 120 },
-				new CarWashProductPrice { Id = 48, ProductId = 3, VehicleTypeId = 6, Price = 240 },
-				new CarWashProductPrice { Id = 49, ProductId = 4, VehicleTypeId = 6, Price = 240 },
-				new CarWashProductPrice { Id = 50, ProductId = 5, VehicleTypeId = 6, Price = 240 },
-				new CarWashProductPrice { Id = 51, ProductId = 6, VehicleTypeId = 6, Price = 600 },
-				new CarWashProductPrice { Id = 52, ProductId = 7, VehicleTypeId = 6, Price = 240 },
-				new CarWashProductPrice { Id = 53, ProductId = 8, VehicleTypeId = 6, Price = 600 },
-				new CarWashProductPrice { Id = 54, ProductId = 9, VehicleTypeId = 6, Price = 300 }
+				new CarWashProductPrice { Id = 46, ProductId = 1, VehicleTypeId = 6, Price = 180, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 47, ProductId = 2, VehicleTypeId = 6, Price = 120, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 48, ProductId = 3, VehicleTypeId = 6, Price = 240, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 49, ProductId = 4, VehicleTypeId = 6, Price = 240, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 50, ProductId = 5, VehicleTypeId = 6, Price = 240, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 51, ProductId = 6, VehicleTypeId = 6, Price = 600, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 52, ProductId = 7, VehicleTypeId = 6, Price = 240, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 53, ProductId = 8, VehicleTypeId = 6, Price = 600, DateCreated = SeedDate, UserCode = SeedUserCode },
+				new CarWashProductPrice { Id = 54, ProductId = 9, VehicleTypeId = 6, Price = 300, DateCreated = SeedDate, UserCode = SeedUserCode }
 			);
 		}
 		private static void SeedVehicles(ModelBuilder modelBuilder)

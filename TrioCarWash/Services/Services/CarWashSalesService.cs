@@ -72,6 +72,9 @@ public class CarWashSalesService : ICarWashSalesService
 
 	public async Task<ServiceResponse<SaleResponseDto>> CreateSaleAsync(string userCode, CreateSaleRequestDto request)
 	{
+		if(string.IsNullOrEmpty(request.VehiceRegistrationNumber))
+			return ServiceResponse<SaleResponseDto>.Error("Vehicle registration number must be present");
+
 		if (request.Items.Count == 0)
 			return ServiceResponse<SaleResponseDto>.Error("Sale must have at least one item");
 
@@ -140,7 +143,8 @@ public class CarWashSalesService : ICarWashSalesService
 				Change = change,
 				PhoneNumber = request.PhoneNumber,
 				MpesaReference = null, // TODO: wire real Daraja STK push here, don't fabricate a reference
-				ReceiptNumber = GenerateReceiptNumber(shift.Id)
+				ReceiptNumber = GenerateReceiptNumber(shift.Id),
+				VehicleRegistrationNumber = request.VehiceRegistrationNumber,
 			};
 
 			_db.CarWashTransactions.Add(sale);
