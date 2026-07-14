@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DataAccessLayer.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,7 +25,7 @@ namespace BussinessLogic.Reports.Shifts_Clossing
 			public string ProductName { get; set; } = string.Empty;
 			public DateTime ShiftOpenedAt { get; set; }
 			public DateTime ShiftClosedAt { get; set; }
-			public DateTime ReportGeneratedAt { get; set; } = DateTime.UtcNow;
+			public DateTime ReportGeneratedAt { get; set; } =EatTime.Now;
 
 			// Totalizer
 			public decimal OpeningTotalizer { get; set; }

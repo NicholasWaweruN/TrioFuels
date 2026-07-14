@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DataAccessLayer.Helpers;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -25,6 +26,6 @@ namespace DataAccessLayer.DTOs.Authentication
 		public string ErrorMessage { get; set; } = string.Empty;
 		[Required, StringLength(50), Unicode(false)]
 		public string Method { get; set; } = string.Empty;
-		public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+		public DateTime DateCreated { get; set; } = EatTime.Now;
 	}
 }

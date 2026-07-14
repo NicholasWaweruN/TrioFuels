@@ -1,4 +1,5 @@
 ﻿using DataAccessLayer.Common;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -18,7 +19,7 @@ namespace DataAccessLayer.EntityModels.Messaging
 
 		[Required, StringLength(150)]
 		public string EmailAddress { get; set; } = string.Empty;
-		public DateTime ExpiryDate { get; set; } = DateTime.UtcNow.AddMinutes(30);
+		public DateTime ExpiryDate { get; set; } = EatTime.Now.AddMinutes(30);
     }
     public class OtpTypes : BaseEntity
     {
@@ -103,7 +104,7 @@ namespace DataAccessLayer.EntityModels.Messaging
 		[Precision(18,2)] 
 		public decimal Cost { get; set; } = 0;
 		[Required]
-		public DateTime DateAdded { get; set; } = DateTime.UtcNow;
+		public DateTime DateAdded { get; set; } =EatTime.Now;
 	}
 
 	public class RescheduledMessages 
@@ -114,7 +115,7 @@ namespace DataAccessLayer.EntityModels.Messaging
 		public string PhoneNumber { get; set; } = string.Empty;
 		[Required,StringLength(600),Unicode(false)]
 		public string Message { get; set; } = string.Empty;
-		public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+		public DateTime DateCreated { get; set; } =EatTime.Now;
 		public DateTime? DateSent { get; set; }
 		public DateTime ScheduledSendingdate { get; set; }
 		public bool IsSent { get; set; } = false;

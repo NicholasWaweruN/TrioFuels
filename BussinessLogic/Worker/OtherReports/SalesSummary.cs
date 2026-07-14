@@ -3,6 +3,7 @@
 	using BusinessLogic.Worker.SalesReport;
 	using ClosedXML.Excel;
 	using DataAccessLayer.Context;
+	using DataAccessLayer.Helpers;
 	using Microsoft.EntityFrameworkCore;
 	using System;
 	using System.Data;
@@ -98,9 +99,9 @@
 		private MemoryStream ExportToMemoryStream(int year, int month, params (string SectionName, DataTable Data,DataTable Data2)[] tableData)
 		{
 			using var workbook = new XLWorkbook();
-			var nameOfMonth = DateTime.UtcNow.ToString("MMMM");
+			var nameOfMonth =EatTime.Now.ToString("MMMM");
 			
-			var previousMonthName = DateTime.UtcNow.AddMonths(-1).ToString("MMMM");
+			var previousMonthName =EatTime.Now.AddMonths(-1).ToString("MMMM");
 			var previousYear = year = month - 1 == 0 ? year - 1 : year;
 			var previousMonth = month - 1 == 0 ? 12 : month - 1;
 
@@ -110,7 +111,7 @@
 			int daysInMonth = DateTime.DaysInMonth(year, month);
 			int daysPreviousMonth = DateTime.DaysInMonth(previousYear,previousMonth);
 
-			int today = DateTime.UtcNow.Day;
+			int today =EatTime.Now.Day;
 
 			var defaultStyle = worksheet.Style;
 			defaultStyle.Font.FontColor = XLColor.Black;
@@ -282,7 +283,7 @@
 
 			var emails = GetRecipients("006");
 
-			SendEmailWithAttachmentAsync(memoryStream, $"SalesSummary_{year}_{month}.xlsx", emails.Result ?? new Mails(), "Sales Summary Report", "Sales Summary Report for the month of " + DateTime.UtcNow.ToString("MMMM")).Wait();
+			SendEmailWithAttachmentAsync(memoryStream, $"SalesSummary_{year}_{month}.xlsx", emails.Result ?? new Mails(), "Sales Summary Report", "Sales Summary Report for the month of " +EatTime.Now.ToString("MMMM")).Wait();
 
 			return memoryStream;
 		}

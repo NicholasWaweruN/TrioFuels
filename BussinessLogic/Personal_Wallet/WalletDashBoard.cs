@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Drawing;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Personal_Wallet
 {
@@ -29,7 +30,7 @@ namespace BussinessLogic.Personal_Wallet
 			{
 				var userCode = _authentication.Usercode();
 				var userName = _authentication.Name();
-				var currentMonth = DateTime.UtcNow.Month;
+				var currentMonth =EatTime.Now.Month;
 
 				// Retrieve only relevant transactions from the database
 				var transactions = await _context.Wallet_Transactions_Personal

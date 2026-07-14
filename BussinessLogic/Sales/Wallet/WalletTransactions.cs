@@ -24,6 +24,7 @@
 	using ExcelHorizontalAlignment = Syncfusion.XlsIO.ExcelHorizontalAlignment;
 	using BussinessLogic.Setup;
 	using BussinessLogic.Messaging;
+	using DataAccessLayer.Helpers;
 
 	/// <summary>
 	/// Defines the <see cref="WalletTransactions" />
@@ -95,7 +96,7 @@
 		{
 			return new CustomerTransactions
 			{
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode(),
 				VehicleCode = vehicleCode,
 				TransactionReference = _setups.GenerateSaleId(),
@@ -112,7 +113,7 @@
 		{
 			return new CustomerTransactions
 			{
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode(),
 				VehicleCode = vehicleCode,
 				TransactionReference = _setups.GenerateSaleId(),
@@ -137,7 +138,7 @@
 		{
 			return new CustomerTransactions
 			{
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode(),
 				VehicleCode = vehicleCode,
 				TransactionReference = _setups.GenerateSaleId(),
@@ -356,7 +357,7 @@
 			if (lastTransaction == null)
 				return false;
 
-			var timeDifference = DateTime.UtcNow - lastTransaction.DateCreated;
+			var timeDifference =EatTime.Now - lastTransaction.DateCreated;
 			return timeDifference.TotalMinutes < 2;
 		}
 
@@ -579,7 +580,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -638,7 +639,7 @@
 					{
 						Amount = amount,
 						RegNo = vehicleRegNo,
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						UserCode = _authentication.Usercode()
 					});
 					continue;
@@ -647,7 +648,7 @@
 				customerTransactions.Add(new CustomerTransactions
 				{
 					Credit = amount,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					Debit = 0,
 					TransactionReference = saleId,
 					UserCode = _authentication.Usercode(),
@@ -839,7 +840,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1035,7 +1036,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1124,7 +1125,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1177,7 +1178,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1283,7 +1284,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1451,7 +1452,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1491,7 +1492,7 @@
 					Debit = 0,
 					UserCode = _authentication.Usercode(),
 					Narration = $"Funds top up",
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserReference = customerFunds.TransactionReference
 				};
 
@@ -1509,7 +1510,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1549,7 +1550,7 @@
 					Credit = 0,
 					UserCode = _authentication.Usercode(),
 					Narration = $"Funds reversed",
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserReference = customerFunds.TransactionReference
 				};
 
@@ -1567,7 +1568,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -1595,7 +1596,7 @@
 				if (transactions.Count == 0)
 					return ServiceResponse<byte[]>.Information("No transactions found for the specified customer", null);
 
-				transactions.OrderBy(x => x.DateCreated);
+				IOrderedEnumerable<TransactionDto> transactionDtos = transactions.OrderBy(x => x.DateCreated);
 				using var package = new ExcelPackage();
 				var worksheet = package.Workbook.Worksheets.Add($"{customer.CustomerName}");
 
@@ -1616,7 +1617,7 @@
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

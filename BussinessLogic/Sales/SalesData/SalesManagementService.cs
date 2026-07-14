@@ -93,7 +93,7 @@ namespace BussinessLogic.Sales.SalesData
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -254,7 +254,7 @@ namespace BussinessLogic.Sales.SalesData
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -312,7 +312,7 @@ namespace BussinessLogic.Sales.SalesData
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -349,7 +349,7 @@ namespace BussinessLogic.Sales.SalesData
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated = EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -389,7 +389,7 @@ namespace BussinessLogic.Sales.SalesData
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -488,7 +488,7 @@ namespace BussinessLogic.Sales.SalesData
 				return ServiceResponse<byte[]>.Information(
 					"Invalid month provided. Must be between 1 and 12.", null);
 
-			if (year < 2000 || year > DateTime.UtcNow.Year + 1)
+			if (year < 2000 || year >EatTime.Now.Year + 1)
 				return ServiceResponse<byte[]>.Information(
 					$"Invalid year provided. Must be between 2000 and {DateTime.UtcNow.Year + 1}.", null);
 

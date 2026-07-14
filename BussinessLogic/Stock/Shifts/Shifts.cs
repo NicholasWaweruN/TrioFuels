@@ -5,6 +5,7 @@ using BussinessLogic.Stock.Variance_Service;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Shifts;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace BussinessLogic.Stock.Shifts
@@ -410,7 +411,7 @@ namespace BussinessLogic.Stock.Shifts
 			}
 
 			shift.ShiftStatus = ShiftStatus.Closed;
-			shift.ShiftEndTime = DateTime.UtcNow;
+			shift.ShiftEndTime =EatTime.Now;
 
 			_context.Shifts.Update(shift);
 			await _context.SaveChangesAsync();

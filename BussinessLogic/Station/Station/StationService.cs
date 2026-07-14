@@ -14,6 +14,7 @@ using DataAccessLayer.EntityModels.SetUps;
 using System.Reflection;
 using DataAccessLayer.DTOs.Shifts.Station;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BusinessLogic.Station.Station
 {
@@ -54,7 +55,7 @@ namespace BusinessLogic.Station.Station
 					StationName = addStation.StationName,
 					StationAddress = addStation.StationAddress,
 					StationCode = code,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					IsActive = true,
 					LocationId = codeunique
@@ -70,7 +71,7 @@ namespace BusinessLogic.Station.Station
 				{
 					var price = new Price
 					{
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						UserCode = _authentication.Usercode(),
 						StationCode = station.StationCode,
 						ProductCode = product.ProductCode,
@@ -94,7 +95,7 @@ namespace BusinessLogic.Station.Station
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -108,7 +109,7 @@ namespace BusinessLogic.Station.Station
         string GenerateUniqueCode()
         {
             // Get current date and time
-            DateTime now = DateTime.UtcNow;
+            DateTime now =EatTime.Now;
 
             // Format the DateTime into a unique string
             string dateTimeString = now.ToString("yyyyMMddHHmmssfff"); // YearMonthDayHourMinuteSecondMillisecond
@@ -206,7 +207,7 @@ namespace BusinessLogic.Station.Station
 				await _authentication.ErrorTrail(
 					new ErrorTrail
 					{
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						ErrorCode = "004",
 						ErrorMessage = ex.Message,
 						Method = method?.Name ?? ""
@@ -242,7 +243,7 @@ namespace BusinessLogic.Station.Station
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -280,7 +281,7 @@ namespace BusinessLogic.Station.Station
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

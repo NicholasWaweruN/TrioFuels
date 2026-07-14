@@ -86,7 +86,7 @@ namespace BusinessLogic.EmailService
 						Status = res["status"]?.ToString() ?? "",
 						MessageId = res["messageId"]?.ToString() ?? "",
 						Cost = res["cost"]?.ToString() ?? "",
-						Timestamp = DateTime.UtcNow,
+						Timestamp =EatTime.Now,
 						DeliveryStatus = "Sent",
 						Message = otp,
 						Sender = smsSenderId ?? "",
@@ -244,7 +244,7 @@ namespace BusinessLogic.EmailService
 						var otps = new Otps
 						{
 							PhoneNumber = phoneNumber,
-							ExpiryDate = DateTime.UtcNow,
+							ExpiryDate =EatTime.Now,
 							OTPCode = otp.ToString(),
 							OTPType = 1,
 							OTPStatus = true,

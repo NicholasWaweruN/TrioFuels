@@ -5,7 +5,8 @@
 	using DataAccessLayer.Common;
     using DataAccessLayer.Context;
     using DataAccessLayer.EntityModels.SetUps;
-    using Microsoft.EntityFrameworkCore;
+	using DataAccessLayer.Helpers;
+	using Microsoft.EntityFrameworkCore;
     using System;
     using System.Collections.Generic;
     using System.Data;
@@ -150,7 +151,7 @@
 					// Send Email with Excel attachment
 					string[] emailto = emailsTo;
 					string[] emailtocc = emailsToCC;
-					await _emails.SendEmailWithExcelAttachmentAsync(emailto, emailtocc, DateTime.UtcNow, subject, body, dataTable);
+					await _emails.SendEmailWithExcelAttachmentAsync(emailto, emailtocc,EatTime.Now, subject, body, dataTable);
 
 					return ServiceResponse<object>.Success("Variance report generated successfully", null);
 				}
@@ -162,7 +163,7 @@
 				await _authentications.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

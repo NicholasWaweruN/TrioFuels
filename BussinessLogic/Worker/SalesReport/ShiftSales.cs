@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using DocumentFormat.OpenXml.Wordprocessing;
 using BussinessLogic.Messaging;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Worker.SalesReport
 {
@@ -54,7 +55,7 @@ namespace BussinessLogic.Worker.SalesReport
 			workbook.Properties.Title = "Shift Sales Report";
 			workbook.Properties.Author = "Otopay Sales Team";
 			workbook.Properties.Company = "Proto Energy";
-			workbook.Properties.Created = DateTime.UtcNow;
+			workbook.Properties.Created =EatTime.Now;
 			workbook.Properties.Status = "Final";
 
 
@@ -143,7 +144,7 @@ namespace BussinessLogic.Worker.SalesReport
 							     <p>Dear All,</p>
                     <p>
                         Please find attached the <strong>Shift Sales Report</strong> for 
-                        <strong>{ DateTime.UtcNow:MMMM yyyy}</strong>.
+                        <strong>{EatTime.Now:MMMM yyyy}</strong>.
                     </p>
                     <p>
                         This report provides a comprehensive summary of sales activities during the specified shift.

@@ -6,6 +6,7 @@ using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Messaging;
 using DataAccessLayer.EntityModels.Messaging;
 using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -186,7 +187,7 @@ namespace BussinessLogic.Messaging
 					Cost = recipientNode["cost"]?.InnerText ?? string.Empty,
 					MessageId = recipientNode["messageId"]?.InnerText ?? string.Empty,
 					BatchNumber = batchNumber,
-					Timestamp = DateTime.UtcNow,
+					Timestamp =EatTime.Now,
 					DeliveryStatus = "Sent"
 				})
 				.ToList();
@@ -215,8 +216,8 @@ namespace BussinessLogic.Messaging
 					.Replace("{{senderName}}", sender)
 					.Replace("{{norecipients}}", recipientCount.ToString())
 					.Replace("{{message}}", message)
-					.Replace("{{startDate}}", DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd"))
-					.Replace("{{endDate}}", DateTime.UtcNow.Date.AddDays(1).ToString("yyyy-MM-dd"));
+					.Replace("{{startDate}}",EatTime.Now.Date.AddDays(-1).ToString("yyyy-MM-dd"))
+					.Replace("{{endDate}}",EatTime.Now.Date.AddDays(1).ToString("yyyy-MM-dd"));
 
 				_emailService.SendEmail(email, null, "Bulk SMS", xhtml);
 			}

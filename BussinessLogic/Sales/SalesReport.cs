@@ -115,7 +115,7 @@ namespace BusinessLogic.Sales
 		//										join p in _context.PaymentTypes on q.PaymentTypeCode equals p.PaymentTypeId
 		//										join pts in _context.PaymentTypes on q.PaymentTypeCode equals pts.PaymentTypeId
 		//										join u in _context.Users on q.UserCode equals u.UserCode
-		//										where q.Date.Date == DateTime.UtcNow.Date.AddDays(-1)
+		//										where q.Date.Date ==EatTime.Now.Date.AddDays(-1)
 		//										select new
 		//										{
 		//											q.SalesId,

@@ -15,6 +15,7 @@ using BussinessLogic.Authentication.CommonTasks;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.DTOs.Shifts.Station;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BusinessLogic.Station.StationDispenser
 {
@@ -48,7 +49,7 @@ namespace BusinessLogic.Station.StationDispenser
 					{
 						DispenserName = addDispenser.DispenserName,
 						DispenserCode = code,
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						StationCode = addDispenser.StationCode,
 						StorageLocation = addDispenser.StorageLocation,
 						IsActive = true,
@@ -66,7 +67,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -100,7 +101,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -135,7 +136,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -164,7 +165,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -205,7 +206,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -246,7 +247,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -287,7 +288,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -328,7 +329,7 @@ namespace BusinessLogic.Station.StationDispenser
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

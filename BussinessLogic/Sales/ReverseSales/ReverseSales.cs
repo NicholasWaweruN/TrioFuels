@@ -8,6 +8,7 @@ using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -114,7 +115,7 @@ namespace BussinessLogic.Sales.ReverseSales
 						ActionType = "ReverseSale",
 						Message = trailMessage,
 						ShiftNumber = sale.ShiftNumber,
-						DateCreated = DateTime.UtcNow
+						DateCreated =EatTime.Now
 					});
 
 					// --- Persist once -----------------------------------------------------------
@@ -216,7 +217,7 @@ namespace BussinessLogic.Sales.ReverseSales
 						Message = $"Sale {transactionCode} transferred from nozzle {oldNozzle} to nozzle {nozzleCode}",
 						UserName = _authentication.Name(),
 						UserCode = _authentication.Usercode(),
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						ShiftNumber = sale.ShiftNumber
 					});
 
@@ -266,7 +267,7 @@ namespace BussinessLogic.Sales.ReverseSales
 				TransactionReference = $"REVERSAL-{transaction.SaleId}",
 				VehicleCode = transaction.VehicleCode,
 				StationCode = transaction.StationCode,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode()
 			});
 
@@ -287,7 +288,7 @@ namespace BussinessLogic.Sales.ReverseSales
 				VehicleCode = vehicleCode,
 				Credit = 0,
 				Debit = amount,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode(),
 				TransactionReference = transactionCode
 			});
@@ -315,7 +316,7 @@ namespace BussinessLogic.Sales.ReverseSales
 
 				PaymentTypeCode = sale.PaymentTypeCode,
 				SaleId = sale.SaleId,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				IsReversed = true,
 			};
 
@@ -347,7 +348,7 @@ namespace BussinessLogic.Sales.ReverseSales
 					PaymentRefrence = p.PaymentRefrence,
 					TransactionAmount = 0,
 					TransactionAmountDebit = p.TransactionAmount,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					SaleId = p.SaleId
 				});

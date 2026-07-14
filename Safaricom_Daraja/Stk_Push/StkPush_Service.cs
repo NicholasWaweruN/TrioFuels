@@ -2,6 +2,7 @@
 using DataAccessLayer.EntityModels.Daraja;
 using DataAccessLayer.EntityModels.Stations;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -117,7 +118,7 @@ public sealed class StkPushService(
 				BusinessShortCode = payload.BusinessShortCode, // ✅ FIX: persist the shortcode actually sent to Daraja
 				AccountReference = safeRef,
 				Status = "Pending",
-				DateCreated = DateTime.UtcNow
+				DateCreated =EatTime.Now
 			};
 
 			_context.StkTransactions.Add(transaction);
@@ -200,7 +201,7 @@ public sealed class StkPushService(
 				{
 					// SUCCESS
 					transaction.Status = "Completed";
-					transaction.DateCompleted = DateTime.UtcNow;
+					transaction.DateCompleted =EatTime.Now;
 				}
 				else if (result.ResultCode == "1")
 				{
@@ -211,7 +212,7 @@ public sealed class StkPushService(
 				{
 					// TERMINAL FAILURES: 1032 (cancelled), 1037 (timeout), 2001 (wrong PIN)
 					transaction.Status = "Failed";
-					transaction.DateCompleted = DateTime.UtcNow;
+					transaction.DateCompleted = EatTime.Now;
 				}
 
 				await _context.SaveChangesAsync(ct);

@@ -11,6 +11,7 @@ using BussinessLogic.Sales.NewSales;
 using BussinessLogic.Sales.SalesData;
 using BussinessLogic.Sales.Wallet;
 using DataAccessLayer.DTOs.Sales;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
@@ -333,7 +334,7 @@ namespace FuelFlow.Controllers
 		[Route("monthly_archive_data")]
 		public async Task<IActionResult> Monthly_Archive_Data([FromQuery] int month, [FromQuery] int year)
 		{
-			string name = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+			string name =EatTime.Now.ToString("yyyyMMddHHmmss");
 			var data = new ArchiveDataDto { Month = month, Year = year }; // Create the DTO from the query parameters
 			var result = await _archive.GetSalesTransactionsByMonth(data);
 
@@ -355,7 +356,7 @@ namespace FuelFlow.Controllers
 		[Route("day_archive_data")]
 		public async Task<IActionResult> Day_Archive_Data(DateTime date)
 		{
-			string name = DateTime.UtcNow.ToString().Replace("/","").Replace("-","").Replace(" ","");
+			string name =EatTime.Now.ToString().Replace("/","").Replace("-","").Replace(" ","");
 			var result = await _archive.GetSalesTransactionsDate(date);
 			if (result.ResponseCode != 1)
 			{

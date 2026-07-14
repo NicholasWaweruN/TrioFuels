@@ -1,4 +1,5 @@
 ﻿
+using DataAccessLayer.Helpers;
 using FuelFlow.Services.Daraja;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -33,7 +34,7 @@ public sealed class PullTransactionWorker(IServiceScopeFactory scopeFactory,ILog
 
 	private async Task RunPullAsync(CancellationToken ct)
 	{
-		logger.LogInformation("Pull cycle starting at {Time}", DateTime.UtcNow);
+		logger.LogInformation("Pull cycle starting at {Time}",EatTime.Now);
 
 		try
 		{
@@ -43,7 +44,7 @@ public sealed class PullTransactionWorker(IServiceScopeFactory scopeFactory,ILog
 				.GetRequiredService<IPullTransactionImportService>();
 
 			// Pull the last 2 hours (overlap to avoid missing transactions near the boundary)
-			var to = DateTime.UtcNow;
+			var to =EatTime.Now;
 			var from = to.AddHours(-2);
 
 			var results = await importService.ImportAllTillsAsync(from, to, ct);

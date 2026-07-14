@@ -3,6 +3,7 @@ using BussinessLogic.Messaging;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.StockTake;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -51,7 +52,7 @@ namespace BussinessLogic.Stock.Totalizers
 					if (invalid.Any())
 						return ServiceResponse<object>.Information($"Invalid nozzles: {string.Join(",", invalid)}", null);
 
-					var today = DateTime.UtcNow.Date;
+					var today =EatTime.Now.Date;
 
 					var lastReadings = await _context.TotalizerReadings
 						.Where(r => r.DateCreated < today && existingNozzles.Contains(r.NozzlesCode))
@@ -69,7 +70,7 @@ namespace BussinessLogic.Stock.Totalizers
 
 					var records = nozzles.Select(n => new TotalizerReadings
 					{
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						NozzlesCode = n.NozzleCode,
 						Reading = n.Reading,
 						UserCode = userCode

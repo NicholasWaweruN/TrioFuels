@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Personal_Wallet
 {
@@ -55,7 +56,7 @@ namespace BussinessLogic.Personal_Wallet
 					TransactionType = "0",
 					TransactionCode = await _setups.GetCodeGenerator("TransactionId"),
 					WalletId = wallet.WalletId,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					Description = "Wallet top up",
 					SaleId = _setups.GenerateSaleId(),

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Context;
 using Safaricom_Daraja;
+using DataAccessLayer.Helpers;
 
 namespace FuelFlow.Services.Daraja;
 
@@ -89,9 +90,9 @@ public sealed class PullTransactionImportService(
 						LastName = string.Empty,
 						OrgAccountBalance = 0,
 						Status = 1,
-						DateTimeStamp = DateTime.UtcNow,
-						DateModified = DateTime.UtcNow,
-						DateCreated = DateTime.UtcNow,
+						DateTimeStamp =EatTime.Now,
+						DateModified =EatTime.Now,
+						DateCreated =EatTime.Now,
 						UsageBalance = tx.Amount,
 						UserCode = tx.SenderPhone,
 						CheckoutRequestID = string.Empty,
@@ -101,7 +102,7 @@ public sealed class PullTransactionImportService(
 				}
 				else
 				{
-					existing.DateModified = DateTime.UtcNow;
+					existing.DateModified =EatTime.Now;
 					updated++;
 				}
 			}
@@ -137,12 +138,12 @@ public sealed class PullTransactionImportService(
 
 	private static DateTime ParseTime(string? value)
 	{
-		if (string.IsNullOrWhiteSpace(value)) return DateTime.UtcNow;
+		if (string.IsNullOrWhiteSpace(value)) return EatTime.Now;
 
 		return DateTime.TryParseExact(value, "yyyyMMddHHmmss",
 			null, System.Globalization.DateTimeStyles.None, out var dt)
 			? dt
-			: DateTime.UtcNow;
+			:EatTime.Now;
 	}
 }
 

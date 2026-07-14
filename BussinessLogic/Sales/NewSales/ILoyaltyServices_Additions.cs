@@ -8,6 +8,7 @@ using BussinessLogic.Authentication.CommonTasks;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace BussinessLogic.Sales.NewSales
@@ -58,7 +59,7 @@ namespace BussinessLogic.Sales.NewSales
 				PointsCredit = 0,
 				PointsDebit = points,
 				SaleId = saleId,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode()
 			});
 
@@ -98,7 +99,7 @@ namespace BussinessLogic.Sales.NewSales
 
 					var addPoints = new RoyaltyPoints
 					{
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						Litres = litres,
 						PointsCredit = earnedPoints,
 						PointsDebit = 0,

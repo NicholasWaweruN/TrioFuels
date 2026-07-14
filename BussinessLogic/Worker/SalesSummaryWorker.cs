@@ -1,6 +1,7 @@
 ﻿using BusinessLogic.Worker.SalesReport;
 using BussinessLogic.Worker.OtherReports;
 using BussinessLogic.Worker.StockReports;
+using DataAccessLayer.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -24,11 +25,11 @@ namespace BussinessLogic.Worker
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
-			_logger.LogInformation("Sales Summary background service started at {Time}", DateTime.UtcNow);
+			_logger.LogInformation("Sales Summary background service started at {Time}",EatTime.Now);
 
 			while (!stoppingToken.IsCancellationRequested)
 			{
-				var now = DateTime.UtcNow;
+				var now =EatTime.Now;
 				using var scope = _serviceProvider.CreateScope();
 
 				try
@@ -120,7 +121,7 @@ namespace BussinessLogic.Worker
 			string dir = @"C:\ErrorLogs\api\";
 			if (!Directory.Exists(dir)) Directory.CreateDirectory(dir); // FIXED
 
-			string filePath = Path.Combine(dir, DateTime.UtcNow.ToString("yyyyMMdd") + ".txt");
+			string filePath = Path.Combine(dir,EatTime.Now.ToString("yyyyMMdd") + ".txt");
 			using StreamWriter write = new(filePath, true);
 			write.WriteLine($"{DateTime.UtcNow}: {error}");
 		}

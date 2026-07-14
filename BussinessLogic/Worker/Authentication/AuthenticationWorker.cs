@@ -55,7 +55,7 @@ namespace BussinessLogic.Worker.Authentication
 		{
 			var context = scope.ServiceProvider.GetRequiredService<OTOContext>();
 
-			var cutoffDate = DateTime.UtcNow.AddDays(-30);
+			var cutoffDate = EatTime.Now.AddDays(-30);
 
 			var inactiveUsers = await context.Users
 				.Where(user =>
@@ -70,7 +70,7 @@ namespace BussinessLogic.Worker.Authentication
 				foreach (var user in inactiveUsers)
 				{
 					user.IsActive = false;
-					user.DateModified = DateTime.UtcNow;
+					user.DateModified =EatTime.Now;
 					user.ModifiedBy = "System";
 
 					_logger.LogInformation(
@@ -88,7 +88,7 @@ namespace BussinessLogic.Worker.Authentication
 								  $"Last Login: {user.LastLoginDate:yyyy-MM-dd HH:mm:ss}\n" +
 								  $"Action Performed By: System\n" +
 								  $"Deactivation Time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}",
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						UserCode = "System",
 						UserName = user.UserName ?? user.Id,
 					};
@@ -106,7 +106,7 @@ namespace BussinessLogic.Worker.Authentication
 			}
 			else
 			{
-				_logger.LogInformation("No inactive users found at {Time}", DateTime.UtcNow);
+				_logger.LogInformation("No inactive users found at {Time}",EatTime.Now);
 			}
 		}
 

@@ -10,6 +10,7 @@ using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Customer;
 using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
@@ -102,7 +103,7 @@ namespace BusinessLogic.CustomerService
 					CustomerPhone = customerDTO.CustomerPhone,
 					CustomerEmail = customerDTO.CustomerEmail,
 					CustomerCode = custcode.ToString(),
-					DateCreated = DateTime.UtcNow,
+					DateCreated = EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					KRAPin = customerDTO.Krapin,
 					OrganisationCode = customerDTO.OrganisationCode,
@@ -124,7 +125,7 @@ namespace BusinessLogic.CustomerService
 					- KRA PIN: {customer.KRAPin}",
 					UserName = _authentication.Name(),
 					UserCode = _authentication.Usercode(),
-					DateCreated = DateTime.UtcNow
+					DateCreated =EatTime.Now
 				};
 
 				// ---------------- EXECUTION STRATEGY + TRANSACTION ----------------
@@ -205,7 +206,7 @@ namespace BusinessLogic.CustomerService
 
 				var neworg = new Organisations
 				{
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					OrganisationCode = await _setups.GetCodeGenerator("organisationCode"),
 					OrganisationName = register.OrganisationName,
 					OrganisationPhone = register.PhoneNumber,
@@ -412,7 +413,7 @@ namespace BusinessLogic.CustomerService
 				UserName = performedBy,
 				ActionType = action,
 				Message = details,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode(),
 			};
 
@@ -622,7 +623,7 @@ namespace BusinessLogic.CustomerService
 					UserName = _authentication.Name(),
 					ActionType = "ExportAllCustomers",
 					Message = "Exported all customers to Excel",
-					DateCreated = DateTime.UtcNow
+					DateCreated =EatTime.Now
 				});
 
 				await _context.SaveChangesAsync();
@@ -739,7 +740,7 @@ namespace BusinessLogic.CustomerService
 				var cc = emails.ToCC + "," + currentemail is null ? string.Empty : currentemail;
 				var subject = "Discount Update";
 				var htmlbody = "<!DOCTYPE html>\r\n<html lang=\"en\">\r\n<head>\r\n    <meta charset=\"UTF-8\">\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n    <title>Vehicle Discount Update</title>\r\n    <style>\r\n        body {\r\n            font-family: Arial, sans-serif;\r\n            line-height: 1.6;\r\n            margin: 0;\r\n            padding: 0;\r\n            background-color: #f4f4f4;\r\n        }\r\n        .email-container {\r\n            max-width: 600px;\r\n            margin: 20px auto;\r\n            background: #ffffff;\r\n            padding: 20px;\r\n            border-radius: 5px;\r\n            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\r\n        }\r\n        .header {\r\n            text-align: center;\r\n            font-size: 20px;\r\n            font-weight: bold;\r\n            color: #333;\r\n            margin-bottom: 20px;\r\n        }\r\n        .content {\r\n            font-size: 16px;\r\n            color: #555;\r\n        }\r\n        .highlight {\r\n            font-weight: bold;\r\n            color: #007BFF;\r\n        }\r\n        .footer {\r\n            margin-top: 20px;\r\n            text-align: center;\r\n            font-size: 14px;\r\n            color: #999;\r\n        }\r\n    </style>\r\n</head>\r\n<body>\r\n    <div class=\"email-container\">\r\n        <div class=\"header\">\r\n            Vehicle Discount Update Notification\r\n        </div>\r\n        <div class=\"content\">\r\n            Dear Team,<br><br>\r\n\r\n            This is to notify you that the discount for the vehicle with number plate <span class=\"highlight\">{{xxxxx}}</span> has been updated to <span class=\"highlight\">{{0.00}}</span> by <span class=\"highlight\">{{name}}</span> on <span class=\"highlight\">{{date}}</span>.\r\n\r\n            <br><br>\r\n            Kind regards,<br>\r\n            The Otopat Team\r\n        </div>\r\n        <div class=\"footer\">\r\n            &copy; 2025 Otopay Team. All rights reserved.\r\n        </div>\r\n    </div>\r\n</body>\r\n</html>\r\n";
-				htmlbody = htmlbody.Replace("{{xxxxx}}", customer.VehicleRegistrationNumber).Replace("{{0.00}}", discount.Discount.ToString()).Replace("{{name}}", _authentication.Name()).Replace("{{date}}", DateTime.UtcNow.ToString());
+				htmlbody = htmlbody.Replace("{{xxxxx}}", customer.VehicleRegistrationNumber).Replace("{{0.00}}", discount.Discount.ToString()).Replace("{{name}}", _authentication.Name()).Replace("{{date}}",EatTime.Now.ToString());
 				await _emailService.SendEmail(to, cc, subject, htmlbody);
 				return ServiceResponse<object>.Success($"Discount updated to {discount.Discount:N2}", null);
 			}

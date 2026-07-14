@@ -1,4 +1,5 @@
 ﻿using DataAccessLayer.Common;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -60,7 +61,7 @@ namespace DataAccessLayer.DTOs.Bulk
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerPhone { get; set; } = string.Empty;
         public string CustomerEmail { get; set; } = string.Empty;
-        public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+        public DateTime DateCreated { get; set; } = EatTime.Now;
         public string CustomerId { get; set; } = string.Empty;
         public string KRAPIN { get; set; } = string.Empty;
         public string CustomerType { get; set; } = string.Empty;
@@ -68,7 +69,7 @@ namespace DataAccessLayer.DTOs.Bulk
         public string CustomerLocationId { get; set; } = string.Empty;
         public string GeoLocation { get; set; } = string.Empty;
 
-        public List<CustomerLocation> Locations { get; set; } = new List<CustomerLocation>(); // List of locations
+        public List<CustomerLocation> Locations { get; set; } = []; // List of locations
     }
 
     public class CustomerLocation

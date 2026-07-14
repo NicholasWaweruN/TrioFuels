@@ -1,6 +1,7 @@
 ﻿using BussinessLogic.Authentication.CommonTasks;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using System.Text;
@@ -10,7 +11,7 @@ public class UtilityService
 	// Generates a unique shift number
 	public static string GenerateShiftNumber()
 	{
-		var date = DateTime.UtcNow;
+		var date =EatTime.Now;
 
 		var yearMapping = new Dictionary<int, string>
 		{

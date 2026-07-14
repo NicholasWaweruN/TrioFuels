@@ -6,6 +6,7 @@ using DataAccessLayer.DTOs.Sales;
 using DataAccessLayer.DTOs.Transactions;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
@@ -65,8 +66,8 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 				ShiftNumber = newShiftNumber,
 				UserCode = _authentication.Usercode(),
 				ShiftStatus = ShiftStatus.Open,
-				ShiftStartTime = DateTime.UtcNow,
-				DateCreated = DateTime.UtcNow,
+				ShiftStartTime =EatTime.Now,
+				DateCreated =EatTime.Now,
 				DispenserCode = dispenser,
 			};
 			await _context.AddAsync(newShift);
@@ -179,7 +180,7 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 				{
 					var newStockTakeSummary = new StockTakeSummary
 					{
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						ShiftNumber = shiftNumber,
 						UserCode = userCode,
 						NozzleCode = nozzle.NozzleCode,
@@ -240,7 +241,7 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 		{
 			var stockTake = new StockTake
 			{
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				NozzleCode = item.NozzleCode,
 				ShiftNumber = shift,
 				OpeningReading = item.Reading,
@@ -264,9 +265,9 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 					: ShiftStatus.Variance;
 
 				if (isOpeningReading)
-					shift.ShiftStartTime = DateTime.UtcNow;
+					shift.ShiftStartTime =EatTime.Now;
 				else
-					shift.ShiftEndTime = DateTime.UtcNow;
+					shift.ShiftEndTime =EatTime.Now;
 
 				_context.Shifts.Update(shift);
 				await _context.SaveChangesAsync();
@@ -277,7 +278,7 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 		{
 			await _authentication.ErrorTrail(new ErrorTrail
 			{
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				ErrorCode = "004",
 				ErrorMessage = ex.Message,
 				Method = ex.TargetSite?.Name ?? string.Empty
@@ -306,7 +307,7 @@ namespace BussinessLogic.Stock.Stock_Take_Service
 
 		private static string GenerateShiftNumber()
 		{
-			var date = DateTime.UtcNow;
+			var date =EatTime.Now;
 			var monthLetter = MonthAlphabetMapping[date.Month];
 			var yearLetter = YearAlphabetMapping[date.Year];
 			var dayLetter = DayAlphabetMapping[date.Day];

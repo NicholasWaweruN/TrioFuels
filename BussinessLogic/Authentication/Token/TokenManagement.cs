@@ -4,6 +4,7 @@ using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Authentication;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -99,7 +100,7 @@ namespace BussinessLogic.Authentication.Token
 
 			var token = new JwtSecurityToken(
 				claims: claims,
-				expires: DateTime.UtcNow.AddMinutes(720), // 12-hour session
+				expires:EatTime.Now.AddMinutes(720), // 12-hour session
 				signingCredentials: cred
 			);
 

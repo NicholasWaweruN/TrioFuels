@@ -10,6 +10,7 @@ using DataAccessLayer.DTOs.Sales;
 using DataAccessLayer.DTOs.Transactions;
 using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.ComponentModel.DataAnnotations;
@@ -93,7 +94,7 @@ namespace BussinessLogic.Stock.Stock
 				var lastClosedShift = await GetLastClosedShiftAsync();
 				if (lastClosedShift?.ShiftEndTime != null)
 				{
-					var timeSinceClose = DateTime.UtcNow - lastClosedShift.ShiftEndTime.Value;
+					var timeSinceClose =EatTime.Now - lastClosedShift.ShiftEndTime.Value;
 
 					if (timeSinceClose < ShiftReopenCooldown)
 					{
@@ -159,7 +160,7 @@ namespace BussinessLogic.Stock.Stock
 				{
 					_context.StockTakes.Add(new StockTake
 					{
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						NozzleCode = item.NozzleCode,
 						ShiftNumber = shift,
 						OpeningReading = item.Reading,
@@ -170,7 +171,7 @@ namespace BussinessLogic.Stock.Stock
 
 					_context.QuantityTransactions.Add(new QuantityTransactions
 					{
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						UserCode = userCode,
 						NozzleCode = item.NozzleCode,
 						QuantityCredit = item.Reading,
@@ -229,7 +230,7 @@ namespace BussinessLogic.Stock.Stock
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -388,8 +389,8 @@ namespace BussinessLogic.Stock.Stock
 				ShiftNumber = newShiftNumber,
 				UserCode = _authentication.Usercode(),
 				ShiftStatus = ShiftStatus.Open,
-				ShiftStartTime = DateTime.UtcNow,
-				DateCreated = DateTime.UtcNow,
+				ShiftStartTime =EatTime.Now,
+				DateCreated =EatTime.Now,
 				DispenserCode = dispenser,
 			};
 			await _context.AddAsync(newShift);
@@ -440,7 +441,7 @@ namespace BussinessLogic.Stock.Stock
 				if (isOpeningReading)
 					if (stockTakeEntity == null)
 					{
-						stockTakeEntity = new StockTake { DateCreated = DateTime.UtcNow, ShiftNumber = shiftNumber, UserCode = userCode, NozzleCode = nozzle.NozzleCode, OpeningReading = nozzle.Reading, ClosingReading = 0 };
+						stockTakeEntity = new StockTake { DateCreated =EatTime.Now, ShiftNumber = shiftNumber, UserCode = userCode, NozzleCode = nozzle.NozzleCode, OpeningReading = nozzle.Reading, ClosingReading = 0 };
 						_context.StockTakes.Add(stockTakeEntity);
 					}
 					else if (stockTakeEntity != null)
@@ -461,7 +462,7 @@ namespace BussinessLogic.Stock.Stock
 
 						var newStockTakeSummary = new StockTakeSummary
 						{
-							DateCreated = DateTime.UtcNow,
+							DateCreated =EatTime.Now,
 							ShiftNumber = shiftNumber,
 							UserCode = userCode,
 							NozzleCode = nozzle.NozzleCode,
@@ -499,7 +500,7 @@ namespace BussinessLogic.Stock.Stock
 			{
 			   
 				await _salesTasks.ReconcileStockSummariesAsync(shift.ShiftNumber);
-				//await ClearVariance(shiftNumber);
+				await ClearVariance(shiftNumber);
 
 				totalVariance = await (from q in _context.StockTakeSummaries
 									   where q.ShiftNumber == shiftNumber
@@ -519,9 +520,9 @@ namespace BussinessLogic.Stock.Stock
 					: ShiftStatus.Variance;
 
 				if (isOpeningReading)
-					shift.ShiftStartTime = DateTime.UtcNow;
+					shift.ShiftStartTime =EatTime.Now;
 				else
-					shift.ShiftEndTime = DateTime.UtcNow;
+					shift.ShiftEndTime =EatTime.Now;
 
 				_context.Shifts.Update(shift);
 				await _context.SaveChangesAsync();
@@ -604,7 +605,7 @@ namespace BussinessLogic.Stock.Stock
 
 		private static string GenerateShiftNumber()
 		{
-			var date = DateTime.UtcNow;
+			var date =EatTime.Now;
 			var monthLetter = MonthAlphabetMapping[date.Month];
 			var yearLetter = YearAlphabetMapping[date.Year];
 			var dayLetter = DayAlphabetMapping[date.Day];
@@ -1175,12 +1176,13 @@ namespace BussinessLogic.Stock.Stock
 
 				var nozzlePrices = new Dictionary<string, decimal>();
 
-				// SIGNED and NETTED across all nozzles in the shift — an overage on one
-				// nozzle offsets a shortage on another, in money terms just like in litres.
-				// e.g. Nozzle A +8L, Nozzle B -5L => net = +3L worth, NOT (8L + 5L) = 13L worth.
-				// Each nozzle's own retail price is used for its own portion of the net value.
-				decimal netVarianceValue = 0m;
+				// Shift-level NET CLOSING variance only (litres). OpeningVariance is intentionally
+				// excluded here per the new spec — only ClosingVariance feeds the clear decision.
+				decimal totalVarianceLitres = variances.Sum(x => x.ClosingVariance);
 
+				// Shift-level NET CLOSING variance value — each nozzle's ClosingVariance priced at
+				// that nozzle's own retail price, then summed (signed) across the shift.
+				decimal netVarianceValue = 0m;
 				foreach (var variance in variances)
 				{
 					if (!nozzlePrices.TryGetValue(variance.NozzleCode, out var pricePerLitre))
@@ -1188,42 +1190,24 @@ namespace BussinessLogic.Stock.Stock
 						pricePerLitre = await _varianceService.GetCurrentRetailPriceAsync(dispenserId, variance.NozzleCode);
 						nozzlePrices[variance.NozzleCode] = pricePerLitre;
 					}
-
-					var netVarianceForNozzle = variance.ClosingVariance + variance.OpeningVariance;
-					netVarianceValue += netVarianceForNozzle * pricePerLitre; // signed - do NOT Math.Abs here
+					netVarianceValue += variance.ClosingVariance * pricePerLitre;
 				}
-
-				// Magnitude of the netted value — used for both the threshold check and the audit message.
 				var totalVarianceValue = Math.Abs(netVarianceValue);
 
-				// Shift-level (not per-nozzle) signed variance in litres.
-				// e.g. Nozzle A +8L, Nozzle B -5L => shift net = +3L => overage, goes through value threshold.
-				var totalVarianceLitres = variances.Sum(x => x.ClosingVariance + x.OpeningVariance);
+				// Method 1: overage — net closing variance >= 0, cleared only if its value is within threshold.
+				var isWithinValueThreshold = IsOverageWithinThreshold(totalVarianceLitres, totalVarianceValue, threshold);
 
-				// Auto-clear conditions are evaluated on the SHIFT-LEVEL NET variance (all nozzles
-				// combined), partitioned strictly by sign:
-				//   • Shift net overage  (totalVarianceLitres > 0)          -> must pass the money-value threshold (netted value).
-				//   • Shift net shortage (totalVarianceLitres in [-1L, 0L]) -> auto-clears on litres alone, regardless of value.
-				//   • Shift net shortage beyond -1L (< -1L, e.g. -2L, -3L)  -> never auto-clears, under any condition.
-				var isOverage = totalVarianceLitres > 0m;
-				var isMinorShortage = totalVarianceLitres >= -1m && totalVarianceLitres <= 0m;
-
-				var isWithinValueThreshold = isOverage && totalVarianceValue <= threshold;
-				var isWithinLitreThreshold = isMinorShortage;
+				// Method 2: minor shortage — net closing variance strictly between -1L and 0L, clears on litres alone.
+				var isWithinLitreThreshold = IsMinorShortageAutoClear(totalVarianceLitres);
 
 				if (isWithinValueThreshold || isWithinLitreThreshold)
 				{
-					// Mark every nozzle's variance row as closed. No per-nozzle transaction is
-					// written here — opposing nozzles (e.g. A=+8, B=-0.08) no longer generate
-					// their own separate debit/credit entries.
 					foreach (var variance in variances)
 					{
 						variance.VarianceStatus = ShiftStatus.Closed;
 						_context.StockTakeSummaries.Update(variance);
 					}
 
-					// Write ONE consolidated transaction pair reflecting the NET shift-level
-					// position (totalVarianceLitres / totalVarianceValue), not one per nozzle.
 					if (totalVarianceLitres != 0m)
 					{
 						var isShortage = totalVarianceLitres < 0m;
@@ -1233,9 +1217,9 @@ namespace BussinessLogic.Stock.Stock
 
 						var quantityTransaction = new QuantityTransactions
 						{
-							DateCreated = DateTime.UtcNow,
+							DateCreated = EatTime.Now,
 							UserCode = firstVariance?.UserCode ?? "",
-							NozzleCode = firstVariance?.NozzleCode ?? "", // TODO: confirm convention for a shift-level net entry
+							NozzleCode = firstVariance?.NozzleCode ?? "",
 							QuantityCredit = isShortage ? magnitude : 0,
 							QuantityDebit = isShortage ? 0 : magnitude,
 							ShiftNumber = shiftNumber,
@@ -1252,23 +1236,25 @@ namespace BussinessLogic.Stock.Stock
 							CustomerCode = string.Empty,
 							OtpUsed = string.Empty,
 							VehicleRegistrationNumber = _authentication.Usercode(),
+							
 						};
 						await _context.QuantityTransactions.AddAsync(quantityTransaction);
 
 						var paymentTransaction = new PaymentTransactions
 						{
-							DateCreated = DateTime.UtcNow,
+							DateCreated = EatTime.Now,
 							UserCode = firstVariance?.UserCode ?? string.Empty,
 							SaleId = saleId,
 							PaymentRefrence = _setups.GenerateShiftNumber(),
 							TransactionAmount = isShortage ? 0 : totalVarianceValue,
-							TransactionAmountDebit = isShortage ? totalVarianceValue : 0
+							TransactionAmountDebit = isShortage ? totalVarianceValue : 0,
 						};
 						await _context.PaymentTransactions.AddAsync(paymentTransaction);
+
+
 					}
 
 					var shiftToClose = await (from s in _context.Shifts where s.ShiftNumber == shiftNumber select s).FirstOrDefaultAsync();
-
 					shiftToClose?.ShiftStatus = ShiftStatus.Closed;
 
 					await _context.SaveChangesAsync();
@@ -1276,7 +1262,7 @@ namespace BussinessLogic.Stock.Stock
 
 					var reasonText = isWithinValueThreshold
 						? $"it falls within the allowed threshold of KES {threshold:N2}"
-						: $"net litre variance ({totalVarianceLitres:N2}L) falls within the shortage auto-clear allowance (-1L to 0L)";
+						: $"net closing variance ({totalVarianceLitres:N2}L) falls within the shortage auto-clear allowance (-1L, 0L)";
 
 					var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, {reasonText}.";
 					await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
@@ -1290,6 +1276,20 @@ namespace BussinessLogic.Stock.Stock
 			{
 				return ServiceResponse<object>.Error(ex.Message, null);
 			}
+		}
+
+		// Method 1: overage case. Net closing variance must be >= 0, and its absolute value
+		// must be within the configured threshold.
+		private bool IsOverageWithinThreshold(decimal totalVarianceLitres, decimal totalVarianceValue, decimal threshold)
+		{
+			return totalVarianceLitres >= 0m && totalVarianceValue <= threshold;
+		}
+
+		// Method 2: minor shortage case. Net closing variance strictly between -1L and 0L
+		// (exclusive of -1L) auto-clears regardless of value.
+		private static bool IsMinorShortageAutoClear(decimal totalVarianceLitres)
+		{
+			return totalVarianceLitres < 0m && totalVarianceLitres >= -1m;
 		}
 	}
 }

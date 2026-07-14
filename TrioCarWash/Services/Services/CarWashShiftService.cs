@@ -2,6 +2,7 @@
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.CarWash;
 using DataAccessLayer.EntityModels.Grleamify;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace TrioCarWash.Services.Services;
@@ -71,7 +72,7 @@ public class CarWashShiftService(OTOContext db) : ICarWashShiftService
 		shift.Difference = difference;
 		shift.VarianceReason = request.VarianceReason;
 		shift.Status = CarWashShiftStatus.Closed;
-		shift.ClosedAt = DateTime.UtcNow;
+		shift.ClosedAt =EatTime.Now;
 	
 
 		await _db.SaveChangesAsync();

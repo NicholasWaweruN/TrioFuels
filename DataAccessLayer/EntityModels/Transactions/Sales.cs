@@ -182,6 +182,6 @@ namespace DataAccessLayer.EntityModels.Transactions
 		public string SetupCode { get; set; } = string.Empty;
 		public string Name { get; set; } = string.Empty;
 		public decimal Value { get; set; }
-		public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+		public DateTime DateCreated { get; set; } =EatTime.Now;
 	}
 }

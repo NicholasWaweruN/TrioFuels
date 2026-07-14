@@ -8,7 +8,7 @@ namespace DataAccessLayer.EntityModels.Misc
     //public class Complains : BaseEntity
     //{
     //    [Required, StringLength(20), Unicode(false)]
-    //    public string Complainid { get; set; } = "C" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
+    //    public string Complainid { get; set; } = "C" +EatTime.Now.ToString("yyyyMMddHHmmssfff");
     //    [Required, StringLength(20), Unicode(false)]
     //    public string ComplainTypeCode { get; set; } = string.Empty;
     //    [Required, StringLength(20), Unicode(false)]

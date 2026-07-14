@@ -58,7 +58,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				TillName = till.TillName,
 				TillNumber = till.TillNumber,
 				StoreNumber = till.StoreNumber,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				IsActive = true,
 			};
 
@@ -538,7 +538,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 					.Where(m => m.TransID == transId)
 					.ExecuteUpdateAsync(setters => setters
 						.SetProperty(m => m.Status, 0)
-						.SetProperty(m => m.DateTimeStamp, DateTime.UtcNow));
+						.SetProperty(m => m.DateTimeStamp,EatTime.Now));
 
 				if (rowsAffected == 0)
 					return ServiceResponse<object>.Information("No matching Mpesa transaction found", null);
@@ -557,7 +557,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			if (mpesaC2BPayment is null)
 				return ServiceResponse<MpesaTransactionDto>.Information("Mpesa transaction details cannot be empty", null);
 
-			var transTime = DateTime.UtcNow.ToString().Replace("/", "").Replace("-", "");
+			var transTime =EatTime.Now.ToString().Replace("/", "").Replace("-", "");
 
 			try
 			{
@@ -567,7 +567,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 					TransAmount = mpesaC2BPayment.Amount,
 					BusinessShortCode = mpesaC2BPayment.BusinessShortCode,
 					MSISDN = mpesaC2BPayment.PhoneNumber,
-					DateTimeStamp = DateTime.UtcNow,
+					DateTimeStamp =EatTime.Now,
 					Status = 0,
 					UsageBalance = mpesaC2BPayment.Amount,
 					UserCode = _authentication.Usercode(),
@@ -609,7 +609,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			{
 				var transactions = await _context.FuelSales
 					.AsNoTracking()
-					.Where(f => f.TransId.Contains(transId))
+					.Where(f => f.TransId!.Contains(transId))
 					.Select(f => new FuelSale
 					{
 						Vehicle = f.Vehicle,

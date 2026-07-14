@@ -2,6 +2,7 @@
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Loyalty_Program;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -52,7 +53,7 @@ namespace BussinessLogic.CouponsService
 						OtpCode = string.Empty,
 						OtpSentDate = null,
 						RewardClaimedDate = null,
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						UserCode = _auth.Usercode(),
 						SaleIds = string.Empty 
 					};

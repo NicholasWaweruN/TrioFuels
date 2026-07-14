@@ -5,6 +5,7 @@ using BussinessLogic.Setup;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Approvals;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
@@ -80,7 +81,7 @@ namespace BussinessLogic.Sales.PriceApproval
                 {
                     ApprovalCode = approvalCode,
                     Approver = model.ApproverUserCode,
-                    DateCreated = DateTime.UtcNow,
+                    DateCreated =EatTime.Now,
                     Initiator = _authentications.Name() ?? string.Empty,
                     IsApproved = false,
                     NumberPlate = model.NumberPlate,
@@ -284,7 +285,7 @@ namespace BussinessLogic.Sales.PriceApproval
 				{
 					ApprovalUserCode = user.UserCode,
 					AppoverName = approverName,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserCode = createdBy
 				};
 

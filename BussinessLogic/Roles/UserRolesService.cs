@@ -3,6 +3,7 @@ using BussinessLogic.Setup;
 using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -55,7 +56,7 @@ namespace BusinessLogic.Roles
 					var role = new Role
 					{
 						RoleName = roleName,
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						RoleCode = await _setups.GetCodeGenerator("RoleCode"),
 						UserCode = "99999"
 					};
@@ -122,7 +123,7 @@ namespace BusinessLogic.Roles
 					{
 						var RoleToUser = new RoleToUser
 						{
-							DateCreated = DateTime.UtcNow,
+							DateCreated =EatTime.Now,
 							UserCode = userId,
 							RoleCode = roleId
 						};

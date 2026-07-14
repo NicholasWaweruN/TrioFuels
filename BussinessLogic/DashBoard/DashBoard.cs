@@ -2,6 +2,7 @@
 using BussinessLogic.Sales.SalesData;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
+using DataAccessLayer.Helpers;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.EntityFrameworkCore;
 using Syncfusion.XlsIO.Implementation.PivotAnalysis;
@@ -89,7 +90,7 @@ namespace BussinessLogic.DashBoard
 
 		public async Task<ServiceResponse<object>> GetDashBoardData()
 		{
-			var today = DateTime.UtcNow.Date;
+			var today = EatTime.Now.Date;
 			var thisWeek = today.AddDays(-7);
 			var lastWeek = today.AddDays(-14);
 

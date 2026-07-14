@@ -26,12 +26,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DataAccessLayer.Context
 {
-    public partial class OTOContext : IdentityDbContext<ApplicationUser, UserRoles, string>
+    public partial class OTOContext(DbContextOptions<OTOContext> options) : IdentityDbContext<ApplicationUser, UserRoles, string>(options)
     {
-        public OTOContext(DbContextOptions<OTOContext> options) : base(options) { }
 
-        // --- Station & Hardware ---
-        public DbSet<GasStation> Stations { get; set; }
+		// --- Station & Hardware ---
+		public DbSet<GasStation> Stations { get; set; }
         public DbSet<Dispenser> Dispensers { get; set; }
         public DbSet<Nozzle> Nozzles { get; set; }
         public DbSet<Tank> Tank { get; set; }

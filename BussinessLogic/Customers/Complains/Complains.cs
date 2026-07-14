@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DataAccessLayer.Helpers;
 
 namespace BusinessLogic.Customers.Complains
 {
@@ -51,7 +52,7 @@ namespace BusinessLogic.Customers.Complains
 					VehicleCode = complainDTO.VehicleCode, // Assign the vehicle code
 					ComplainDescription = complainDTO.ComplainDescription, // Assign the complaint description
 					IsActive = true, // Set IsActive to true for new complaints
-					DateCreated = DateTime.UtcNow, // Set the current date and time
+					DateCreated =EatTime.Now, // Set the current date and time
 					UserCode = _authentication.Usercode(), // Get the user code from the authentication service
 					CustomerCode = vehicleexisting.CustomerCode // Assign the customer code from the existing vehicle
 				};

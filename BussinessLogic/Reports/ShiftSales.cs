@@ -11,6 +11,7 @@ using System.Net.Mail;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Reports
 {
@@ -58,8 +59,8 @@ namespace BussinessLogic.Reports
 				dataTable.Load(reader);
 			}
 
-			var day = DateTime.UtcNow.Day.ToString() + GetOrdinalSuffix(DateTime.UtcNow.Day);
-			var dateName = DateTime.UtcNow.ToString("MMMM yyyy");
+			var day =EatTime.Now.Day.ToString() + GetOrdinalSuffix(DateTime.UtcNow.Day);
+			var dateName =EatTime.Now.ToString("MMMM yyyy");
 			var header = $"{day} {dateName} Shift {shiftNumber} Sales";
 
 			using var excelStream = GenerateExcelFromDataTable(dataTable);

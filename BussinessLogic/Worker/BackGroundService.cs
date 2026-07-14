@@ -7,6 +7,7 @@ using BussinessLogic.Stock.VarianceReport;
 using BussinessLogic.Worker.SalesReport;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -37,7 +38,7 @@ public class EmailBackgroundService : BackgroundService
 
 		while (!stoppingToken.IsCancellationRequested)
 		{
-			var currentTime = DateTime.UtcNow;
+			var currentTime =EatTime.Now;
 			using var scope = _serviceProvider.CreateScope();
 
 			try
@@ -191,7 +192,7 @@ public class EmailBackgroundService : BackgroundService
 		try
 		{
 			var unsentMessages = await dbContext.RescheduledMessages
-				.Where(sms => !sms.IsSent && sms.ScheduledSendingdate <= DateTime.UtcNow && sms.PhoneNumber != string.Empty)
+				.Where(sms => !sms.IsSent && sms.ScheduledSendingdate <=EatTime.Now && sms.PhoneNumber != string.Empty)
 				.ToListAsync();
 
 			foreach (var sms in unsentMessages)
@@ -210,7 +211,7 @@ public class EmailBackgroundService : BackgroundService
 					phoneNumbers.Add(validPhone);
 					var result = await messageService.BulkMessages(phoneNumbers, sms.Message,sms.SenderId);
 					sms.IsSent = true;
-					sms.DateSent = DateTime.UtcNow;
+					sms.DateSent =EatTime.Now;
 					dbContext.Update(sms);
 					await dbContext.SaveChangesAsync();
 				}
@@ -232,7 +233,7 @@ public class EmailBackgroundService : BackgroundService
 			.Where(s => s.ShiftStatus == 2 && !s.IsEmailSent)
 			.ToListAsync();
 
-		var twelveHoursAgo = DateTime.UtcNow.AddHours(-14);
+		var twelveHoursAgo =EatTime.Now.AddHours(-14);
 
 		var varianceShift = await dbContext.Shifts
 			.Where(s => s.ShiftStartTime >= twelveHoursAgo && s.ShiftStatus != 1)

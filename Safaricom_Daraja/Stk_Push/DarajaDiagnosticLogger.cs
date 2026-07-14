@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using DataAccessLayer.Helpers;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Safaricom_Daraja.DarajaTokenService;
 using System.Net.Http.Headers;
@@ -92,7 +93,7 @@ public sealed class StkPushDiagnosticService(IHttpClientFactory httpFactory,IDar
 		EnsureCsvHeader();
 
 		var row = new Dictionary<string, string>(StringComparer.Ordinal);
-		var attemptUtc = DateTime.UtcNow;
+		var attemptUtc = EatTime.Now;
 
 		row["AttemptUtc"] = attemptUtc.ToString("yyyy-MM-dd HH:mm:ss");
 

@@ -11,6 +11,7 @@ using System.ComponentModel.DataAnnotations;
 using BussinessLogic.Setup;
 using DataAccessLayer.Authentication.Entity;
 using BussinessLogic.Messaging;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Personal_Wallet
 {
@@ -64,9 +65,9 @@ namespace BussinessLogic.Personal_Wallet
 							Email = customer.Email,
 							PhoneNumber = normalizedPhoneNumber,
 							IsActive = true,
-							DateCreated = DateTime.UtcNow,
+							DateCreated =EatTime.Now,
 							UserCode = walletId,
-							DateModified = DateTime.UtcNow,
+							DateModified =EatTime.Now,
 							ConcurrencyStamp = Guid.NewGuid().ToString(),
 							AccessFailedCount = 0,
 							EmailConfirmed = true,
@@ -78,7 +79,7 @@ namespace BussinessLogic.Personal_Wallet
 							LastName = customer.LastName,
 							MiddName = customer.MiddleName,
 							UserType = 2,
-							PasswordLastUpdated = DateTime.UtcNow,
+							PasswordLastUpdated =EatTime.Now,
 							PhoneNumberConfirmed = true,
 							LockoutEnabled = true,
 							TwoFactorEnabled = false,
@@ -106,14 +107,14 @@ namespace BussinessLogic.Personal_Wallet
 						Discount = 0,
 						Credit = 0,
 						WalletId = user!.UserCode,
-						DateCreated = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
 						UserCode = _authentication.Usercode(),
 					};
 
 											var fullName = $"{customer.FirstName} {customer.MiddleName}".Trim();
 											var phone = normalizedPhoneNumber;
 											var regNo = wallet.WalletId?.ToUpper();
-											var now = DateTime.UtcNow;
+											var now =EatTime.Now;
 
 											string sql = @"
 						INSERT INTO Otogas..Vehicle (

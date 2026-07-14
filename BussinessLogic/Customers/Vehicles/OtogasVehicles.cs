@@ -260,7 +260,7 @@ namespace BussinessLogic.Customers.Vehicles
 				{
 					StatusCode = statusCode,
 					Description = description,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					IsActive = true
 				};
@@ -637,7 +637,7 @@ namespace BussinessLogic.Customers.Vehicles
 				AvailableCredit = customer.CreditLimit - outstandingCredit
 			};
 
-			var today = DateTime.UtcNow.Date;
+			var today =EatTime.Now.Date;
 
 			// 2️⃣ Loyalty subscription
 			var hasLoyaltySubscription = await _context.LoyaltySubscriptions
@@ -659,7 +659,7 @@ namespace BussinessLogic.Customers.Vehicles
 				.Where(v =>
 					v.VehicleCode == vehicle.VehicleCode &&
 					!v.IsUsed &&
-					v.ExpiryDate >= DateTime.UtcNow)
+					v.ExpiryDate >=EatTime.Now)
 				.Select(v => new
 				{
 					v.VoucherNo,
@@ -837,11 +837,11 @@ namespace BussinessLogic.Customers.Vehicles
 				var transferredVehicle = new TransFeredVehicles
 				{
 					VehicleCode = vehicle.VehicleCode,
-					TransFerDate = DateTime.UtcNow,
+					TransFerDate =EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					CustomerCode = previousCustomerCode,
 					NewCustomerCode = transferVehicle.CustomerCode,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					ConversionDate = vehicle.ConversionDate,
 					ConversionStation = vehicle.ConversionStation,
 					ProductCode = vehicle.ProductCode,
@@ -1036,7 +1036,7 @@ namespace BussinessLogic.Customers.Vehicles
 					VehicleRegistrationNumber = nonOtogasVehicle.VehicleRegistrationNumber,
 					ProductCode = "03",
 					IsActive = true,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					Name = nonOtogasVehicle.Name,
 					PhoneNumber = nonOtogasVehicle.PhoneNumber,
@@ -1085,7 +1085,7 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			var message = $"Vehicle {vehicleRegNo} was {action} by {_authentication.Name()} on {DateTime.UtcNow}";
 			await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
-			_logger.LogInformation($"Vehicle {vehicleRegNo} {action} by {_authentication.Name()} at {DateTime.UtcNow}", vehicleRegNo, action, _authentication.Name(), DateTime.UtcNow);
+			_logger.LogInformation($"Vehicle {vehicleRegNo} {action} by {_authentication.Name()} at {DateTime.UtcNow}", vehicleRegNo, action, _authentication.Name(),EatTime.Now);
 		}
 		//Loyalty
 
@@ -1097,12 +1097,12 @@ namespace BussinessLogic.Customers.Vehicles
 			return new Vehicle
 			{
 				VehicleModel = vehicle.VehicleModel.ToUpperInvariant(),
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode(),
 				CustomerCode = vehicle.CustomerCode,
 				IsActive = true,
 				VehicleCode = vehicleCode,
-				ConversionDate = DateTime.UtcNow,
+				ConversionDate =EatTime.Now,
 				ConversionStation = string.Empty,
 				VehicleMake = vehicle.VehicleMake,
 				ProductCode = "03",
@@ -1392,7 +1392,7 @@ namespace BussinessLogic.Customers.Vehicles
 				// Update details
 				vehicle.IsTelematicInstalled = true;
 				vehicle.TelematicSerialNumber = tellematic.TelematicSerialNumber;
-				vehicle.TelematicInstallationDate = DateTime.UtcNow;
+				vehicle.TelematicInstallationDate =EatTime.Now;
 
 				_context.Entry(vehicle).State = EntityState.Modified;
 				await _context.SaveChangesAsync();

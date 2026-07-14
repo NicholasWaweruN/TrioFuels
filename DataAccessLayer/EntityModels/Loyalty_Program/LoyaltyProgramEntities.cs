@@ -1,4 +1,5 @@
 ﻿using DataAccessLayer.Common;
+using DataAccessLayer.Helpers;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -16,7 +17,7 @@ namespace DataAccessLayer.EntityModels.Loyalty_Program
 		[Column(TypeName = "decimal(10,2)")]
 		public decimal Amount { get; set; }
 		public int PointsToRedeem { get; set; } = 10;
-		public DateTime DateCreated { get; set; } = DateTime.UtcNow;
+		public DateTime DateCreated { get; set; } =EatTime.Now;
 		public string UserCode { get; set; } = string.Empty;
 
 	}

@@ -151,7 +151,7 @@ namespace BussinessLogic.Authentication.SignIn
 
 			// Success path: reset counters and set last login
 			user.AccessFailedCount = 0;
-			user.LastLoginDate = DateTime.UtcNow;
+			user.LastLoginDate =EatTime.Now;
 			_context.Users.Update(user);
 			await _context.SaveChangesAsync();
 
@@ -168,7 +168,7 @@ namespace BussinessLogic.Authentication.SignIn
 
 			var expiryDays = await GetPasswordExpiryDaysAsync();
 			var expirationDate = user.PasswordLastUpdated.Value.AddDays(expiryDays);
-			return DateTime.UtcNow > expirationDate;
+			return EatTime.Now > expirationDate;
 		}
 
 		private async Task<int> GetPasswordExpiryDaysAsync()
@@ -257,7 +257,7 @@ namespace BussinessLogic.Authentication.SignIn
 			var expiryDays = await GetPasswordExpiryDaysAsync();
 			if (user.PasswordLastUpdated == null) return 0;
 
-			var daysRemaining = (user.PasswordLastUpdated.Value.AddDays(expiryDays) - DateTime.UtcNow).Days;
+			var daysRemaining = (user.PasswordLastUpdated.Value.AddDays(expiryDays) -EatTime.Now).Days;
 
 			return daysRemaining;
 		}
@@ -379,12 +379,12 @@ namespace BussinessLogic.Authentication.SignIn
 				await _userManager.UpdateSecurityStampAsync(user);
 
 				user.AccessFailedCount = 0;
-				user.PasswordLastUpdated = DateTime.UtcNow;
+				user.PasswordLastUpdated =EatTime.Now;
 
 				_context.PasswordHistory.Add(new PasswordHistory
 				{
 					UserCode = user.UserCode,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					PasswordHash = _userManager.PasswordHasher.HashPassword(user, newPassword),
 				});
 
@@ -565,14 +565,14 @@ namespace BussinessLogic.Authentication.SignIn
 					return ServiceResponse<object>.Information("Password change failed", null);
 
 				user.AccessFailedCount = 0;
-				user.PasswordLastUpdated = DateTime.UtcNow;
+				user.PasswordLastUpdated =EatTime.Now;
 
 				await _userManager.UpdateSecurityStampAsync(user);
 
 				await _context.PasswordHistory.AddAsync(new PasswordHistory
 				{
 					UserCode = user.UserCode,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					PasswordHash = _userManager.PasswordHasher.HashPassword(user, newPassword)
 				});
 
@@ -606,7 +606,7 @@ namespace BussinessLogic.Authentication.SignIn
 					.Where(o => o.OTPCode == reset.OTP
 							 && o.PhoneNumber == reset.PhoneNumber
 							 && o.OTPStatus == true
-							 && o.DateCreated >= DateTime.UtcNow.AddMinutes(-10))
+							 && o.DateCreated >=EatTime.Now.AddMinutes(-10))
 
 					.OrderByDescending(o => o.DateCreated)
 					.FirstOrDefaultAsync();
@@ -636,13 +636,13 @@ namespace BussinessLogic.Authentication.SignIn
 				}
 
 				user.AccessFailedCount = 0;
-				user.PasswordLastUpdated = DateTime.UtcNow;
+				user.PasswordLastUpdated =EatTime.Now;
 
 				await _userManager.UpdateSecurityStampAsync(user);
 				_context.PasswordHistory.Add(new PasswordHistory
 				{
 					UserCode = user.UserCode,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					PasswordHash = _userManager.PasswordHasher.HashPassword(user, reset.NewPassword)
 				});
 

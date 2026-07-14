@@ -14,6 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Sales.Wallet.Voucher
 {
@@ -141,15 +142,15 @@ namespace BussinessLogic.Sales.Wallet.Voucher
 				VehicleCode = vehicleCode,
 				Amount = amount,
 				IsUsed = false,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				UserCode = _authentication.Usercode(), // or pass in userCode
-				ExpiryDate = DateTime.UtcNow.AddDays(30)
+				ExpiryDate =EatTime.Now.AddDays(30)
 			};
 		}
 
 		public async Task<PaginatedResult<ActiveVoucherDto>> GetAllVouchersWithVehiclesAsync(int page = 1, int pageSize = 50)
 		{
-			var now = DateTime.UtcNow;
+			var now =EatTime.Now;
 
 			var query = from v in _context.Vouchers
 						join vehicle in _context.Vehicles on v.VehicleCode equals vehicle.VehicleCode

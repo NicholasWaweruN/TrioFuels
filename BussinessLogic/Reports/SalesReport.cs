@@ -17,6 +17,7 @@ using System.Text;
 using static BussinessLogic.Messaging.BulkSms;
 using TableStyles = OfficeOpenXml.Table.TableStyles;
 using BussinessLogic.Messaging;
+using DataAccessLayer.Helpers;
 
 public class SalesReportService
 {
@@ -64,8 +65,8 @@ public class SalesReportService
 			using var reader = await command.ExecuteReaderAsync();
 			dataTable.Load(reader);
 		}
-	    var day = DateTime.UtcNow.Day.ToString() + GetOrdinalSuffix(DateTime.UtcNow.Day);
-		var DateName = DateTime.UtcNow.ToString("MMMM yyyy");
+	    var day =EatTime.Now.Day.ToString() + GetOrdinalSuffix(DateTime.UtcNow.Day);
+		var DateName =EatTime.Now.ToString("MMMM yyyy");
 		var Header = $"{day} {DateName}";
 
 		// Generate Excel and send email
@@ -127,7 +128,7 @@ public class SalesReportService
 				return ServiceResponse<object>.Information(info, null);
 			}
 			var fileName = $"SalesMonthlyReport_{year}_{month:D2}.xlsx";
-			var reportPeriod = DateTime.UtcNow.ToString("MMMM yyyy");
+			var reportPeriod =EatTime.Now.ToString("MMMM yyyy");
 			var body = SalesEmailBody($"{reportPeriod} Sales Report");
 			await SendEmail(excelStream, fileName, recipients, $"{reportPeriod} Sales",body);
 
@@ -723,7 +724,7 @@ ORDER BY RowNo;";
 
 			using var excelStream = GenerateExcelFromMonthlyLitres(dataTable);
 			var fileName = $"Above100Report_{DateTime.UtcNow:MMMM}.xlsx";
-			var DateName = DateTime.UtcNow.ToString("MMMM yyyy");
+			var DateName =EatTime.Now.ToString("MMMM yyyy");
 			var emailBody =  Above100EmailBody($"{DateName} Above 100");
 			await SendEmail(excelStream, fileName, emails, $"{DateName} Above 100",emailBody);
 		}

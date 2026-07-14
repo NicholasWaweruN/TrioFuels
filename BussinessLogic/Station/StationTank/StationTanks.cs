@@ -9,6 +9,7 @@ using DocumentFormat.OpenXml.Bibliography;
 using Microsoft.EntityFrameworkCore;
 using OTO_Gas.AuthenticationService;
 using BussinessLogic.Setup;
+using DataAccessLayer.Helpers;
 
 namespace BusinessLogic.Station.StationTank
 {
@@ -46,7 +47,7 @@ namespace BusinessLogic.Station.StationTank
                     {
                         TankName = addTank.TankName,
                         TankCode = code,
-                        DateCreated = DateTime.UtcNow,
+                        DateCreated =EatTime.Now,
                         StationCode = addTank.StationCode,
 						IsActive = true,
 						UserCode = _authentication.Usercode()
@@ -63,7 +64,7 @@ namespace BusinessLogic.Station.StationTank
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name
@@ -100,7 +101,7 @@ namespace BusinessLogic.Station.StationTank
 				await _authentication.ErrorTrail(
 								new ErrorTrail
 								{
-									DateCreated = DateTime.UtcNow,
+									DateCreated =EatTime.Now,
 									ErrorCode = "004",
 									ErrorMessage = ex.Message,
 									Method = method is null ? "" : method.Name

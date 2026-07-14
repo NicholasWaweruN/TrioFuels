@@ -2,6 +2,7 @@
 using BussinessLogic.Reports.Shifts_Clossing.DataAccessLayer.DTOs.Reports;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
+using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace BussinessLogic.Reports.Shifts_Clossing
@@ -185,8 +186,8 @@ namespace BussinessLogic.Reports.Shifts_Clossing
 				DispenserName = stationInfo.DispenserName,
 				ProductName = stationInfo.ProductName,
 				ShiftOpenedAt = shift.DateCreated,
-				ShiftClosedAt = shift.ShiftEndTime ?? DateTime.UtcNow,
-				ReportGeneratedAt = DateTime.UtcNow,
+				ShiftClosedAt = shift.ShiftEndTime ??EatTime.Now,
+				ReportGeneratedAt =EatTime.Now,
 				OpeningTotalizer = totalOpening,
 				ClosingTotalizer = totalClosing,
 				TotalizerDifference = totalizerDifference,

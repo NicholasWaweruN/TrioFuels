@@ -613,7 +613,7 @@ namespace BussinessLogic.Sales.MissingSales
 				{
 					PaymentRefrence = reference,
 					TransactionAmount = toApply,
-					DateCreated = DateTime.UtcNow,
+					DateCreated =EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					SaleId = _saleId,
 					TransactionAmountDebit = 0
@@ -643,7 +643,7 @@ namespace BussinessLogic.Sales.MissingSales
 				NozzleCode = sales.NozzleCode,
 				AmountCredit = saleTotal,
 				AmountDebit = 0,
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				IsReversed = false,
 				PaymentTypeCode = sales.PaymentTypeCode,
 				SaleId = _saleId,
@@ -858,7 +858,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 		//				var quantityTransaction = new QuantityTransactions
 		//				{
-		//					DateCreated = DateTime.UtcNow,
+		//					DateCreated =EatTime.Now,
 		//					UserCode = firstVariance?.UserCode ?? "",
 		//					NozzleCode = firstVariance?.NozzleCode ?? "", // TODO: confirm convention for a shift-level net entry
 		//					QuantityCredit = isShortage ? magnitude : 0,
@@ -882,7 +882,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 		//				var paymentTransaction = new PaymentTransactions
 		//				{
-		//					DateCreated = DateTime.UtcNow,
+		//					DateCreated =EatTime.Now,
 		//					UserCode = firstVariance?.UserCode ?? string.Empty,
 		//					SaleId = saleId,
 		//					PaymentRefrence = _setups.GenerateShiftNumber(),

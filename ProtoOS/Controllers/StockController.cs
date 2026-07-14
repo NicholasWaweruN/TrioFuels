@@ -5,6 +5,7 @@ using BussinessLogic.Stock.Stock;
 using BussinessLogic.Stock.Totalizers;
 using BussinessLogic.Stock.Variance_Service;
 using DataAccessLayer.DTOs.Transactions;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using static BussinessLogic.Stock.Totalizers.ReadingsTotalizers;
@@ -173,7 +174,7 @@ namespace FuelFlow.Controllers
 		public async Task<IActionResult> ExportVarianceReport()
 		{
 
-			var fileName = DateTime.UtcNow.ToString("yyyyMMddHHmmss")+"_VarianceReport.xlsx";
+			var fileName =EatTime.Now.ToString("yyyyMMddHHmmss")+"_VarianceReport.xlsx";
 
 			var result = await _stockService.ExportAllVariances();
 			if (result.ResponseCode != 1)

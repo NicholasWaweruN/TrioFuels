@@ -6,6 +6,7 @@ using DataAccessLayer.EntityModels.SetUps;
 using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
+using DataAccessLayer.Helpers;
 
 namespace BussinessLogic.Stock.Variance_Service
 {
@@ -235,7 +236,7 @@ namespace BussinessLogic.Stock.Variance_Service
 		{
 			await _authentication.ErrorTrail(new ErrorTrail
 			{
-				DateCreated = DateTime.UtcNow,
+				DateCreated =EatTime.Now,
 				ErrorCode = "004",
 				ErrorMessage = ex.Message,
 				Method = ex.TargetSite?.Name ?? string.Empty

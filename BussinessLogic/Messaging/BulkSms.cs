@@ -6,6 +6,7 @@ using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Messaging;
 using DataAccessLayer.EntityModels.Messaging;
+using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -405,7 +406,7 @@ namespace BussinessLogic.Messaging
 					{
 						MessageId = messageId,
 						Cost = 0,
-						DateAdded = DateTime.UtcNow,
+						DateAdded =EatTime.Now,
 						NetworkCode = networkCode ?? "",
 						FailureReason = "",
 						PhoneNumber = phoneNumber,
@@ -564,7 +565,7 @@ namespace BussinessLogic.Messaging
 									Cost = recipientNode["cost"]?.InnerText ?? string.Empty,
 									MessageId = recipientNode["messageId"]?.InnerText ?? string.Empty,
 									BatchNumber = batchNumber,
-									Timestamp = DateTime.UtcNow,
+									Timestamp =EatTime.Now,
 									DeliveryStatus = "Sent"
 								})
 								.ToList();
@@ -581,7 +582,7 @@ namespace BussinessLogic.Messaging
 										 .Replace("{{norecipients}}",bulkMessageLogs.Count.ToString())
 										 .Replace("{{message}}", message) 
 										 .Replace("{{startDate}}",DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd"))
-										 .Replace("{{endDate}}", DateTime.UtcNow.Date.AddDays(1).ToString("yyyy-MM-dd"));
+										 .Replace("{{endDate}}",EatTime.Now.Date.AddDays(1).ToString("yyyy-MM-dd"));
 
 							if (bulkMessageLogs.Count != 0)
 							{
@@ -754,7 +755,7 @@ namespace BussinessLogic.Messaging
 									Cost = recipientNode["cost"]?.InnerText ?? string.Empty,
 									MessageId = recipientNode["messageId"]?.InnerText ?? string.Empty,
 									BatchNumber = batchNumber,
-									Timestamp = DateTime.UtcNow,
+									Timestamp =EatTime.Now,
 									DeliveryStatus = "Sent"
 								})
 								.ToList();
@@ -770,8 +771,8 @@ namespace BussinessLogic.Messaging
 										 .Replace("{{senderName}}", senderName)
 										 .Replace("{{norecipients}}", bulkMessageLogs.Count.ToString())
 										 .Replace("{{message}}", message)
-										 .Replace("{{startDate}}", DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd"))
-										 .Replace("{{endDate}}", DateTime.UtcNow.Date.AddDays(1).ToString("yyyy-MM-dd"));
+										 .Replace("{{startDate}}",EatTime.Now.Date.AddDays(-1).ToString("yyyy-MM-dd"))
+										 .Replace("{{endDate}}",EatTime.Now.Date.AddDays(1).ToString("yyyy-MM-dd"));
 
 							if (bulkMessageLogs.Count != 0)
 							{
@@ -961,8 +962,8 @@ namespace BussinessLogic.Messaging
 						ScheduledSendingdate = scheduledDate,
 						IsSent = false,  // Mark as unsent
 						SenderId = SenderId,
-						DateCreated = DateTime.UtcNow,
-						DateSent = DateTime.UtcNow,
+						DateCreated =EatTime.Now,
+						DateSent =EatTime.Now,
 					
 						
 					});

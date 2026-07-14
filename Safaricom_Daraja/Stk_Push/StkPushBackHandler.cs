@@ -50,7 +50,7 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 				stkTx.Status = "Failed";
 				stkTx.ResultCode = data.ResultCode.ToString();
 				stkTx.ResultDescription = data.ResultDesc ?? string.Empty;
-				stkTx.DateCompleted = DateTime.UtcNow;
+				stkTx.DateCompleted =EatTime.Now;
 
 				await context.SaveChangesAsync(ct);
 
@@ -130,7 +130,7 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 				stkTx.MpesaReceiptNumber = receipt;
 				stkTx.ResultCode = "0";
 				stkTx.ResultDescription = data.ResultDesc ?? "Success";
-				stkTx.DateCompleted = DateTime.UtcNow;
+				stkTx.DateCompleted =EatTime.Now;
 				
 			}
 
@@ -180,7 +180,7 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 			stkTx.MpesaReceiptNumber = receipt;
 			stkTx.ResultCode = "0";
 			stkTx.ResultDescription = data.ResultDesc ?? "Success";
-			stkTx.DateCompleted = DateTime.UtcNow;
+			stkTx.DateCompleted =EatTime.Now;
 		}
 
 		await context.SaveChangesAsync(ct);
@@ -230,6 +230,6 @@ public sealed class StkCallbackHandler(OTOContext context, ILogger<StkCallbackHa
 			if (s.Length == 14)
 				return DateTime.ParseExact(s, "yyyyMMddHHmmss", null);
 		}
-		return DateTime.UtcNow;
+		return EatTime.Now;
 	}
 }
