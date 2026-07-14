@@ -1280,10 +1280,7 @@ namespace BussinessLogic.Stock.Stock
 
 		// Method 1: overage case. Net closing variance must be >= 0, and its absolute value
 		// must be within the configured threshold.
-		private bool IsOverageWithinThreshold(decimal totalVarianceLitres, decimal totalVarianceValue, decimal threshold)
-		{
-			return totalVarianceLitres >= 0m && totalVarianceValue <= threshold;
-		}
+		private static bool IsOverageWithinThreshold(decimal totalVarianceLitres, decimal totalVarianceValue, decimal threshold) => totalVarianceLitres >= 0m && totalVarianceValue <= threshold;
 
 		// Method 2: minor shortage case. Net closing variance strictly between -1L and 0L
 		// (exclusive of -1L) auto-clears regardless of value.

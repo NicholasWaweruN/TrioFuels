@@ -37,7 +37,7 @@ namespace BussinessLogic.Setup
 						Suffix = string.Empty,
 						Length = 2,
 						DateCreated = EatTime.Now,
-						UserCode = "00001"
+						UserCode = "00001",
 					};
 					_context.Codegenerators.Add(codegenerator);
 					await _context.SaveChangesAsync();

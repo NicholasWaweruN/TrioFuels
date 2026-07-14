@@ -148,52 +148,46 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 			}
 		}
 
-		private static string BuildShiftClosingEmail(
-		string shiftNumber,
-		string attendantName,
-		DateTime shiftStart,
-		DateTime? shiftEnd,
-		decimal totalSales,
-		List<(string NozzleName, decimal OpeningReading, decimal ClosingReading)> stock)
+		private static string BuildShiftClosingEmail(string shiftNumber, string attendantName, DateTime shiftStart, DateTime? shiftEnd, decimal totalSales, List<(string NozzleName, decimal OpeningReading, decimal ClosingReading)> stock)
 		{
 			var sb = new System.Text.StringBuilder();
 
 			sb.Append($@"
-    <html>
-    <body style='font-family: Arial, sans-serif; color: #333;'>
-        <h2 style='color:#2E86C1;'>⛽ Shift Closing Report</h2>
-        <p><b>Shift Number:</b> {shiftNumber}</p>
-        <p><b>Attendant:</b> 👨‍💼 {attendantName}</p>
-        <p><b>Shift Start:</b> 🕒 {shiftStart:dd-MMM-yyyy HH:mm}</p>
-        <p><b>Shift End:</b> 🕒 {shiftEnd:dd-MMM-yyyy HH:mm}</p>
-        <p><b>Total Sales:</b> 💵 {totalSales:N2}</p>
+				<html>
+				<body style='font-family: Arial, sans-serif; color: #333;'>
+					<h2 style='color:#2E86C1;'>⛽ Shift Closing Report</h2>
+					<p><b>Shift Number:</b> {shiftNumber}</p>
+					<p><b>Attendant:</b> 👨‍💼 {attendantName}</p>
+					<p><b>Shift Start:</b> 🕒 {shiftStart:dd-MMM-yyyy HH:mm}</p>
+					<p><b>Shift End:</b> 🕒 {shiftEnd:dd-MMM-yyyy HH:mm}</p>
+					<p><b>Total Sales:</b> 💵 {totalSales:N2}</p>
 
-        <h3 style='color:#117A65;'>📊 Pump Readings</h3>
-        <table style='border-collapse: collapse; width:100%;'>
-            <tr style='background-color:#f2f2f2;'>
-                <th style='border:1px solid #ddd; padding:8px;'>🛢️ Nozzle</th>
-                <th style='border:1px solid #ddd; padding:8px;'>🔓 Opening Reading</th>
-                <th style='border:1px solid #ddd; padding:8px;'>🔒 Closing Reading</th>
-            </tr>");
+					<h3 style='color:#117A65;'>📊 Pump Readings</h3>
+					<table style='border-collapse: collapse; width:100%;'>
+						<tr style='background-color:#f2f2f2;'>
+							<th style='border:1px solid #ddd; padding:8px;'>🛢️ Nozzle</th>
+							<th style='border:1px solid #ddd; padding:8px;'>🔓 Opening Reading</th>
+							<th style='border:1px solid #ddd; padding:8px;'>🔒 Closing Reading</th>
+						</tr>");
 
-			foreach (var item in stock)
-			{
-				sb.Append($@"
-            <tr>
-                <td style='border:1px solid #ddd; padding:8px;'>{item.NozzleName}</td>
-                <td style='border:1px solid #ddd; padding:8px;'>{item.OpeningReading:N2}</td>
-                <td style='border:1px solid #ddd; padding:8px;'>{item.ClosingReading:N2}</td>
-            </tr>");
-			}
+						foreach (var item in stock)
+						{
+							sb.Append($@"
+						<tr>
+							<td style='border:1px solid #ddd; padding:8px;'>{item.NozzleName}</td>
+							<td style='border:1px solid #ddd; padding:8px;'>{item.OpeningReading:N2}</td>
+							<td style='border:1px solid #ddd; padding:8px;'>{item.ClosingReading:N2}</td>
+						</tr>");
+						}
 
-			sb.Append(@"
-        </table>
-        <br/>
-        <p style='font-size:12px; color:#888;'>✅ This is an automated report. Please do not reply.</p>
-    </body>
-    </html>");
+						sb.Append(@"
+					</table>
+					<br/>
+					<p style='font-size:12px; color:#888;'>✅ This is an automated report. Please do not reply.</p>
+				</body>
+				</html>");
 
-			return sb.ToString();
+						return sb.ToString();
 		}
 
 
