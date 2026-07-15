@@ -804,6 +804,24 @@ namespace BussinessLogic.Authentication.SignIn
 		/// at this station who have car-wash app access. Deliberately returns no
 		/// PIN data — ever.
 		/// </summary>
+		// ---------------------------------------------------------------------------
+		// Additions to SignInUser.cs — attendant PIN login for the shared car-wash
+		// device. Assumes new columns on ApplicationUser:
+		//     public string? PinHash { get; set; }
+		//     public int PinFailedCount { get; set; }
+		//     public DateTime? PinLockedUntil { get; set; }
+		// ApplicationUser already carries StationCode, so scoping the dropdown is a
+		// direct filter — no DispenserAssignments join needed (that's fuel-side).
+		// Also scoped to users with car-wash app access via UserApps, so fuel
+		// attendants/cashiers at the same station don't clutter the dropdown.
+		// Requires an Apps.CarWashApp constant alongside the existing Apps.OtogasApp.
+		// ---------------------------------------------------------------------------
+
+		/// <summary>
+		/// Returns the attendants eligible to log in on this device: active users
+		/// at this station who have car-wash app access. Deliberately returns no
+		/// PIN data — ever.
+		/// </summary>
 		public async Task<ServiceResponse<object>> GetAttendantsForLogin(string stationCode)
 		{
 			try
@@ -950,6 +968,16 @@ namespace BussinessLogic.Authentication.SignIn
 			[Required]
 			[RegularExpression(@"^\d{4}$", ErrorMessage = "PIN must be 4 digits")]
 			public string Pin { get; set; } = string.Empty;
+		}
+
+		public class SetAttendantPinModel
+		{
+			[Required]
+			public string TargetUserCode { get; set; } = string.Empty;
+
+			[Required]
+			[RegularExpression(@"^\d{4}$", ErrorMessage = "PIN must be 4 digits")]
+			public string NewPin { get; set; } = string.Empty;
 		}
 	}
 	public class ResetPasswordModel

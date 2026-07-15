@@ -1,14 +1,16 @@
 ﻿namespace ProtoOS.Controllers
 {
 	using BusinessLogic.Authentication.AddUsers;
-	using BussinessLogic.Authentication.CommonTasks;
 	using BusinessLogic.Authentication.UserApplications;
+	using BussinessLogic.Authentication.CommonTasks;
+	using BussinessLogic.Authentication.SignIn;
+	using DataAccessLayer.Common;
 	using DataAccessLayer.DTOs.Authentication;
 	using Microsoft.AspNetCore.Authorization;
 	using Microsoft.AspNetCore.Mvc;
-	using System.Threading.Tasks;
 	using System.ComponentModel.DataAnnotations;
-	using BussinessLogic.Authentication.SignIn;
+	using System.Threading.Tasks;
+	using static BussinessLogic.Authentication.SignIn.SignInUser;
 
 	/// <summary>
 	/// Defines the <see cref="AuthenticationController" />
@@ -79,6 +81,67 @@
 		public async Task<IActionResult> SignInUser([FromBody] EmailLoginModel signIn)
 		{
 			var response = await _signIn.SignInUserAsync(signIn);
+			return Ok(response);
+		}
+
+		/// <summary>
+		/// The GetAttendantsForLogin
+		/// </summary>
+		/// <param name="stationCode">The stationCode<see cref="string"/></param>
+		/// <returns>The <see cref="Task{IActionResult}"/></returns>
+		/// <remarks>
+		/// Pre-login screen for the shared car-wash device: populates the
+		/// attendant picker for this station. No PIN data returned.
+		/// </remarks>
+		[HttpGet]
+		[Route("GetAttendantsForLogin")]
+		[AllowAnonymous]
+		public async Task<IActionResult> GetAttendantsForLogin([FromQuery] string stationCode)
+		{
+			var response = await _signIn.GetAttendantsForLogin(stationCode);
+			return Ok(response);
+		}
+
+		/// <summary>
+		/// The PinSignIn
+		/// </summary>
+		/// <param name="model">The model<see cref="PinSignInModel"/></param>
+		/// <returns>The <see cref="Task{IActionResult}"/></returns>
+		/// <remarks>
+		/// Attendant login by UserCode + 4-digit PIN, replacing phone/password
+		/// for the car-wash device. Returns the same response shape as
+		/// SignInUser so token handling on the client is unchanged.
+		/// </remarks>
+		[HttpPost]
+		[Route("PinSignIn")]
+		[AllowAnonymous]
+		public async Task<IActionResult> PinSignIn([FromBody] PinSignInModel model)
+		{
+			if (!ModelState.IsValid)
+				return Ok(ServiceResponse<object>.Information("Invalid PIN sign-in request", null));
+
+			var response = await _signIn.PinSignIn(model);
+			return Ok(response);
+		}
+
+		/// <summary>
+		/// The SetAttendantPin
+		/// </summary>
+		/// <param name="model">The model<see cref="SetAttendantPinModel"/></param>
+		/// <returns>The <see cref="Task{IActionResult}"/></returns>
+		/// <remarks>
+		/// Sets or replaces an attendant's PIN. Gated behind a permission
+		/// rather than left to client-side enforcement.
+		/// </remarks>
+		[HttpPost]
+		[Route("SetAttendantPin")]
+		[Authorize(Roles = "can set attendant pin")]
+		public async Task<IActionResult> SetAttendantPin([FromBody] SetAttendantPinModel model)
+		{
+			if (!ModelState.IsValid)
+				return Ok(ServiceResponse<object>.Information("Invalid request", null));
+
+			var response = await _signIn.SetAttendantPin(model.TargetUserCode, model.NewPin);
 			return Ok(response);
 		}
 
