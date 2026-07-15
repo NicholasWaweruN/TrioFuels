@@ -10,7 +10,7 @@ namespace BussinessLogic.Authentication.SignIn
 		Task<ServiceResponse<object>> ChangePasswordAsync(string oldPassword, string newPassword, string confirmPassword);
 		Task<ServiceResponse<object>> CheckTillNumber(string dispenserCode);
 		Task<ServiceResponse<object>> ForgotPassword(ResetPasswordModel reset);
-		Task<ServiceResponse<object>> GetAttendantsForLogin(string stationCode);
+		Task<ServiceResponse<object>> GetAttendantsForLogin();
 		Task<Dictionary<string, decimal>> GetPriceList(string stationCode);
 		Task<ServiceResponse<object>> PinSignIn(PinSignInModel model);
 		Task<ServiceResponse<object>> ResetPasswordAsync(string newPassword, string confirmPassword);

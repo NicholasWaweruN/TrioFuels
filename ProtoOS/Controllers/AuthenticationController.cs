@@ -96,9 +96,9 @@
 		[HttpGet]
 		[Route("GetAttendantsForLogin")]
 		[AllowAnonymous]
-		public async Task<IActionResult> GetAttendantsForLogin([FromQuery] string stationCode)
+		public async Task<IActionResult> GetAttendantsForLogin()
 		{
-			var response = await _signIn.GetAttendantsForLogin(stationCode);
+			var response = await _signIn.GetAttendantsForLogin();
 			return Ok(response);
 		}
 
@@ -135,7 +135,6 @@
 		/// </remarks>
 		[HttpPost]
 		[Route("SetAttendantPin")]
-		[Authorize(Roles = "can set attendant pin")]
 		public async Task<IActionResult> SetAttendantPin([FromBody] SetAttendantPinModel model)
 		{
 			if (!ModelState.IsValid)

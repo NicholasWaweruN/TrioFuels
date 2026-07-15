@@ -822,19 +822,17 @@ namespace BussinessLogic.Authentication.SignIn
 		/// at this station who have car-wash app access. Deliberately returns no
 		/// PIN data — ever.
 		/// </summary>
-		public async Task<ServiceResponse<object>> GetAttendantsForLogin(string stationCode)
+		public async Task<ServiceResponse<object>> GetAttendantsForLogin()
 		{
 			try
 			{
-				if (string.IsNullOrWhiteSpace(stationCode))
-					return ServiceResponse<object>.Information("Station code is required", null);
+
 
 				var attendants = await (from u in _context.Users
 										join ua in _context.UserApps on u.UserCode equals ua.UserCode
 										join a in _context.ProtoApps on ua.AppsCode equals a.AppsCode
-										where u.StationCode == stationCode
-											  && u.IsActive
-											  && a.AppsCode == Apps.CarWashApp
+										where u.IsActive
+										&& a.AppsCode == Apps.CarWashApp
 										orderby u.FirstName
 										select new AttendantForLoginDto
 										{
@@ -848,7 +846,7 @@ namespace BussinessLogic.Authentication.SignIn
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving attendants for station {StationCode}", stationCode);
+				_logger.LogError(ex, "Error retrieving attendants");
 				return ServiceResponse<object>.Error("An error occurred while retrieving attendants", null);
 			}
 		}
