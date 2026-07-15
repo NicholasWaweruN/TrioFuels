@@ -190,6 +190,7 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ICarWashShiftService, CarWashShiftService>();
 		services.AddScoped<ICarWashSalesService, CarWashSalesService>();
 		services.AddScoped<ICarWashDashboardService, CarWashDashboardService>();
+		services.AddScoped<ICarwashCustomerService, CarwashCustomerService>();
 		return services;
 	}
 }
