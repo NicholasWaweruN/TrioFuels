@@ -86,7 +86,7 @@ public class CarWashDashboardController : ControllerBase
 }
 
 [ApiController]
-[Route("api/carwash/customers")]
+[Route("fuelflow/carwash/customers")]
 [Authorize]
 public class CarwashCustomersController : ControllerBase
 {
