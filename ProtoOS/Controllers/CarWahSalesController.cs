@@ -84,3 +84,54 @@ public class CarWashDashboardController : ControllerBase
 		return Ok(await _dashboardService.GetDashboardSummaryAsync(userCode));
 	}
 }
+
+[ApiController]
+[Route("api/carwash/customers")]
+[Authorize]
+public class CarwashCustomersController : ControllerBase
+{
+	private readonly ICarwashCustomerService _service;
+
+	public CarwashCustomersController(ICarwashCustomerService service)
+	{
+		_service = service;
+	}
+
+	[HttpPost]
+	public async Task<IActionResult> AddCustomer([FromBody] AddCarwashCustomerDto dto)
+	{
+		try
+		{
+			var customer = await _service.AddCustomerAsync(dto);
+			return Ok(customer);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { message = ex.Message });
+		}
+	}
+
+	[HttpGet("search")]
+	public async Task<IActionResult> Search([FromQuery] string phoneNumber)
+	{
+		if (string.IsNullOrWhiteSpace(phoneNumber))
+			return BadRequest(new { message = "phoneNumber is required." });
+
+		var results = await _service.SearchByPhoneAsync(phoneNumber);
+		return Ok(results);
+	}
+
+	[HttpPost("credit-transactions")]
+	public async Task<IActionResult> AddCreditTransaction([FromBody] CreateCreditTransactionDto dto)
+	{
+		try
+		{
+			var transaction = await _service.AddCreditTransactionAsync(dto);
+			return Ok(transaction);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { message = ex.Message });
+		}
+	}
+}

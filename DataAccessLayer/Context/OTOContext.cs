@@ -147,6 +147,12 @@ namespace DataAccessLayer.Context
 		public DbSet<CarWashProductPrice> CarWashProductPrices { get; set; }
 		//Daraja
 		public DbSet<StkTransaction> StkTransactions { get; set; }
+
+		public DbSet<CarwashCustomer> CarwashCustomers { get; set; }
+		public DbSet<CarwashCreditTransaction> CarwashCreditTransactions { get; set; }
+
+		// In OnModelCreating
+
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

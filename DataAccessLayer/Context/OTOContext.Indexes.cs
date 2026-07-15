@@ -312,7 +312,15 @@ namespace DataAccessLayer.Context
 				e.Property(p => p.Price).HasPrecision(12, 2);
 			});
 
-		
+			modelBuilder.Entity<CarwashCustomer>()
+			.HasIndex(c => c.PhoneNumber)
+			.IsUnique();
+
+			modelBuilder.Entity<CarwashCreditTransaction>()
+				.HasOne(t => t.CarwashCustomer)
+				.WithMany(c => c.CreditTransactions)
+				.HasForeignKey(t => t.CarwashCustomerId);
+
 			modelBuilder.Entity<CarWashTransaction>(e =>
 			{
 				e.Property(t => t.TotalAmount).HasPrecision(12, 2);

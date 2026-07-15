@@ -28,4 +28,38 @@ namespace DataAccessLayer.EntityModels.Grleamify
 		public bool IsReversed { get; set; } = false;
 		public ICollection<CarWashTransactionItem> Items { get; set; } = new List<CarWashTransactionItem>();
 	}
+
+	public class CarwashCustomer
+	{
+		public int Id { get; set; }
+		public string Name { get; set; } = string.Empty;
+		public string PhoneNumber { get; set; } = string.Empty; // unique, searchable
+
+		public bool IsCreditCustomer { get; set; }
+		public decimal CreditLimit { get; set; }        // max they can owe
+		public decimal CurrentBalance { get; set; }      // what they currently owe (running total)
+
+		public bool IsDiscountCustomer { get; set; }
+		public decimal DiscountAmount { get; set; }      // e.g. 30 KES, mostly applied on base wash
+
+		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+		public ICollection<CarwashCreditTransaction> CreditTransactions { get; set; } = new List<CarwashCreditTransaction>();
+	}
+
+	public class CarwashCreditTransaction
+	{
+		public int Id { get; set; }
+		public int CarwashCustomerId { get; set; }
+		public CarwashCustomer CarwashCustomer { get; set; } = null!;
+
+		public decimal Debit { get; set; }    // credit given to customer (they now owe more)
+		public decimal Credit { get; set; }   // payment received (they now owe less)
+		public decimal RunningBalance { get; set; } // balance snapshot after this entry
+
+		public string? Description { get; set; }   // e.g. "Credit wash - Base wash KES 500"
+		public int? SaleId { get; set; }            // link back to the wash sale, if applicable
+
+		public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
+	}
 }

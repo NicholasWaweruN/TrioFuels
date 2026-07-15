@@ -87,11 +87,10 @@
 		/// <summary>
 		/// The GetAttendantsForLogin
 		/// </summary>
-		/// <param name="stationCode">The stationCode<see cref="string"/></param>
 		/// <returns>The <see cref="Task{IActionResult}"/></returns>
 		/// <remarks>
 		/// Pre-login screen for the shared car-wash device: populates the
-		/// attendant picker for this station. No PIN data returned.
+		/// attendant picker, company-wide. No PIN data returned.
 		/// </remarks>
 		[HttpGet]
 		[Route("GetAttendantsForLogin")]
@@ -135,6 +134,7 @@
 		/// </remarks>
 		[HttpPost]
 		[Route("SetAttendantPin")]
+		[Authorize(Roles = "can set attendant pin")]
 		public async Task<IActionResult> SetAttendantPin([FromBody] SetAttendantPinModel model)
 		{
 			if (!ModelState.IsValid)
