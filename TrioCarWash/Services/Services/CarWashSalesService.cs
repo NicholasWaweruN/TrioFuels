@@ -158,7 +158,9 @@ public class CarWashSalesService : ICarWashSalesService
 
 		if (request.PaymentMethod == CarWashPaymetMethod.Cash)
 		{
-			if (request.AmountReceived == 0m || request.AmountReceived < amountDue)
+			var disc = request.NegotiatedDiscount;
+
+			if (request.AmountReceived == 0m || request.AmountReceived < amountDue-disc)
 				return ServiceResponse<SaleResponseDto>.Error("Amount received must cover the total");
 		}
 		else if (request.PaymentMethod == CarWashPaymetMethod.Mpesa)
