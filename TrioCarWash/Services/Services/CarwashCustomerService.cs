@@ -1,4 +1,5 @@
-﻿using DataAccessLayer.Context;
+﻿using DataAccessLayer.Common;
+using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Grleamify;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -11,7 +12,7 @@ namespace TrioCarWash.Services.Services
 		public interface ICarwashCustomerService
 		{
 			Task<CarwashCustomer> AddCustomerAsync(AddCarwashCustomerDto dto);
-			Task<List<CarwashCustomerSearchResultDto>> SearchByPhoneAsync(string phoneNumber);
+			Task<ServiceResponse<List<CarwashCustomerSearchResultDto>>> SearchByPhoneAsync(string phoneNumber);
 			Task<CarwashCreditTransaction> AddCreditTransactionAsync(CreateCreditTransactionDto dto);
 		}
 
@@ -49,26 +50,31 @@ namespace TrioCarWash.Services.Services
 				return customer;
 			}
 
-			public async Task<List<CarwashCustomerSearchResultDto>> SearchByPhoneAsync(string phoneNumber)
-			{
-				var results = from c in _context.CarwashCustomers
-							  where c.PhoneNumber.Contains(phoneNumber)
-							  select new CarwashCustomerSearchResultDto
-							  {
-								  Id = c.Id,
-								  Name = c.Name,
-								  PhoneNumber = c.PhoneNumber,
-								  IsCreditCustomer = c.IsCreditCustomer,
-								  CreditLimit = c.CreditLimit,
-								  CurrentBalance = c.CurrentBalance,
-								  IsDiscountCustomer = c.IsDiscountCustomer,
-								  DiscountAmount = c.DiscountAmount
-							  };
+		public async Task<ServiceResponse<List<CarwashCustomerSearchResultDto>>> SearchByPhoneAsync(string phoneNumber)
+		{
+			var results = from c in _context.CarwashCustomers
+						  where c.PhoneNumber.Contains(phoneNumber)
+						  select new CarwashCustomerSearchResultDto
+						  {
+							  Id = c.Id,
+							  Name = c.Name,
+							  PhoneNumber = c.PhoneNumber,
+							  IsCreditCustomer = c.IsCreditCustomer,
+							  CreditLimit = c.CreditLimit,
+							  CurrentBalance = c.CurrentBalance,
+							  IsDiscountCustomer = c.IsDiscountCustomer,
+							  DiscountAmount = c.DiscountAmount
+						  };
 
-				return await results.ToListAsync();
-			}
+			var result = await results.ToListAsync();
 
-			public async Task<CarwashCreditTransaction> AddCreditTransactionAsync(CreateCreditTransactionDto dto)
+			if(result.Count > 0)
+				return ServiceResponse<List<CarwashCustomerSearchResultDto>>.Success("Record found", result);
+			else return ServiceResponse<List<CarwashCustomerSearchResultDto>>.Information("No record found", result);
+
+		}
+
+		public async Task<CarwashCreditTransaction> AddCreditTransactionAsync(CreateCreditTransactionDto dto)
 			{
 				var customer = await (from c in _context.CarwashCustomers
 									  where c.Id == dto.CarwashCustomerId
