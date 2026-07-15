@@ -130,7 +130,7 @@ namespace DataAccessLayer.Common
 	public static class CarWashPaymetMethod
 	{
 		public const int Mpesa = 0;
-		public const int Voucher = 7;
+		public const int Credit = 7;
 		public const int Cash = 12;
 	}
 	public class Constants

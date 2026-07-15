@@ -27,6 +27,10 @@ namespace DataAccessLayer.EntityModels.Grleamify
 		public string? MpesaReference { get; set; }    // M-Pesa STK only
 		public bool IsReversed { get; set; } = false;
 		public ICollection<CarWashTransactionItem> Items { get; set; } = new List<CarWashTransactionItem>();
+		public long? CustomerId { get; set; }       // NEW — FK to CarwashCustomer
+		public decimal DiscountAmount { get; set; }
+		public decimal AmountDue { get; set; }  //        public decimal DiscountAmount { get; set; }  // NEW — standing + negotiated, combined
+											   //        public decimal AmountDue { get; set; }       // NEW — TotalAmount - DiscountAmount
 	}
 
 	public class CarwashCustomer
@@ -49,17 +53,13 @@ namespace DataAccessLayer.EntityModels.Grleamify
 
 	public class CarwashCreditTransaction
 	{
-		public int Id { get; set; }
+		public long Id { get; set; }
 		public int CarwashCustomerId { get; set; }
-		public CarwashCustomer CarwashCustomer { get; set; } = null!;
-
-		public decimal Debit { get; set; }    // credit given to customer (they now owe more)
-		public decimal Credit { get; set; }   // payment received (they now owe less)
-		public decimal RunningBalance { get; set; } // balance snapshot after this entry
-
-		public string? Description { get; set; }   // e.g. "Credit wash - Base wash KES 500"
-		public int? SaleId { get; set; }            // link back to the wash sale, if applicable
-
-		public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
+		public decimal Debit { get; set; }        // credit extended
+		public decimal Credit { get; set; }       // payment received
+		public decimal RunningBalance { get; set; }
+		public string? Description { get; set; }
+		public long? SaleId { get; set; }
+		public DateTime DateCreated { get; set; }
 	}
 }

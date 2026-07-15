@@ -33,6 +33,9 @@ public class CreateSaleRequestDto
 	public string? PhoneNumber { get; set; }      // M-Pesa STK only
 	public long VehicleTypeId { get; set; }
 	public string VehiceRegistrationNumber { get; set; } = string.Empty;
+	public string? CustomerPhoneNumber { get; set; } // NEW — discount/credit lookup
+	public string? MpesaCode { get; set; }                                                    // NEW — M-Pesa confirmation code
+	public decimal? NegotiatedDiscount { get; set; }  // NEW — one-off till discount, cash only
 }
 
 public class SaleItemLineDto
@@ -54,6 +57,8 @@ public class SaleResponseDto
 	public string VehicleRegistrationNumber { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; }
 	public List<SaleItemLineDto> Items { get; set; } = new();
+	public decimal DiscountAmount { get; set; } // NEW
+	public decimal AmountDue { get; set; }       // NEW
 }
 
 public class DashboardSummaryDto

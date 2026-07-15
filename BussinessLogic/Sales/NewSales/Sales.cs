@@ -783,8 +783,7 @@ namespace BussinessLogic.Sales.NewSales
 			return ServiceResponse<decimal>.Success("Valid", total);
 		}
 
-		private async Task<ServiceResponse<int?>> ValidateMpesaPaymentAsync(
-			string transId, string tillNumber)
+		private async Task<ServiceResponse<int?>> ValidateMpesaPaymentAsync(string transId, string tillNumber)
 		{
 			try
 			{

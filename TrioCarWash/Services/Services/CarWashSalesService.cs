@@ -2,6 +2,7 @@
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.CarWash;
 using DataAccessLayer.EntityModels.Grleamify;
+using DataAccessLayer.EntityModels.Transactions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -20,9 +21,10 @@ public class CarWashSalesService : ICarWashSalesService
 	private static readonly HashSet<int> AllowedPaymentMethods = new()
 	{
 		CarWashPaymetMethod.Mpesa,
-		CarWashPaymetMethod.Cash
-        // CarWashPaymetMethod.Voucher intentionally excluded — not wired yet
-    };
+		CarWashPaymetMethod.Cash,
+		CarWashPaymetMethod.Credit
+		// CarWashPaymetMethod.Voucher intentionally excluded — not wired yet
+	};
 
 	private readonly OTOContext _db;
 	private readonly ICarWashShiftService _shiftService;
@@ -72,7 +74,7 @@ public class CarWashSalesService : ICarWashSalesService
 
 	public async Task<ServiceResponse<SaleResponseDto>> CreateSaleAsync(string userCode, CreateSaleRequestDto request)
 	{
-		if(string.IsNullOrEmpty(request.VehiceRegistrationNumber))
+		if (string.IsNullOrEmpty(request.VehiceRegistrationNumber))
 			return ServiceResponse<SaleResponseDto>.Error("Vehicle registration number must be present");
 
 		if (request.Items.Count == 0)
@@ -111,17 +113,100 @@ public class CarWashSalesService : ICarWashSalesService
 
 		var total = request.Items.Sum(i => PriceFor(i.ProductId) * i.Quantity);
 
-		if (request.PaymentMethod == CarWashPaymetMethod.Cash)
+		// ---------------------------------------------------------------------
+		// Customer lookup — drives standing discount + credit eligibility.
+		// A miss is never a blocking error (mirrors the Android "walk-in" UX);
+		// it only becomes an error later if the attendant chose Credit and
+		// there's no credit-eligible customer to charge it to.
+		// ---------------------------------------------------------------------
+		CarwashCustomer? customer = null;
+		if (!string.IsNullOrWhiteSpace(request.CustomerPhoneNumber))
 		{
-			if (request.AmountReceived is 0 || request.AmountReceived < total)
-				return ServiceResponse<SaleResponseDto>.Error("Amount received must cover the total");
+			customer = await _db.CarwashCustomers
+				.FirstOrDefaultAsync(c => c.PhoneNumber == request.CustomerPhoneNumber);
 		}
 
-		if (request.PaymentMethod == CarWashPaymetMethod.Mpesa
-			&& string.IsNullOrWhiteSpace(request.PhoneNumber))
-			return ServiceResponse<SaleResponseDto>.Error("Phone number is required for M-Pesa payment");
+		// ---------------------------------------------------------------------
+		// Discounts. Two independent sources, both applied against the gross
+		// catalog total, combined and floored at zero:
+		//   - standingDiscount: automatic, tied to the customer record, applies
+		//     regardless of payment method.
+		//   - negotiatedDiscount: a one-off knocked off at the till. Android only
+		//     ever collects this inside the Cash dialog, so it's enforced
+		//     server-side too rather than trusting the client.
+		// ---------------------------------------------------------------------
+		var standingDiscount = customer?.IsDiscountCustomer == true
+			? customer.DiscountAmount
+			: 0m;
 
-		decimal change = request.PaymentMethod == CarWashPaymetMethod.Cash ? request.AmountReceived! - total : 0;
+		var negotiatedDiscount = request.NegotiatedDiscount ?? 0m;
+		if (negotiatedDiscount > 0m && request.PaymentMethod != CarWashPaymetMethod.Cash)
+			return ServiceResponse<SaleResponseDto>.Error("Negotiated discount can only be applied to cash payments");
+
+		if (negotiatedDiscount < 0m)
+			return ServiceResponse<SaleResponseDto>.Error("Discount cannot be negative");
+
+		var discountTotal = standingDiscount + negotiatedDiscount;
+		var amountDue = Math.Max(0m, total - discountTotal);
+
+		// ---------------------------------------------------------------------
+		// Payment-method specific validation. Nothing is written to the DB yet —
+		// we only mutate (mark M-Pesa used / bump credit balance) once we're
+		// inside the transaction below, right before the sale itself is saved.
+		// ---------------------------------------------------------------------
+		MpesaTransaction? mpesaTransaction = null;
+
+		if (request.PaymentMethod == CarWashPaymetMethod.Cash)
+		{
+			if (request.AmountReceived == 0m || request.AmountReceived < amountDue)
+				return ServiceResponse<SaleResponseDto>.Error("Amount received must cover the total");
+		}
+		else if (request.PaymentMethod == CarWashPaymetMethod.Mpesa)
+		{
+			if (string.IsNullOrWhiteSpace(request.MpesaCode) || request.MpesaCode.Length != 10)
+				return ServiceResponse<SaleResponseDto>.Error("A valid 10-character M-Pesa code is required");
+
+			var mpesaCode = request.MpesaCode.Trim().ToUpperInvariant();
+
+			// Attendants enter whatever code is on the confirmation SMS. For C2B
+			// payments that's TransID; for STK Push it's MpesaReceiptNumber. Check both.
+			mpesaTransaction = await _db.MpesaTransactions
+				.FirstOrDefaultAsync(m => m.TransID == mpesaCode || m.MpesaReceiptNumber == mpesaCode);
+
+			if (mpesaTransaction == null)
+				return ServiceResponse<SaleResponseDto>.Error("M-Pesa code not recognized — check the confirmation SMS and try again");
+
+			// Status: 0=Pending, 1=Success, 2=Failed. Only a confirmed Success
+			// payment can be applied to a sale.
+			if (mpesaTransaction.Status == 0)
+				return ServiceResponse<SaleResponseDto>.Error("This M-Pesa payment hasn't been confirmed yet — please wait a moment and try again");
+
+			if (mpesaTransaction.Status == 2)
+				return ServiceResponse<SaleResponseDto>.Error("This M-Pesa payment failed and cannot be used");
+
+			// Status has no "used" state of its own, so consumption is tracked via
+			// ShiftNumber: empty/null means unused, populated means it's already
+			// been applied to a sale on that shift.
+			if (!string.IsNullOrWhiteSpace(mpesaTransaction.ShiftNumber))
+				return ServiceResponse<SaleResponseDto>.Error("This M-Pesa code has already been used on another sale");
+
+			if (mpesaTransaction.TransAmount < amountDue)
+				return ServiceResponse<SaleResponseDto>.Error(
+					$"M-Pesa payment of {mpesaTransaction.TransAmount:N0} does not cover the amount due of {amountDue:N0}");
+		}
+		else if (request.PaymentMethod == CarWashPaymetMethod.Credit)
+		{
+			if (customer == null || !customer.IsCreditCustomer)
+				return ServiceResponse<SaleResponseDto>.Error("No credit-eligible customer found for this phone number");
+
+			if (customer.CurrentBalance + amountDue > customer.CreditLimit)
+				return ServiceResponse<SaleResponseDto>.Error(
+					$"This sale would exceed the customer's credit limit ({customer.CurrentBalance:N0} + {amountDue:N0} > {customer.CreditLimit:N0})");
+		}
+
+		decimal change = request.PaymentMethod == CarWashPaymetMethod.Cash
+			? request.AmountReceived - amountDue
+			: 0;
 
 		// EnableRetryOnFailure requires the whole transaction to run inside
 		// the execution strategy so a transient failure can retry the entire
@@ -137,12 +222,17 @@ public class CarWashSalesService : ICarWashSalesService
 				UserCode = userCode,
 				ShiftId = shift.Id,
 				VehicleTypeId = request.VehicleTypeId,
+				CustomerId = customer?.Id,
 				TotalAmount = total,
+				DiscountAmount = discountTotal,
+				AmountDue = amountDue,
 				PaymentMethod = request.PaymentMethod,
-				AmountReceived = request.AmountReceived,
+				AmountReceived = request.PaymentMethod == CarWashPaymetMethod.Cash ? request.AmountReceived : 0m,
 				Change = change,
-				PhoneNumber = request.PhoneNumber,
-				MpesaReference = null, // TODO: wire real Daraja STK push here, don't fabricate a reference
+				PhoneNumber = request.CustomerPhoneNumber,
+				MpesaReference = string.IsNullOrWhiteSpace(mpesaTransaction?.MpesaReceiptNumber)
+					? mpesaTransaction?.TransID
+					: mpesaTransaction.MpesaReceiptNumber,
 				ReceiptNumber = GenerateReceiptNumber(shift.Id),
 				VehicleRegistrationNumber = request.VehiceRegistrationNumber,
 			};
@@ -171,6 +261,22 @@ public class CarWashSalesService : ICarWashSalesService
 					UnitPrice = PriceFor(item.ProductId) // snapshot for this vehicle type, not live price
 				});
 			}
+
+			// Mark the M-Pesa code as consumed so it can't be reused on a second
+			// sale. Done inside the same transaction as the sale insert so a
+			// failure anywhere rolls back the "used" flag too. Status is left
+			// untouched (still 1/Success) — ShiftNumber is the consumption marker.
+			if (mpesaTransaction != null)
+			{
+				mpesaTransaction.ShiftNumber = shift.Id.ToString();
+			}
+
+			// Post the charge to the customer's credit account.
+			if (request.PaymentMethod == CarWashPaymetMethod.Credit && customer != null)
+			{
+				customer.CurrentBalance += amountDue;
+			}
+
 			await _db.SaveChangesAsync();
 			await tx.CommitAsync();
 
@@ -179,10 +285,13 @@ public class CarWashSalesService : ICarWashSalesService
 				SaleId = sale.Id,
 				ReceiptNumber = sale.ReceiptNumber,
 				Total = total,
+				DiscountAmount = discountTotal,
+				AmountDue = amountDue,
 				Change = change,
 				PaymentMethod = request.PaymentMethod,
 				MpesaReference = sale.MpesaReference,
 				CreatedAt = sale.DateCreated,
+				VehicleRegistrationNumber = sale.VehicleRegistrationNumber,
 				Items = [.. request.Items.Select(i => new SaleItemLineDto
 				{
 					ProductName = products[i.ProductId].Name,
@@ -220,6 +329,8 @@ public class CarWashSalesService : ICarWashSalesService
 			SaleId = t.Id,
 			ReceiptNumber = t.ReceiptNumber,
 			Total = t.TotalAmount,
+			DiscountAmount = t.DiscountAmount,
+			AmountDue = t.AmountDue,
 			Change = t.Change,
 			PaymentMethod = t.PaymentMethod,
 			MpesaReference = t.MpesaReference,
@@ -235,6 +346,7 @@ public class CarWashSalesService : ICarWashSalesService
 
 		return ServiceResponse<List<SaleResponseDto>>.Success("OK", result);
 	}
+
 	private static string GenerateReceiptNumber(long shiftId) => $"CW{shiftId:D4}{DateTime.UtcNow:HHmmssfff}";
 
 	private static bool IsUniqueViolation(Exception ex) =>

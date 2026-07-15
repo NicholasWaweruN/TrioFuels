@@ -316,10 +316,7 @@ namespace DataAccessLayer.Context
 			.HasIndex(c => c.PhoneNumber)
 			.IsUnique();
 
-			modelBuilder.Entity<CarwashCreditTransaction>()
-				.HasOne(t => t.CarwashCustomer)
-				.WithMany(c => c.CreditTransactions)
-				.HasForeignKey(t => t.CarwashCustomerId);
+	
 
 			modelBuilder.Entity<CarWashTransaction>(e =>
 			{
