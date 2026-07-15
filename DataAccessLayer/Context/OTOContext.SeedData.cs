@@ -203,7 +203,8 @@ namespace DataAccessLayer.Context
 		{
 			modelBuilder.Entity<ProtoApps>().HasData(
 				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000003"), AppsCode = "03", AppsName = "Fuel Flow DashBoard", DateCreated = new DateTime(2024, 1, 1) },
-				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000004"), AppsCode = "04", AppsName = "Fuel Flow App", DateCreated = new DateTime(2024, 1, 1) }
+				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000004"), AppsCode = "04", AppsName = "Fuel Flow App", DateCreated = new DateTime(2024, 1, 1) },
+				new ProtoApps { Id = new Guid("11111111-0000-0000-0000-000000000005"), AppsCode = "05", AppsName = "Car Wash App", DateCreated = EatTime.Now }
 			);
 		}
 
