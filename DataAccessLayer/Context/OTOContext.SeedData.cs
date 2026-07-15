@@ -253,7 +253,9 @@ namespace DataAccessLayer.Context
 		{
 			modelBuilder.Entity<UserApps>().HasData(
 				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000001"), AppsCode = "03", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999", },
-				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000002"), AppsCode = "04", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999" }
+				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000002"), AppsCode = "04", DateCreated = new DateTime(2024, 1, 1), UserCode = "99999" },
+				new UserApps { Id = new Guid("22222222-0000-0000-0000-000000000003"), AppsCode = "05", DateCreated =  EatTime.Now, UserCode = "99999"}
+
 			);
 		}
 

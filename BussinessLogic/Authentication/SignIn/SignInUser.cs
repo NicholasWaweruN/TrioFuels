@@ -785,6 +785,172 @@ namespace BussinessLogic.Authentication.SignIn
 				return ServiceResponse<object>.Error("An error occurred while verifying OTP", null);
 			}
 		}
+
+		// ---------------------------------------------------------------------------
+		// Additions to SignInUser.cs — attendant PIN login for the shared car-wash
+		// device. Assumes new columns on ApplicationUser:
+		//     public string? PinHash { get; set; }
+		//     public int PinFailedCount { get; set; }
+		//     public DateTime? PinLockedUntil { get; set; }
+		// ApplicationUser already carries StationCode, so scoping the dropdown is a
+		// direct filter — no DispenserAssignments join needed (that's fuel-side).
+		// Also scoped to users with car-wash app access via UserApps, so fuel
+		// attendants/cashiers at the same station don't clutter the dropdown.
+		// Requires an Apps.CarWashApp constant alongside the existing Apps.OtogasApp.
+		// ---------------------------------------------------------------------------
+
+		/// <summary>
+		/// Returns the attendants eligible to log in on this device: active users
+		/// at this station who have car-wash app access. Deliberately returns no
+		/// PIN data — ever.
+		/// </summary>
+		public async Task<ServiceResponse<object>> GetAttendantsForLogin(string stationCode)
+		{
+			try
+			{
+				if (string.IsNullOrWhiteSpace(stationCode))
+					return ServiceResponse<object>.Information("Station code is required", null);
+
+				var attendants = await (from u in _context.Users
+										join ua in _context.UserApps on u.UserCode equals ua.UserCode
+										join a in _context.ProtoApps on ua.AppsCode equals a.AppsCode
+										where u.StationCode == stationCode
+											  && u.IsActive
+											  && a.AppsCode == Apps.CarWashApp
+										orderby u.FirstName
+										select new AttendantForLoginDto
+										{
+											UserCode = u.UserCode,
+											Name = (u.FirstName + " " + u.LastName).Trim(),
+											HasPinSet = u.PinHash != null
+										})
+										.ToListAsync();
+
+				return ServiceResponse<object>.Success("Attendants retrieved", attendants);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error retrieving attendants for station {StationCode}", stationCode);
+				return ServiceResponse<object>.Error("An error occurred while retrieving attendants", null);
+			}
+		}
+
+		/// <summary>
+		/// Signs in an attendant by UserCode + 4-digit PIN. Separate credential
+		/// from the account password — a leaked/guessed PIN should not grant
+		/// whatever the full password grants elsewhere in the suite.
+		/// </summary>
+		public async Task<ServiceResponse<object>> PinSignIn(PinSignInModel model)
+		{
+			try
+			{
+				if (string.IsNullOrWhiteSpace(model.UserCode) || string.IsNullOrWhiteSpace(model.Pin))
+					return ServiceResponse<object>.Information("Attendant and PIN are required", null);
+
+				var user = await _context.Users.FirstOrDefaultAsync(u => u.UserCode == model.UserCode);
+				if (user is null)
+					return ServiceResponse<object>.Information("Attendant not found", null);
+
+				if (!user.IsActive)
+					return ServiceResponse<object>.Information("Your account is not active. Contact admin", null);
+
+				if (user.PinHash is null)
+					return ServiceResponse<object>.Information("No PIN has been set for this attendant. Contact your manager", null);
+
+				// Short cooldown lockout — separate from the password AccessFailedCount,
+				// since PIN mis-taps on a shared device are routine, not suspicious,
+				// until they cluster.
+				if (user.PinLockedUntil is not null && user.PinLockedUntil > EatTime.Now)
+				{
+					var secondsLeft = (int)Math.Ceiling((user.PinLockedUntil.Value - EatTime.Now).TotalSeconds);
+					return ServiceResponse<object>.Information($"Too many attempts. Try again in {secondsLeft}s", null);
+				}
+
+				var pinCheck = _userManager.PasswordHasher.VerifyHashedPassword(user, user.PinHash, model.Pin);
+				if (pinCheck != PasswordVerificationResult.Success && pinCheck != PasswordVerificationResult.SuccessRehashNeeded)
+				{
+					user.PinFailedCount += 1;
+
+					const int maxPinTries = 3;
+					if (user.PinFailedCount >= maxPinTries)
+					{
+						user.PinLockedUntil = EatTime.Now.AddSeconds(60);
+						user.PinFailedCount = 0;
+						_context.Users.Update(user);
+						await _context.SaveChangesAsync();
+						return ServiceResponse<object>.Information("Too many attempts. Try again in 60s", null);
+					}
+
+					_context.Users.Update(user);
+					await _context.SaveChangesAsync();
+
+					var remaining = maxPinTries - user.PinFailedCount;
+					return ServiceResponse<object>.Information($"Incorrect PIN. {remaining} tries left.", null);
+				}
+
+				// Success — reset counters, reuse the existing token/session path so
+				// Dashboard etc. work exactly as they do for password login today.
+				user.PinFailedCount = 0;
+				user.PinLockedUntil = null;
+				user.LastLoginDate = EatTime.Now;
+				_context.Users.Update(user);
+				await _context.SaveChangesAsync();
+
+				return await GenerateUserTokenAsync(user, Apps.CarWashApp);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error during PIN sign-in for {UserCode}", model.UserCode);
+				return ServiceResponse<object>.Error("An error occurred while signing in", null);
+			}
+		}
+
+		/// <summary>
+		/// Manager-only: sets or replaces an attendant's PIN. Wire this behind a
+		/// role check in the controller — do not expose to plain attendants.
+		/// </summary>
+		public async Task<ServiceResponse<object>> SetAttendantPin(string targetUserCode, string newPin)
+		{
+			try
+			{
+				if (newPin is null || newPin.Length != 4 || !newPin.All(char.IsDigit))
+					return ServiceResponse<object>.Information("PIN must be exactly 4 digits", null);
+
+				var user = await _context.Users.FirstOrDefaultAsync(u => u.UserCode == targetUserCode);
+				if (user is null)
+					return ServiceResponse<object>.Information("Attendant not found", null);
+
+				user.PinHash = _userManager.PasswordHasher.HashPassword(user, newPin);
+				user.PinFailedCount = 0;
+				user.PinLockedUntil = null;
+				_context.Users.Update(user);
+				await _context.SaveChangesAsync();
+
+				return ServiceResponse<object>.Success("PIN set successfully", null);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error setting PIN for {UserCode}", targetUserCode);
+				return ServiceResponse<object>.Error("An error occurred while setting the PIN", null);
+			}
+		}
+
+		public class AttendantForLoginDto
+		{
+			public string UserCode { get; set; } = string.Empty;
+			public string Name { get; set; } = string.Empty;
+			public bool HasPinSet { get; set; }
+		}
+
+		public class PinSignInModel
+		{
+			[Required]
+			public string UserCode { get; set; } = string.Empty;
+
+			[Required]
+			[RegularExpression(@"^\d{4}$", ErrorMessage = "PIN must be 4 digits")]
+			public string Pin { get; set; } = string.Empty;
+		}
 	}
 	public class ResetPasswordModel
 	{

@@ -144,6 +144,7 @@ namespace DataAccessLayer.Common
         public const string BulkApp = "02";
         public const string OtogasDashBoard = "03";
         public const string OtogasApp = "04";
+		public const string CarWashApp  = "05";
     }
     public class AppType
     {

@@ -46,11 +46,16 @@ namespace DataAccessLayer.Authentication.Entity
 		[Required, StringLength(50), Unicode(false)]
 		public string DepartmentCode { get; set; } = string.Empty;
 		public DateTime? LastLoginDate { get; set; }
+
+		[StringLength(200), Unicode(false)]
+		public string? PinHash { get; set; }
+		public int PinFailedCount { get; set; } = 0;
+		public DateTime? PinLockedUntil { get; set; }
 	}
 
 #nullable restore
-	
-    public class UserRoles : IdentityRole
+
+	public class UserRoles : IdentityRole
 
 	{
 		[Required, StringLength(150), Unicode(false)]
