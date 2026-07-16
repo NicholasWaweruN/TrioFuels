@@ -7,6 +7,7 @@ using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Shifts;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Graph.Models;
 
 namespace BussinessLogic.Stock.Shifts
 {
@@ -361,18 +362,20 @@ namespace BussinessLogic.Stock.Shifts
 		{
 			var result = await (from d in _context.Dispensers
 								join s in _context.Stations on d.StationCode equals s.StationCode
-								let status = (from shift in _context.Shifts
-											  where shift.ShiftStatus == 1 && d.DispenserCode == shift.DispenserCode
-											  orderby shift.DateCreated // if necessary, to select top 1, based on your data model
-											  select "Open").FirstOrDefault()
+								join sh in _context.Shifts on d.DispenserCode equals sh.DispenserCode
+								join u in _context.Users on sh.UserCode equals u.UserCode
+								where sh.ShiftStatus == ShiftStatus.Open
 								select new
 								{
 									StationName = s.StationName.ToUpper(),
 									d.DispenserName,
-									Status = status ?? "Closed"
-								}).FirstOrDefaultAsync();
+									Name = string.Join(' ', new[] { u.FirstName, u.MiddName, u.LastName }.Where(n => !string.IsNullOrWhiteSpace(n))),
+									sh.ShiftNumber,
+									sh.ShiftStartTime,
+									Status = "Open"
+								}).ToListAsync();
 
-			if (result is not null)
+			if (result is not null && result.Any())
 			{
 				return ServiceResponse<object>.Success("Success", result);
 			}

@@ -205,7 +205,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					await ClearVariance(sales.ShiftNumber);
+					//await ClearVariance(sales.ShiftNumber);
 					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 
@@ -237,7 +237,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					await ClearVariance(sales.ShiftNumber);
+					//await ClearVariance(sales.ShiftNumber);
 					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 
@@ -299,7 +299,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await _context.SaveChangesAsync();
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					await ClearVariance(sales.ShiftNumber);
+					//await ClearVariance(sales.ShiftNumber);
 					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 
@@ -351,7 +351,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await _loyalty.DeductLoyaltyPoints(sales.CustomerCode, pointsToDeduct, _saleId);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					 await ClearVariance(sales.ShiftNumber);
+					 //await ClearVariance(sales.ShiftNumber);
 					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -381,7 +381,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					await ClearVariance(sales.ShiftNumber);
+					//await ClearVariance(sales.ShiftNumber);
 					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -425,7 +425,7 @@ namespace BussinessLogic.Sales.MissingSales
 					}
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					await ClearVariance(sales.ShiftNumber);
+					//await ClearVariance(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed an EMPLOYEE MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
@@ -453,7 +453,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					await ClearVariance(sales.ShiftNumber);
+					//await ClearVariance(sales.ShiftNumber);
 					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -501,7 +501,7 @@ namespace BussinessLogic.Sales.MissingSales
 					}
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					await ClearVariance(sales.ShiftNumber);
+					//await ClearVariance(sales.ShiftNumber);
 					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -782,130 +782,130 @@ namespace BussinessLogic.Sales.MissingSales
 			return number ?? string.Empty;
 		}
 
-		public async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
-		{
-			try
-			{
-				var variances = await (
-					from vs in _context.StockTakeSummaries
-					where vs.ShiftNumber == shiftNumber
-					select vs
-				).ToListAsync();
+		//public async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
+		//{
+		//	try
+		//	{
+		//		var variances = await (
+		//			from vs in _context.StockTakeSummaries
+		//			where vs.ShiftNumber == shiftNumber
+		//			select vs
+		//		).ToListAsync();
 
-				var dispenserStation = await (from s in _context.Shifts
-											  where s.ShiftNumber == shiftNumber
-											  join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
-											  from d in dj.DefaultIfEmpty()
-											  select new { s.DispenserCode, StationCode = d != null ? d.StationCode : null }).FirstOrDefaultAsync();
+		//		var dispenserStation = await (from s in _context.Shifts
+		//									  where s.ShiftNumber == shiftNumber
+		//									  join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
+		//									  from d in dj.DefaultIfEmpty()
+		//									  select new { s.DispenserCode, StationCode = d != null ? d.StationCode : null }).FirstOrDefaultAsync();
 
-				var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
-				var stationCode = dispenserStation?.StationCode ?? string.Empty;
+		//		var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
+		//		var stationCode = dispenserStation?.StationCode ?? string.Empty;
 
-				var threshold = await _varianceService.GetThresholdForDispenserAsync(dispenserId);
+		//		var threshold = await _varianceService.GetThresholdForDispenserAsync(dispenserId);
 
-				var nozzlePrices = new Dictionary<string, decimal>();
+		//		var nozzlePrices = new Dictionary<string, decimal>();
 
-				// Shift-level NET CLOSING variance only (litres). OpeningVariance is intentionally
-				// excluded here per the new spec — only ClosingVariance feeds the clear decision.
-				decimal totalVarianceLitres = variances.Sum(x => x.ClosingVariance);
+		//		// Shift-level NET CLOSING variance only (litres). OpeningVariance is intentionally
+		//		// excluded here per the new spec — only ClosingVariance feeds the clear decision.
+		//		decimal totalVarianceLitres = variances.Sum(x => x.ClosingVariance);
 
-				// Shift-level NET CLOSING variance value — each nozzle's ClosingVariance priced at
-				// that nozzle's own retail price, then summed (signed) across the shift.
-				decimal netVarianceValue = 0m;
-				foreach (var variance in variances)
-				{
-					if (!nozzlePrices.TryGetValue(variance.NozzleCode, out var pricePerLitre))
-					{
-						pricePerLitre = await _varianceService.GetCurrentRetailPriceAsync(dispenserId, variance.NozzleCode);
-						nozzlePrices[variance.NozzleCode] = pricePerLitre;
-					}
-					netVarianceValue += variance.ClosingVariance * pricePerLitre;
-				}
-				var totalVarianceValue = Math.Abs(netVarianceValue);
+		//		// Shift-level NET CLOSING variance value — each nozzle's ClosingVariance priced at
+		//		// that nozzle's own retail price, then summed (signed) across the shift.
+		//		decimal netVarianceValue = 0m;
+		//		foreach (var variance in variances)
+		//		{
+		//			if (!nozzlePrices.TryGetValue(variance.NozzleCode, out var pricePerLitre))
+		//			{
+		//				pricePerLitre = await _varianceService.GetCurrentRetailPriceAsync(dispenserId, variance.NozzleCode);
+		//				nozzlePrices[variance.NozzleCode] = pricePerLitre;
+		//			}
+		//			netVarianceValue += variance.ClosingVariance * pricePerLitre;
+		//		}
+		//		var totalVarianceValue = Math.Abs(netVarianceValue);
 
-				// Method 1: overage — net closing variance >= 0, cleared only if its value is within threshold.
-				var isWithinValueThreshold = IsOverageWithinThreshold(totalVarianceLitres, totalVarianceValue, threshold);
+		//		// Method 1: overage — net closing variance >= 0, cleared only if its value is within threshold.
+		//		var isWithinValueThreshold = IsOverageWithinThreshold(totalVarianceLitres, totalVarianceValue, threshold);
 
-				// Method 2: minor shortage — net closing variance strictly between -1L and 0L, clears on litres alone.
-				var isWithinLitreThreshold = IsMinorShortageAutoClear(totalVarianceLitres);
+		//		// Method 2: minor shortage — net closing variance strictly between -1L and 0L, clears on litres alone.
+		//		var isWithinLitreThreshold = IsMinorShortageAutoClear(totalVarianceLitres);
 
-				if (isWithinValueThreshold || isWithinLitreThreshold)
-				{
-					foreach (var variance in variances)
-					{
-						variance.VarianceStatus = ShiftStatus.Closed;
-						_context.StockTakeSummaries.Update(variance);
-					}
+		//		if (isWithinValueThreshold || isWithinLitreThreshold)
+		//		{
+		//			foreach (var variance in variances)
+		//			{
+		//				variance.VarianceStatus = ShiftStatus.Closed;
+		//				_context.StockTakeSummaries.Update(variance);
+		//			}
 
-					if (totalVarianceLitres != 0m)
-					{
-						var isShortage = totalVarianceLitres < 0m;
-						var magnitude = Math.Abs(totalVarianceLitres);
-						var saleId = _setups.GenerateSaleId();
-						var firstVariance = variances.FirstOrDefault();
+		//			if (totalVarianceLitres != 0m)
+		//			{
+		//				var isShortage = totalVarianceLitres < 0m;
+		//				var magnitude = Math.Abs(totalVarianceLitres);
+		//				var saleId = _setups.GenerateSaleId();
+		//				var firstVariance = variances.FirstOrDefault();
 
-						var quantityTransaction = new QuantityTransactions
-						{
-							DateCreated = EatTime.Now,
-							UserCode = firstVariance?.UserCode ?? "",
-							NozzleCode = firstVariance?.NozzleCode ?? "",
-							QuantityCredit = isShortage ? magnitude : 0,
-							QuantityDebit = isShortage ? 0 : magnitude,
-							ShiftNumber = shiftNumber,
-							SaleId = saleId,
-							PaymentTypeCode = 3,
-							DispenserCode = dispenserId,
-							StationCode = stationCode,
-							AmountDebit = 0,
-							AmountCredit = 0,
-							Discount = 0,
-							Vat_Amount = 0,
-							Price = 0,
-							IsReversed = false,
-							CustomerCode = string.Empty,
-							OtpUsed = string.Empty,
-							VehicleRegistrationNumber = _authentication.Usercode(),
+		//				var quantityTransaction = new QuantityTransactions
+		//				{
+		//					DateCreated = EatTime.Now,
+		//					UserCode = firstVariance?.UserCode ?? "",
+		//					NozzleCode = firstVariance?.NozzleCode ?? "",
+		//					QuantityCredit = isShortage ? magnitude : 0,
+		//					QuantityDebit = isShortage ? 0 : magnitude,
+		//					ShiftNumber = shiftNumber,
+		//					SaleId = saleId,
+		//					PaymentTypeCode = 3,
+		//					DispenserCode = dispenserId,
+		//					StationCode = stationCode,
+		//					AmountDebit = 0,
+		//					AmountCredit = 0,
+		//					Discount = 0,
+		//					Vat_Amount = 0,
+		//					Price = 0,
+		//					IsReversed = false,
+		//					CustomerCode = string.Empty,
+		//					OtpUsed = string.Empty,
+		//					VehicleRegistrationNumber = _authentication.Usercode(),
 
-						};
-						await _context.QuantityTransactions.AddAsync(quantityTransaction);
+		//				};
+		//				await _context.QuantityTransactions.AddAsync(quantityTransaction);
 
-						var paymentTransaction = new PaymentTransactions
-						{
-							DateCreated = EatTime.Now,
-							UserCode = firstVariance?.UserCode ?? string.Empty,
-							SaleId = saleId,
-							PaymentRefrence = _setups.GenerateShiftNumber(),
-							TransactionAmount = isShortage ? 0 : totalVarianceValue,
-							TransactionAmountDebit = isShortage ? totalVarianceValue : 0,
-						};
-						await _context.PaymentTransactions.AddAsync(paymentTransaction);
+		//				var paymentTransaction = new PaymentTransactions
+		//				{
+		//					DateCreated = EatTime.Now,
+		//					UserCode = firstVariance?.UserCode ?? string.Empty,
+		//					SaleId = saleId,
+		//					PaymentRefrence = _setups.GenerateShiftNumber(),
+		//					TransactionAmount = isShortage ? 0 : totalVarianceValue,
+		//					TransactionAmountDebit = isShortage ? totalVarianceValue : 0,
+		//				};
+		//				await _context.PaymentTransactions.AddAsync(paymentTransaction);
 
 
-					}
+		//			}
 
-					var shiftToClose = await (from s in _context.Shifts where s.ShiftNumber == shiftNumber select s).FirstOrDefaultAsync();
-					shiftToClose?.ShiftStatus = ShiftStatus.Closed;
+		//			var shiftToClose = await (from s in _context.Shifts where s.ShiftNumber == shiftNumber select s).FirstOrDefaultAsync();
+		//			shiftToClose?.ShiftStatus = ShiftStatus.Closed;
 
-					await _context.SaveChangesAsync();
-					await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
+		//			await _context.SaveChangesAsync();
+		//			await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
 
-					var reasonText = isWithinValueThreshold
-						? $"it falls within the allowed threshold of KES {threshold:N2}"
-						: $"net closing variance ({totalVarianceLitres:N2}L) falls within the shortage auto-clear allowance (-1L, 0L)";
+		//			var reasonText = isWithinValueThreshold
+		//				? $"it falls within the allowed threshold of KES {threshold:N2}"
+		//				: $"net closing variance ({totalVarianceLitres:N2}L) falls within the shortage auto-clear allowance (-1L, 0L)";
 
-					var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, {reasonText}.";
-					await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
+		//			var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, {reasonText}.";
+		//			await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
-					return ServiceResponse<object>.Success("Variance cleared successfully", null);
-				}
+		//			return ServiceResponse<object>.Success("Variance cleared successfully", null);
+		//		}
 
-				return ServiceResponse<object>.Information("Variance not cleared", null);
-			}
-			catch (Exception ex)
-			{
-				return ServiceResponse<object>.Error(ex.Message, null);
-			}
-		}
+		//		return ServiceResponse<object>.Information("Variance not cleared", null);
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		return ServiceResponse<object>.Error(ex.Message, null);
+		//	}
+		//}
 
 		// Method 1: overage case. Net closing variance must be >= 0, and its absolute value
 		// must be within the configured threshold.

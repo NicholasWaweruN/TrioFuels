@@ -159,12 +159,12 @@ public class CarWashSalesService : ICarWashSalesService
 		if (request.PaymentMethod == CarWashPaymetMethod.Cash)
 		{
 			var disc = request.NegotiatedDiscount;
-
 			if (request.AmountReceived == 0m || request.AmountReceived < amountDue-disc)
 				return ServiceResponse<SaleResponseDto>.Error("Amount received must cover the total");
 		}
 		else if (request.PaymentMethod == CarWashPaymetMethod.Mpesa)
 		{
+			request.MpesaCode = request.MpesaCode!.Trim();
 			if (string.IsNullOrWhiteSpace(request.MpesaCode) || request.MpesaCode.Length != 10)
 				return ServiceResponse<SaleResponseDto>.Error("A valid 10-character M-Pesa code is required");
 
@@ -268,10 +268,7 @@ public class CarWashSalesService : ICarWashSalesService
 			// sale. Done inside the same transaction as the sale insert so a
 			// failure anywhere rolls back the "used" flag too. Status is left
 			// untouched (still 1/Success) — ShiftNumber is the consumption marker.
-			if (mpesaTransaction != null)
-			{
-				mpesaTransaction.ShiftNumber = shift.Id.ToString();
-			}
+			mpesaTransaction?.ShiftNumber = shift.Id.ToString();
 
 			// Post the charge to the customer's credit account.
 			if (request.PaymentMethod == CarWashPaymetMethod.Credit && customer != null)
