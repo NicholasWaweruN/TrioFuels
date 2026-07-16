@@ -206,7 +206,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					//await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -238,7 +238,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					//await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -300,7 +300,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					//await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
@@ -352,7 +352,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					 //await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a LOYALTY SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Customer={sales.CustomerCode} | PointsDeducted={pointsToDeduct:N2} | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -382,7 +382,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					//await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} recorded an OPERATIONAL LOSS | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -454,7 +454,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					//await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a CALIBRATION entry | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
@@ -502,8 +502,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					//await ClearVariance(sales.ShiftNumber);
-					//await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-
+				
 					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed an MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
 					await _authentication.AddUserTrail(msg, nameof(HandleMpesaAsync));
