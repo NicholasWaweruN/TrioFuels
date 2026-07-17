@@ -310,8 +310,20 @@ namespace BussinessLogic.Stock.Stock
 				return (0m, false);
 			}
 
+			// TEMP DIAGNOSTIC: log the exact values being compared. If stationCode here
+			// comes through blank/null, or with different casing/whitespace than what's
+			// stored in Prices.StationCode, that's the bug — not the join logic itself.
+			// Remove this Console.WriteLine (or swap for your real logger) once confirmed.
+			Console.WriteLine($"[PriceLookup] nozzle='{nozzleCode}' dispenser='{dispenserCode}' " +
+				$"incoming stationCode='{stationCode}' (len={stationCode?.Length ?? -1}) petroleumCode='{petroleumCode}'");
+
+			// Trim + case-insensitive match as a safety net against whitespace/casing
+			// mismatches between the request payload and what's stored in Prices.
+			var normalizedStation = stationCode?.Trim() ?? string.Empty;
+
 			var priceRow = await _db.Prices
-				.Where(p => p.ProductCode == petroleumCode && p.StationCode == stationCode)
+				.Where(p => p.ProductCode == petroleumCode
+							&& p.StationCode.Trim().ToUpper() == normalizedStation.ToUpper())
 				.Select(p => new { p.Amount, p.Discount })
 				.FirstOrDefaultAsync();
 
