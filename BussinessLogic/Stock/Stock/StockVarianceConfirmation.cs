@@ -25,6 +25,26 @@
 // ShiftStatus.Open) rather than trusting the client-supplied ShiftNumber —
 // these tills carry real production traffic, so we don't want a stale/forged
 // ShiftNumber from the app driving the expected-reading lookup.
+//
+// ── FIX (this revision) ─────────────────────────────────────────────────
+// Previously, a failed lookup (nozzle not found, no matching Price row, no
+// StockTakeSummary row for this shift/nozzle) silently fell back to 0m for
+// price and/or expected reading. Because VarianceAmount = LitreVariance *
+// PricePerLitre, a price of 0 masked an arbitrarily large litre variance as
+// KES 0 — the exact opposite of what a variance check is for. This showed
+// up as nozzles with huge LitreVariance but VarianceAmount = 0, sometimes
+// dragging TotalVariance down enough to flip ExceedsThreshold to false for
+// the whole response even though individual nozzles were badly wrong.
+//
+// Lookups now return an explicit "found" flag alongside the value. Any
+// nozzle where price or expected-reading data is missing is flagged via
+// PriceDataMissing / ExpectedReadingMissing, is excluded from the money
+// total (since KES 0 * missing price is not a real, trustworthy figure),
+// and forces ExceedsThreshold = true at the response level so a data
+// integrity gap can never be reported as "variance within acceptable
+// range." The response also exposes DataIntegrityIssue separately so the
+// client can distinguish "genuine variance breach" from "we couldn't even
+// calculate this properly, go check the data."
 // ─────────────────────────────────────────────────────────────────────────
 
 using System;
@@ -64,8 +84,33 @@ namespace BussinessLogic.Stock.Stock
 		public decimal ExpectedReading { get; set; }
 		public decimal QuantitySold { get; set; }
 		public decimal PricePerLitre { get; set; }
+
+		/// <summary>
+		/// True when Nozzle.PetroleumCode couldn't be resolved, or no matching
+		/// Price row exists for this dispenser/product. PricePerLitre will be
+		/// 0m in this case, but that 0 is "unknown", not "free" — callers must
+		/// NOT treat VarianceAmount as trustworthy when this is true.
+		/// </summary>
+		public bool PriceDataMissing { get; set; }
+
+		/// <summary>
+		/// True when no StockTakeSummary row exists for this shift/nozzle, so
+		/// ExpectedReading (opening reading, and by extension the closing
+		/// expected reading) is a fallback 0m rather than real data.
+		/// </summary>
+		public bool ExpectedReadingMissing { get; set; }
+
+		public bool HasDataIssue => PriceDataMissing || ExpectedReadingMissing;
+
 		public decimal LitreVariance => Math.Abs(ActualReading - ExpectedReading);
-		public decimal VarianceAmount => LitreVariance * PricePerLitre;
+
+		/// <summary>
+		/// KES variance for this nozzle. Deliberately 0m (not calculated) when
+		/// HasDataIssue is true, since LitreVariance * 0 would misleadingly
+		/// present a real litre discrepancy as zero cost. Check HasDataIssue
+		/// before trusting this figure.
+		/// </summary>
+		public decimal VarianceAmount => HasDataIssue ? 0m : LitreVariance * PricePerLitre;
 	}
 
 	public class StockTakeVarianceCheckResponse
@@ -73,6 +118,18 @@ namespace BussinessLogic.Stock.Stock
 		public decimal TotalVariance { get; set; }
 		public decimal Threshold { get; set; }
 		public bool ExceedsThreshold { get; set; }
+
+		/// <summary>
+		/// True if any nozzle in the breakdown had missing price or expected-
+		/// reading data. This is separate from ExceedsThreshold's "genuine KES
+		/// variance is too big" meaning — it means "we could not reliably
+		/// calculate variance for at least one nozzle." ExceedsThreshold is
+		/// still forced true alongside this so the response never claims
+		/// "within acceptable range" while data is missing, but clients should
+		/// check this flag to show the correct message/action to the user.
+		/// </summary>
+		public bool DataIntegrityIssue { get; set; }
+
 		public string Message { get; set; } = string.Empty;
 		public List<NozzleVarianceResult> NozzleBreakdown { get; set; } = [];
 	}
@@ -82,7 +139,7 @@ namespace BussinessLogic.Stock.Stock
 	public interface IStockTakeVarianceService
 	{
 		Task<StockTakeVarianceCheckResponse> CheckVarianceAsync(StockTakeVarianceCheckRequest request);
-		Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
+		Task<(decimal price, bool found)> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
 		Task<decimal> GetThresholdForDispenserAsync(string dispenserCode);
 	}
 
@@ -124,6 +181,7 @@ namespace BussinessLogic.Stock.Stock
 				{
 					Message = "No open shift found for this dispenser. Please contact support before proceeding.",
 					ExceedsThreshold = true,
+					DataIntegrityIssue = true,
 					TotalVariance = 0m,
 					Threshold = threshold
 				};
@@ -133,7 +191,7 @@ namespace BussinessLogic.Stock.Stock
 
 			foreach (var reading in request.Readings)
 			{
-				var (expected, quantitySold, pricePerLitre) = request.StockTakeType == 1
+				var (expected, quantitySold, pricePerLitre, priceMissing, expectedMissing) = request.StockTakeType == 1
 					? await GetExpectedOpeningReadingAsync(shift.ShiftNumber, request.DispenserCode, reading.NozzleCode)
 					: await GetExpectedClosingReadingAsync(shift.ShiftNumber, request.DispenserCode, reading.NozzleCode);
 
@@ -143,24 +201,52 @@ namespace BussinessLogic.Stock.Stock
 					ActualReading = reading.Reading,
 					ExpectedReading = expected,
 					QuantitySold = quantitySold,
-					PricePerLitre = pricePerLitre
+					PricePerLitre = pricePerLitre,
+					PriceDataMissing = priceMissing,
+					ExpectedReadingMissing = expectedMissing
 				});
 			}
 
-			var totalVariance = breakdown.Sum(b => b.VarianceAmount);
-			var exceeds = totalVariance > threshold;
+			var dataIntegrityIssue = breakdown.Any(b => b.HasDataIssue);
+
+			// Only sum VarianceAmount for nozzles with clean data — nozzles with a data
+			// issue already report VarianceAmount = 0m by design (see NozzleVarianceResult),
+			// so they don't silently contribute a false "0 variance" into a total that
+			// looks like a real, fully-calculated figure.
+			var totalVariance = breakdown.Where(b => !b.HasDataIssue).Sum(b => b.VarianceAmount);
+			var exceedsFromVariance = totalVariance > threshold;
+
+			// A data integrity issue on any nozzle forces ExceedsThreshold = true.
+			// We would rather over-flag a stock take for manual review than let a
+			// missing price/reading row cause a real discrepancy to be waved through
+			// as "within acceptable range."
+			var exceeds = exceedsFromVariance || dataIntegrityIssue;
+
+			string message;
+			if (dataIntegrityIssue)
+			{
+				var badNozzles = string.Join(", ", breakdown.Where(b => b.HasDataIssue).Select(b => b.NozzleCode));
+				message = $"Could not fully calculate variance for nozzle(s) {badNozzles} due to missing price or expected-reading data. " +
+						  $"Flagged for review rather than reported as passed. Calculated variance for remaining nozzles: KES {totalVariance:N2}.";
+			}
+			else
+			{
+				message = exceeds
+					? $"Combined variance of KES {totalVariance:N2} exceeds the allowed threshold of KES {threshold:N2}."
+					: "Variance within acceptable range.";
+			}
 
 			return new StockTakeVarianceCheckResponse
 			{
 				TotalVariance = Math.Round(totalVariance, 2),
 				Threshold = threshold,
 				ExceedsThreshold = exceeds,
-				Message = exceeds
-					? $"Combined variance of KES {totalVariance:N2} exceeds the allowed threshold of KES {threshold:N2}."
-					: "Variance within acceptable range.",
+				DataIntegrityIssue = dataIntegrityIssue,
+				Message = message,
 				NozzleBreakdown = breakdown
 			};
 		}
+
 		/// <summary>
 		/// Each dispenser carries its own variance threshold (Dispenser.ThreshHold).
 		/// Falls back to a conservative appsettings default only if the dispenser
@@ -184,8 +270,13 @@ namespace BussinessLogic.Stock.Stock
 		/// Net of Discount, since that's what a customer is actually charged.
 		/// This is now the single source of price-per-litre for both opening
 		/// and closing stock take variance calculations.
+		///
+		/// Returns found = false (rather than silently defaulting to 0m as
+		/// "the price") when the nozzle can't be resolved to a PetroleumCode,
+		/// or when no Price row exists for that product/dispenser. Callers
+		/// must treat found = false as "unknown price," not "free."
 		/// </summary>
-		public async Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
+		public async Task<(decimal price, bool found)> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
 		{
 			var petroleumCode = await _db.Nozzles
 				.Where(n => n.NozzleCode == nozzleCode && n.DispenserCode == dispenserCode)
@@ -194,7 +285,7 @@ namespace BussinessLogic.Stock.Stock
 
 			if (string.IsNullOrEmpty(petroleumCode))
 			{
-				return 0m;
+				return (0m, false);
 			}
 
 			var priceRow = await _db.Prices
@@ -202,7 +293,7 @@ namespace BussinessLogic.Stock.Stock
 				.Select(p => new { p.Amount, p.Discount })
 				.FirstOrDefaultAsync();
 
-			return priceRow != null ? priceRow.Amount - priceRow.Discount : 0m;
+			return priceRow != null ? (priceRow.Amount - priceRow.Discount, true) : (0m, false);
 		}
 
 		/// <summary>
@@ -215,8 +306,12 @@ namespace BussinessLogic.Stock.Stock
 		/// "current shift" from row recency.
 		///
 		/// Price-per-litre comes from the current retail price list.
+		///
+		/// Returns expectedMissing = true if no StockTakeSummary row exists for
+		/// this shift/nozzle at all (rather than silently treating "no row" the
+		/// same as "opening reading was genuinely 0").
 		/// </summary>
-		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre)> GetExpectedOpeningReadingAsync(
+		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre, bool priceMissing, bool expectedMissing)> GetExpectedOpeningReadingAsync(
 			string shiftNumber, string dispenserCode, string nozzleCode)
 		{
 			var openingReading = await _db.StockTakeSummaries
@@ -224,9 +319,9 @@ namespace BussinessLogic.Stock.Stock
 				.Select(s => (decimal?)s.OpeningReading)
 				.FirstOrDefaultAsync();
 
-			var currentPrice = await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			var (currentPrice, priceFound) = await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
 
-			return (openingReading ?? 0m, 0m, currentPrice);
+			return (openingReading ?? 0m, 0m, currentPrice, !priceFound, openingReading == null);
 		}
 
 		/// <summary>
@@ -239,16 +334,23 @@ namespace BussinessLogic.Stock.Stock
 		///
 		/// Price-per-litre comes from the current retail price list — same
 		/// source as opening, no weighted-average-of-sales calculation.
+		///
+		/// Returns expectedMissing = true if no StockTakeSummary row exists for
+		/// this shift/nozzle (opening reading unknown, not genuinely 0).
+		/// QuantitySold defaults to 0m if no transactions exist, which is a
+		/// legitimate value (no sales this shift), not a missing-data case.
 		/// </summary>
-		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre)> GetExpectedClosingReadingAsync(
+		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre, bool priceMissing, bool expectedMissing)> GetExpectedClosingReadingAsync(
 			string shiftNumber,
 			string dispenserCode,
 			string nozzleCode)
 		{
-			var openingReading = await _db.StockTakeSummaries
+			var openingReadingRow = await _db.StockTakeSummaries
 				.Where(s => s.ShiftNumber == shiftNumber && s.NozzleCode == nozzleCode)
 				.Select(s => (decimal?)s.OpeningReading)
-				.FirstOrDefaultAsync() ?? 0m;
+				.FirstOrDefaultAsync();
+
+			var openingReading = openingReadingRow ?? 0m;
 
 			var quantitySold = await _db.QuantityTransactions
 				.Where(t => t.ShiftNumber == shiftNumber
@@ -257,9 +359,9 @@ namespace BussinessLogic.Stock.Stock
 							&& !t.IsReversed)
 				.SumAsync(t => t.QuantityCredit);
 
-			var pricePerLitre = await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			var (pricePerLitre, priceFound) = await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
 
-			return (openingReading + quantitySold, quantitySold, pricePerLitre);
+			return (openingReading + quantitySold, quantitySold, pricePerLitre, !priceFound, openingReadingRow == null);
 		}
 	}
 
