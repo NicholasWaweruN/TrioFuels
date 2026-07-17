@@ -139,7 +139,24 @@ namespace BussinessLogic.Stock.Stock
 	public interface IStockTakeVarianceService
 	{
 		Task<StockTakeVarianceCheckResponse> CheckVarianceAsync(StockTakeVarianceCheckRequest request);
-		Task<(decimal price, bool found)> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
+
+		/// <summary>
+		/// Backward-compatible signature (returns plain decimal, same as before this
+		/// revision) for any existing callers elsewhere in the codebase. Internally
+		/// delegates to TryGetCurrentRetailPriceAsync, but still collapses "not found"
+		/// to 0m — so existing callers behave exactly as they did before. New code
+		/// that needs to distinguish "price is 0" from "price is missing" should call
+		/// TryGetCurrentRetailPriceAsync instead.
+		/// </summary>
+		Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
+
+		/// <summary>
+		/// Same lookup as GetCurrentRetailPriceAsync, but also reports whether a price
+		/// was actually found, so callers (like CheckVarianceAsync) can tell "price is
+		/// genuinely 0" apart from "no Nozzle/Price row exists, price is unknown."
+		/// </summary>
+		Task<(decimal price, bool found)> TryGetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
+
 		Task<decimal> GetThresholdForDispenserAsync(string dispenserCode);
 	}
 
@@ -276,7 +293,7 @@ namespace BussinessLogic.Stock.Stock
 		/// or when no Price row exists for that product/dispenser. Callers
 		/// must treat found = false as "unknown price," not "free."
 		/// </summary>
-		public async Task<(decimal price, bool found)> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
+		public async Task<(decimal price, bool found)> TryGetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
 		{
 			var petroleumCode = await _db.Nozzles
 				.Where(n => n.NozzleCode == nozzleCode && n.DispenserCode == dispenserCode)
@@ -294,6 +311,19 @@ namespace BussinessLogic.Stock.Stock
 				.FirstOrDefaultAsync();
 
 			return priceRow != null ? (priceRow.Amount - priceRow.Discount, true) : (0m, false);
+		}
+
+		/// <summary>
+		/// Backward-compatible wrapper: existing callers elsewhere in the codebase
+		/// expect a plain decimal, same as before this revision. This collapses
+		/// "not found" to 0m to preserve that exact prior behavior for them.
+		/// Internal variance logic uses TryGetCurrentRetailPriceAsync instead, so it
+		/// can tell a genuine 0 price apart from a missing price row.
+		/// </summary>
+		public async Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
+		{
+			var (price, _) = await TryGetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			return price;
 		}
 
 		/// <summary>
@@ -319,7 +349,7 @@ namespace BussinessLogic.Stock.Stock
 				.Select(s => (decimal?)s.OpeningReading)
 				.FirstOrDefaultAsync();
 
-			var (currentPrice, priceFound) = await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			var (currentPrice, priceFound) = await TryGetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
 
 			return (openingReading ?? 0m, 0m, currentPrice, !priceFound, openingReading == null);
 		}
@@ -359,7 +389,7 @@ namespace BussinessLogic.Stock.Stock
 							&& !t.IsReversed)
 				.SumAsync(t => t.QuantityCredit);
 
-			var (pricePerLitre, priceFound) = await GetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			var (pricePerLitre, priceFound) = await TryGetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
 
 			return (openingReading + quantitySold, quantitySold, pricePerLitre, !priceFound, openingReadingRow == null);
 		}
