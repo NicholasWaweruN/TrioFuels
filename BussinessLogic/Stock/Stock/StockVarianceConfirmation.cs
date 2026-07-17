@@ -155,7 +155,7 @@ namespace BussinessLogic.Stock.Stock
 		/// was actually found, so callers (like CheckVarianceAsync) can tell "price is
 		/// genuinely 0" apart from "no Nozzle/Price row exists, price is unknown."
 		/// </summary>
-		Task<(decimal price, bool found)> TryGetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode);
+		Task<(decimal price, bool found)> TryGetCurrentRetailPriceAsync(string stationCode, string dispenserCode, string nozzleCode);
 
 		Task<decimal> GetThresholdForDispenserAsync(string dispenserCode);
 	}
@@ -209,8 +209,8 @@ namespace BussinessLogic.Stock.Stock
 			foreach (var reading in request.Readings)
 			{
 				var (expected, quantitySold, pricePerLitre, priceMissing, expectedMissing) = request.StockTakeType == 1
-					? await GetExpectedOpeningReadingAsync(shift.ShiftNumber, request.DispenserCode, reading.NozzleCode)
-					: await GetExpectedClosingReadingAsync(shift.ShiftNumber, request.DispenserCode, reading.NozzleCode);
+					? await GetExpectedOpeningReadingAsync(shift.ShiftNumber, request.StationCode, request.DispenserCode, reading.NozzleCode)
+					: await GetExpectedClosingReadingAsync(shift.ShiftNumber, request.StationCode, request.DispenserCode, reading.NozzleCode);
 
 				breakdown.Add(new NozzleVarianceResult
 				{
@@ -282,18 +282,23 @@ namespace BussinessLogic.Stock.Stock
 
 		/// <summary>
 		/// Current retail price for a nozzle: Nozzle.PetroleumCode joined against
-		/// Price.ProductCode, scoped to this dispenser (Price also carries
-		/// StationCode/DispenserCode since pricing can vary by station).
-		/// Net of Discount, since that's what a customer is actually charged.
-		/// This is now the single source of price-per-litre for both opening
-		/// and closing stock take variance calculations.
+		/// Price.ProductCode, scoped to the STATION (not the individual dispenser).
+		///
+		/// FIX: Prices is a per-station price list — one price per product applies
+		/// to every dispenser at that station, not one price row per dispenser.
+		/// Scoping by DispenserCode was wrong: it only matched Price rows whose
+		/// DispenserCode happened to equal this specific dispenser, so a dispenser
+		/// that wasn't the one the price row was originally entered against (e.g.
+		/// D02 when the price was entered under D01, both at station S001) came
+		/// back as "no price found" even though the product is priced for that
+		/// station. Net of Discount, since that's what a customer is actually charged.
 		///
 		/// Returns found = false (rather than silently defaulting to 0m as
 		/// "the price") when the nozzle can't be resolved to a PetroleumCode,
-		/// or when no Price row exists for that product/dispenser. Callers
+		/// or when no Price row exists for that product/station. Callers
 		/// must treat found = false as "unknown price," not "free."
 		/// </summary>
-		public async Task<(decimal price, bool found)> TryGetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
+		public async Task<(decimal price, bool found)> TryGetCurrentRetailPriceAsync(string stationCode, string dispenserCode, string nozzleCode)
 		{
 			var petroleumCode = await _db.Nozzles
 				.Where(n => n.NozzleCode == nozzleCode && n.DispenserCode == dispenserCode)
@@ -306,7 +311,7 @@ namespace BussinessLogic.Stock.Stock
 			}
 
 			var priceRow = await _db.Prices
-				.Where(p => p.ProductCode == petroleumCode && p.DispenserCode == dispenserCode)
+				.Where(p => p.ProductCode == petroleumCode && p.StationCode == stationCode)
 				.Select(p => new { p.Amount, p.Discount })
 				.FirstOrDefaultAsync();
 
@@ -315,14 +320,24 @@ namespace BussinessLogic.Stock.Stock
 
 		/// <summary>
 		/// Backward-compatible wrapper: existing callers elsewhere in the codebase
-		/// expect a plain decimal, same as before this revision. This collapses
-		/// "not found" to 0m to preserve that exact prior behavior for them.
-		/// Internal variance logic uses TryGetCurrentRetailPriceAsync instead, so it
-		/// can tell a genuine 0 price apart from a missing price row.
+		/// expect a plain decimal keyed by dispenser only. Resolves the dispenser's
+		/// StationCode first, then delegates to the station-scoped lookup. Collapses
+		/// "not found" (including "dispenser has no StationCode on record") to 0m to
+		/// preserve prior behavior for those callers.
 		/// </summary>
 		public async Task<decimal> GetCurrentRetailPriceAsync(string dispenserCode, string nozzleCode)
 		{
-			var (price, _) = await TryGetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			var stationCode = await _db.Dispensers
+				.Where(d => d.DispenserCode == dispenserCode)
+				.Select(d => d.StationCode)
+				.FirstOrDefaultAsync();
+
+			if (string.IsNullOrEmpty(stationCode))
+			{
+				return 0m;
+			}
+
+			var (price, _) = await TryGetCurrentRetailPriceAsync(stationCode, dispenserCode, nozzleCode);
 			return price;
 		}
 
@@ -342,14 +357,14 @@ namespace BussinessLogic.Stock.Stock
 		/// same as "opening reading was genuinely 0").
 		/// </summary>
 		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre, bool priceMissing, bool expectedMissing)> GetExpectedOpeningReadingAsync(
-			string shiftNumber, string dispenserCode, string nozzleCode)
+			string shiftNumber, string stationCode, string dispenserCode, string nozzleCode)
 		{
 			var openingReading = await _db.StockTakeSummaries
 				.Where(s => s.ShiftNumber == shiftNumber && s.NozzleCode == nozzleCode)
 				.Select(s => (decimal?)s.OpeningReading)
 				.FirstOrDefaultAsync();
 
-			var (currentPrice, priceFound) = await TryGetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			var (currentPrice, priceFound) = await TryGetCurrentRetailPriceAsync(stationCode, dispenserCode, nozzleCode);
 
 			return (openingReading ?? 0m, 0m, currentPrice, !priceFound, openingReading == null);
 		}
@@ -372,6 +387,7 @@ namespace BussinessLogic.Stock.Stock
 		/// </summary>
 		private async Task<(decimal expected, decimal quantitySold, decimal pricePerLitre, bool priceMissing, bool expectedMissing)> GetExpectedClosingReadingAsync(
 			string shiftNumber,
+			string stationCode,
 			string dispenserCode,
 			string nozzleCode)
 		{
@@ -389,7 +405,7 @@ namespace BussinessLogic.Stock.Stock
 							&& !t.IsReversed)
 				.SumAsync(t => t.QuantityCredit);
 
-			var (pricePerLitre, priceFound) = await TryGetCurrentRetailPriceAsync(dispenserCode, nozzleCode);
+			var (pricePerLitre, priceFound) = await TryGetCurrentRetailPriceAsync(stationCode, dispenserCode, nozzleCode);
 
 			return (openingReading + quantitySold, quantitySold, pricePerLitre, !priceFound, openingReadingRow == null);
 		}
