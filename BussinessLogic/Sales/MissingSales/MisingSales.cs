@@ -382,8 +382,7 @@ namespace BussinessLogic.Sales.MissingSales
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
 					//await ClearVariance(sales.ShiftNumber);
-					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-
+			
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} recorded an OPERATIONAL LOSS | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
 					await _authentication.AddUserTrail(msg, nameof(HandleOperationalLossAsync));
