@@ -202,10 +202,7 @@ namespace BussinessLogic.Sales.ReverseSales
 					if (nozzle == null)
 						return ServiceResponse<object>.Information($"Nozzle {nozzleCode} does not exist in the system", null);
 
-					if (!string.IsNullOrWhiteSpace(sale.StationCode) && nozzle.StationCode != sale.StationCode)
-						return ServiceResponse<object>.Information(
-							$"Nozzle {nozzleCode} belongs to a different station and cannot be used for this sale", null);
-
+		
 					// Update + trail
 					var oldNozzle = sale.NozzleCode ?? "Unknown";
 					sale.NozzleCode = nozzleCode;
