@@ -1,45 +1,43 @@
-﻿using DataAccessLayer.Common;
+﻿using BussinessLogic.Authentication.CommonTasks;
+using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Shifts;
 using DataAccessLayer.EntityModels.Shifts;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BussinessLogic.Shifts
 {
 	public interface IShiftSupervisorReconciliationService
 	{
-		Task<ShiftSupervisorReconciliationResponse> SubmitReconciliationAsync(ShiftSupervisorReconciliationRequest request, string userCode);
-
-		Task<ShiftSupervisorReconciliationResponse?> GetReconciliationAsync(string shiftNumber);
+		Task<ServiceResponse<ShiftSupervisorReconciliationResponse>> SubmitReconciliationAsync(ShiftSupervisorReconciliationRequest request);
+		Task<ServiceResponse<ShiftSupervisorReconciliationResponse>> GetReconciliationAsync(string shiftNumber);
 	}
 
 	public class ShiftSupervisorReconciliationService : IShiftSupervisorReconciliationService
 	{
 		private readonly OTOContext _db;
 		private const decimal VarianceToleranceKes = 50m;
+		private readonly IAuthCommonTasks _authentication;
 
-		public ShiftSupervisorReconciliationService(OTOContext db)
+		public ShiftSupervisorReconciliationService(OTOContext db, IAuthCommonTasks authentication)
 		{
 			_db = db;
+			_authentication = authentication;
 		}
 
-		public async Task<ShiftSupervisorReconciliationResponse> SubmitReconciliationAsync(
-			ShiftSupervisorReconciliationRequest request, string userCode)
+		public async Task<ServiceResponse<ShiftSupervisorReconciliationResponse>> SubmitReconciliationAsync(ShiftSupervisorReconciliationRequest request)
 		{
+			string userCode = _authentication.Usercode();
+
 			var shiftExists = await _db.Shifts
 				.AsNoTracking()
 				.AnyAsync(s => s.ShiftNumber == request.ShiftNumber);
 
 			if (!shiftExists)
-				throw new InvalidOperationException($"Shift {request.ShiftNumber} not found.");
+				return ServiceResponse<ShiftSupervisorReconciliationResponse>.Error($"Shift {request.ShiftNumber} not found.");
 
 			var systemTotals = await GetSystemTotalsAsync(request.ShiftNumber);
 
-			// NOTE: entity write, so this must go through the tracking context,
-			// not a NoTracking query — same pitfall you hit with the sales flow.
 			var entity = new ShiftSupervisorReconciliation
 			{
 				ShiftNumber = request.ShiftNumber,
@@ -59,10 +57,11 @@ namespace BussinessLogic.Shifts
 			_db.ShiftSupervisorReconciliations.Add(entity);
 			await _db.SaveChangesAsync();
 
-			return BuildResponse(entity);
+			var response = BuildResponse(entity);
+			return ServiceResponse<ShiftSupervisorReconciliationResponse>.Success("Reconciliation submitted.", response);
 		}
 
-		public async Task<ShiftSupervisorReconciliationResponse?> GetReconciliationAsync(string shiftNumber)
+		public async Task<ServiceResponse<ShiftSupervisorReconciliationResponse>> GetReconciliationAsync(string shiftNumber)
 		{
 			var entity = await _db.ShiftSupervisorReconciliations
 				.AsNoTracking()
@@ -70,7 +69,11 @@ namespace BussinessLogic.Shifts
 				.OrderByDescending(r => r.DateCreated)
 				.FirstOrDefaultAsync();
 
-			return entity is null ? null : BuildResponse(entity);
+			if (entity is null)
+				return ServiceResponse<ShiftSupervisorReconciliationResponse>.Error("No reconciliation found for this shift.");
+
+			var response = BuildResponse(entity);
+			return ServiceResponse<ShiftSupervisorReconciliationResponse>.Success("Reconciliation found.", response);
 		}
 
 		private async Task<ShiftPaymentTotals> GetSystemTotalsAsync(string shiftNumber)
@@ -111,13 +114,13 @@ namespace BussinessLogic.Shifts
 				Id = e.Id,
 				ShiftNumber = e.ShiftNumber,
 				Lines = new()
-			{
-				Line("M-Pesa", e.SystemMpesaTotal, e.MpesaReceived),
-				Line("Cash", e.SystemCashTotal, e.CashReceived),
-				Line("Credit", e.SystemCreditTotal, e.CreditReceived),
-				Line("Loyalty", e.SystemLoyaltyTotal, e.LoyaltyPointsUsed),
-				Line("PDQ", e.SystemPdqTotal, e.PdqReceived),
-			}
+				{
+					Line("M-Pesa", e.SystemMpesaTotal, e.MpesaReceived),
+					Line("Cash", e.SystemCashTotal, e.CashReceived),
+					Line("Credit", e.SystemCreditTotal, e.CreditReceived),
+					Line("Loyalty", e.SystemLoyaltyTotal, e.LoyaltyPointsUsed),
+					Line("PDQ", e.SystemPdqTotal, e.PdqReceived),
+				}
 			};
 		}
 	}
