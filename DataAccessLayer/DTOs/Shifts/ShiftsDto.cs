@@ -35,6 +35,7 @@ namespace DataAccessLayer.DTOs.Shifts
     {
         public int ShiftStatus { get; set; }
         public string ShiftNumber { get; set; } = string.Empty;
+		public DateTime StartTime { get; set; } = DateTime.MinValue;
         [Precision(18,2)] public decimal QuantitySold { get; set; }
         public int TotalEvents { get; set; }
 		public bool IsStockTakeTaken { get; set; }

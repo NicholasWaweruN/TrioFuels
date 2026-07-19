@@ -106,7 +106,7 @@ namespace BussinessLogic.Stock.Shifts
 							(x.ShiftStatus == ShiftStatus.Open ||
 							 x.ShiftStatus == ShiftStatus.Pending ||
 							 x.ShiftStatus == ShiftStatus.Variance))
-				.Select(x => new { x.ShiftNumber, x.ShiftStatus })
+				.Select(x => new { x.ShiftNumber, x.ShiftStatus,x.ShiftStartTime })
 				.ToListAsync();
 
 			var openShift = relevantShifts.FirstOrDefault(x => x.ShiftStatus == ShiftStatus.Open);
@@ -162,6 +162,7 @@ namespace BussinessLogic.Stock.Shifts
 						IsStockTakeTaken = true,
 						Nozzle1 = nozzle1Quantity,
 						Nozzle2 = nozzle2Quantity,
+						StartTime = openShift.ShiftStartTime,
 					}
 				};
 			}
