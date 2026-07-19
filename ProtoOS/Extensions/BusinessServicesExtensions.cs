@@ -51,6 +51,7 @@ using BussinessLogic.Sales.SalesData;
 using BussinessLogic.Sales.Wallet;
 using BussinessLogic.Sales.Wallet.Voucher;
 using BussinessLogic.Setup;
+using BussinessLogic.Shifts;
 using BussinessLogic.Station.DispenserAssignments;
 using BussinessLogic.Stock.Shifts;
 using BussinessLogic.Stock.Stock;
@@ -191,6 +192,9 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ICarWashSalesService, CarWashSalesService>();
 		services.AddScoped<ICarWashDashboardService, CarWashDashboardService>();
 		services.AddScoped<ICarwashCustomerService, CarwashCustomerService>();
+
+		services.AddScoped<IShiftSupervisorReconciliationService, ShiftSupervisorReconciliationService>();
+
 		return services;
 	}
 }

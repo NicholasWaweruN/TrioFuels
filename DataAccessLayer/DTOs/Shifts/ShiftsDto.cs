@@ -43,4 +43,31 @@ namespace DataAccessLayer.DTOs.Shifts
 		[Precision(18, 2)] public decimal Nozzle1 { get; set; }
 		[Precision(18, 2)] public decimal Nozzle2 { get; set; }
 	}
+
+	public class ShiftSupervisorReconciliationRequest
+	{
+		public string ShiftNumber { get; set; } = null!;
+		public decimal MpesaReceived { get; set; }
+		public decimal CashReceived { get; set; }
+		public decimal CreditReceived { get; set; }
+		public decimal LoyaltyPointsUsed { get; set; }
+		public decimal PdqReceived { get; set; }
+	}
+
+	public class ReconciliationLineDto
+	{
+		public string Category { get; set; } = "";
+		public decimal SystemAmount { get; set; }
+		public decimal SupervisorAmount { get; set; }
+		public decimal Variance => SupervisorAmount - SystemAmount;
+		public bool IsMatched { get; set; }
+	}
+
+	public class ShiftSupervisorReconciliationResponse
+	{
+		public long Id { get; set; }
+		public string ShiftNumber { get; set; } = null!;
+		public List<ReconciliationLineDto> Lines { get; set; } = new();
+		public bool AllMatched => Lines.All(l => l.IsMatched);
+	}
 }

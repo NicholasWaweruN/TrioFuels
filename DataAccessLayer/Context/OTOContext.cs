@@ -16,6 +16,7 @@ using DataAccessLayer.EntityModels.Messaging;
 using DataAccessLayer.EntityModels.Personal_Wallet;
 using DataAccessLayer.EntityModels.ProtoBase;
 using DataAccessLayer.EntityModels.SetUps;
+using DataAccessLayer.EntityModels.Shifts;
 using DataAccessLayer.EntityModels.Stations;
 using DataAccessLayer.EntityModels.StockTake;
 using DataAccessLayer.EntityModels.Template_Register;
@@ -152,7 +153,7 @@ namespace DataAccessLayer.Context
 		public DbSet<CarwashCreditTransaction> CarwashCreditTransactions { get; set; }
 
 		// In OnModelCreating
-
+		public DbSet<ShiftSupervisorReconciliation> ShiftSupervisorReconciliations { get; set; }
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
