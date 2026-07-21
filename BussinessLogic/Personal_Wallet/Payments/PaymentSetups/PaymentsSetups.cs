@@ -645,8 +645,7 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			try
 			{
 				if (string.IsNullOrWhiteSpace(transId) || string.IsNullOrWhiteSpace(dispenserCode))
-					return ServiceResponse<UnusedMpesaTransactionDto>.Information(
-						"Transaction reference and dispenser code are required.", null);
+					return ServiceResponse<UnusedMpesaTransactionDto>.Information("Transaction reference and dispenser code are required.", null);
 
 				// Same Dispensers ⋈ Tills join as TillNumber()/GetPriceInfo — resolves
 				// which till this dispenser's M-Pesa transactions land on.

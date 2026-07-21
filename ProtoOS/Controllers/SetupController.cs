@@ -75,6 +75,15 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
+		[HttpGet]
+		[Route("pricechange")]
+		[Authorize(Roles = "can change price for all stations")]
+		public async Task<IActionResult> Pricechange(string productCode, decimal newPrice)
+		{
+			var response = await _setupService.ChangePriceForAllStations(productCode, newPrice);
+			return CreateResponse(response);
+		}
+
 		[HttpPost]
 		[Route("PriceSchedule")]
 		[Authorize(Roles = "can schedule price change")]

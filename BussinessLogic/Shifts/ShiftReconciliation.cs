@@ -38,27 +38,38 @@ namespace BussinessLogic.Shifts
 
 			var systemTotals = await GetSystemTotalsAsync(request.ShiftNumber);
 
-			var entity = new ShiftSupervisorReconciliation
-			{
-				ShiftNumber = request.ShiftNumber,
-				MpesaReceived = request.MpesaReceived,
-				CashReceived = request.CashReceived,
-				CreditReceived = request.CreditReceived,
-				LoyaltyPointsUsed = request.LoyaltyPointsUsed,
-				PdqReceived = request.PdqReceived,
-				SystemMpesaTotal = systemTotals.Mpesa,
-				SystemCashTotal = systemTotals.Cash,
-				SystemCreditTotal = systemTotals.Credit,
-				SystemLoyaltyTotal = systemTotals.Loyalty,
-				SystemPdqTotal = systemTotals.Pdq,
-				UserCode = userCode
-			};
+			// Tracked (no AsNoTracking) so we can update in place if a record already exists.
+			var entity = await _db.ShiftSupervisorReconciliations
+				.FirstOrDefaultAsync(r => r.ShiftNumber == request.ShiftNumber);
 
-			_db.ShiftSupervisorReconciliations.Add(entity);
+			bool isUpdate = entity is not null;
+
+			if (entity is null)
+			{
+				entity = new ShiftSupervisorReconciliation
+				{
+					ShiftNumber = request.ShiftNumber
+				};
+				_db.ShiftSupervisorReconciliations.Add(entity);
+			}
+
+			entity.MpesaReceived = request.MpesaReceived;
+			entity.CashReceived = request.CashReceived;
+			entity.CreditReceived = request.CreditReceived;
+			entity.LoyaltyPointsUsed = request.LoyaltyPointsUsed;
+			entity.PdqReceived = request.PdqReceived;
+			entity.SystemMpesaTotal = systemTotals.Mpesa;
+			entity.SystemCashTotal = systemTotals.Cash;
+			entity.SystemCreditTotal = systemTotals.Credit;
+			entity.SystemLoyaltyTotal = systemTotals.Loyalty;
+			entity.SystemPdqTotal = systemTotals.Pdq;
+			entity.UserCode = userCode;
+
 			await _db.SaveChangesAsync();
 
 			var response = BuildResponse(entity);
-			return ServiceResponse<ShiftSupervisorReconciliationResponse>.Success("Reconciliation submitted.", response);
+			var message = isUpdate ? "Reconciliation updated." : "Reconciliation submitted.";
+			return ServiceResponse<ShiftSupervisorReconciliationResponse>.Success(message, response);
 		}
 
 		public async Task<ServiceResponse<ShiftSupervisorReconciliationResponse>> GetReconciliationAsync(string shiftNumber)

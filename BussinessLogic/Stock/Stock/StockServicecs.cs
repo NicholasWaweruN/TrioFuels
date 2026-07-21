@@ -389,20 +389,19 @@ namespace BussinessLogic.Stock.Stock
 				ShiftNumber = newShiftNumber,
 				UserCode = _authentication.Usercode(),
 				ShiftStatus = ShiftStatus.Open,
-				ShiftStartTime =EatTime.Now,
-				DateCreated =EatTime.Now,
+				ShiftStartTime = EatTime.Now,
+				DateCreated = EatTime.Now,
 				DispenserCode = dispenser,
 			};
 			await _context.AddAsync(newShift);
 			await _context.SaveChangesAsync();
 
-			await ProcessStockTakeReadingsAsync(stockTake, newShiftNumber, isOpeningReading: true, newShift);
-			return ServiceResponse<object>.Success("Stock take completed successfully", null);
+			return await ProcessStockTakeReadingsAsync(stockTake, newShiftNumber, isOpeningReading: true, newShift);
 		}
+
 		private async Task<ServiceResponse<object>> ProcessExistingShiftStockTakeAsync(StockTakeDto stockTake, Shift shift)
 		{
-			await ProcessStockTakeReadingsAsync(stockTake, shift.ShiftNumber, isOpeningReading: false, shift);
-			return ServiceResponse<object>.Success("Stock take completed successfully", null);
+			return await ProcessStockTakeReadingsAsync(stockTake, shift.ShiftNumber, isOpeningReading: false, shift);
 		}
 
 		// PERF: expected-reading and quantity-sold calculations were previously
@@ -410,7 +409,19 @@ namespace BussinessLogic.Stock.Stock
 		// Both are now precomputed once for the whole shift via grouped queries.
 		// Also dropped the unused `highestv` aggregate query that was computed
 		// and discarded on every closing stock take.
-		private async Task ProcessStockTakeReadingsAsync(StockTakeDto stockTake, string shiftNumber, bool isOpeningReading, Shift shift)
+		//
+		// FIX (missing-nozzle reconciliation bug): on a closing stock take, any
+		// nozzle whose StockTakeSummary is still Open for this shift but is NOT
+		// present in the submitted `stockTake.Readings` was previously left
+		// completely untouched — its ClosingReading/ExpectedClosingReading/
+		// ClosingVariance stayed at 0 and VarianceStatus stayed at Open (0)
+		// forever, while the shift itself could still get marked Closed because
+		// the post-loop totalVariance sum only reflects nozzles that were
+		// actually visited. We now require a complete submission for closes:
+		// if any open nozzle for the shift is missing from the payload, we
+		// reject up front instead of silently leaving that summary row
+		// half-reconciled.
+		private async Task<ServiceResponse<object>> ProcessStockTakeReadingsAsync(StockTakeDto stockTake, string shiftNumber, bool isOpeningReading, Shift shift)
 		{
 			decimal totalVariance = 0;
 			var userCode = _authentication.Usercode();
@@ -423,6 +434,24 @@ namespace BussinessLogic.Stock.Stock
 			var stockTakeSummaries = await _context.StockTakeSummaries
 				.Where(s => s.ShiftNumber == shiftNumber && nozzleCodes.Contains(s.NozzleCode))
 				.ToListAsync();
+
+			if (!isOpeningReading)
+			{
+				// Every nozzle that is still Open for this shift must be present
+				// in the closing submission, or it will never get reconciled.
+				var openNozzlesForShift = await _context.StockTakeSummaries
+					.Where(s => s.ShiftNumber == shiftNumber && s.VarianceStatus == ShiftStatus.Open)
+					.Select(s => s.NozzleCode)
+					.ToListAsync();
+
+				var missingNozzles = openNozzlesForShift.Except(nozzleCodes).ToList();
+				if (missingNozzles.Count > 0)
+				{
+					return ServiceResponse<object>.Information(
+						$"Closing readings missing for nozzle(s): {string.Join(", ", missingNozzles)}. " +
+						"All open nozzles for this shift must be submitted together.", null);
+				}
+			}
 
 			// Batched replacement for the old per-nozzle GetExpectedReadingAsync calls.
 			var expectedReadings = await GetExpectedReadingsAsync(nozzleCodes);
@@ -441,7 +470,7 @@ namespace BussinessLogic.Stock.Stock
 				if (isOpeningReading)
 					if (stockTakeEntity == null)
 					{
-						stockTakeEntity = new StockTake { DateCreated =EatTime.Now, ShiftNumber = shiftNumber, UserCode = userCode, NozzleCode = nozzle.NozzleCode, OpeningReading = nozzle.Reading, ClosingReading = 0 };
+						stockTakeEntity = new StockTake { DateCreated = EatTime.Now, ShiftNumber = shiftNumber, UserCode = userCode, NozzleCode = nozzle.NozzleCode, OpeningReading = nozzle.Reading, ClosingReading = 0 };
 						_context.StockTakes.Add(stockTakeEntity);
 					}
 					else if (stockTakeEntity != null)
@@ -462,7 +491,7 @@ namespace BussinessLogic.Stock.Stock
 
 						var newStockTakeSummary = new StockTakeSummary
 						{
-							DateCreated =EatTime.Now,
+							DateCreated = EatTime.Now,
 							ShiftNumber = shiftNumber,
 							UserCode = userCode,
 							NozzleCode = nozzle.NozzleCode,
@@ -498,7 +527,6 @@ namespace BussinessLogic.Stock.Stock
 
 			if (!isOpeningReading)
 			{
-			   
 				await _salesTasks.ReconcileStockSummariesAsync(shift.ShiftNumber);
 				await ClearVariance(shiftNumber);
 
@@ -508,8 +536,9 @@ namespace BussinessLogic.Stock.Stock
 			}
 
 			await UpdateShiftStatusAsync(shiftNumber, totalVariance, isOpeningReading, shift);
-		}
 
+			return ServiceResponse<object>.Success("Stock take completed successfully", null);
+		}
 		private async Task UpdateShiftStatusAsync(string shiftNumber, decimal totalVariance, bool isOpeningReading, Shift shift)
 		{
 			if (shift != null)

@@ -17,5 +17,6 @@ namespace BussinessLogic.Setup
 		Task<ServiceResponse<object>> RemoveEmailRecipients(string email, string reportCode);
 		List<UserSetups.Report> Reports();
 		Task<ServiceResponse<object>> UpdatePrice(string productCode, string stationCode, decimal newAmount);
+		Task<ServiceResponse<object>> PriceChange(string productCode, decimal newPrice);
 	}
 }

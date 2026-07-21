@@ -144,18 +144,16 @@ namespace BussinessLogic.Setup
 
 
 		//change price of a product for all stations at once
-		public async Task<ServiceResponse<object>> ChangePriceForAllStations(string productCode, decimal newPrice)
+		public async Task<ServiceResponse<object>> PriceChange(string productCode, decimal newPrice)
 		{
 			try
 			{
-				var product = await _context.Prices.Where(x => x.ProductCode == productCode).ToListAsync();
-				if (product.Any())
+				var product = await _context.Prices.Where(x => x.ProductCode == productCode).FirstOrDefaultAsync();
+				if (product is not null)
 				{
-					foreach (var item in product)
-					{
-						item.Amount = newPrice;
-						_context.Prices.Update(item);
-					}
+						product.Amount = newPrice;
+						_context.Prices.Update(product);
+					
 					await _context.SaveChangesAsync();
 					return ServiceResponse<object>.Success("Price updated successfully", null);
 				}
@@ -414,6 +412,32 @@ namespace BussinessLogic.Setup
 		public Task<ServiceResponse<object>> AddProduct(AddProductDto product)
 		{
 			throw new NotImplementedException();
+		}
+
+		public async Task<ServiceResponse<object>> ChangePriceForAllStations(string productCode, decimal newPrice)
+		{
+			try
+			{
+				var product = await _context.Prices.Where(x => x.ProductCode == productCode).ToListAsync();
+				if (product is not null)
+				{
+					foreach (var item in product)
+					{
+						item.Amount = newPrice;
+						_context.Prices.Update(item);
+					};
+					await _context.SaveChangesAsync();
+					return ServiceResponse<object>.Success("Price updated successfully", null);
+				}
+				else
+				{
+					return ServiceResponse<object>.Information("Product does not exist", null);
+				}
+			}
+			catch (Exception)
+			{
+				return ServiceResponse<object>.Error("An error occurred while updating price", null);
+			}
 		}
 
 		//report model
