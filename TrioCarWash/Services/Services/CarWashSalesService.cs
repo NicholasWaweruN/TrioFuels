@@ -28,11 +28,13 @@ public class CarWashSalesService : ICarWashSalesService
 
 	private readonly OTOContext _db;
 	private readonly ICarWashShiftService _shiftService;
+	private readonly ICarWashPackageService _packageService;
 
-	public CarWashSalesService(OTOContext db, ICarWashShiftService shiftService)
+	public CarWashSalesService(OTOContext db, ICarWashShiftService shiftService, ICarWashPackageService packageService)
 	{
 		_db = db;
 		_shiftService = shiftService;
+		_packageService = packageService;
 	}
 
 	public async Task<ServiceResponse<List<VehicleTypeDto>>> GetVehicleTypesAsync()
@@ -53,7 +55,6 @@ public class CarWashSalesService : ICarWashSalesService
 		if (!vehicleTypeExists)
 			return ServiceResponse<List<ProductDto>>.Error("Vehicle type not found or inactive");
 
-		// base products, left-joined against this vehicle type's price overrides
 		var products = await _db.CarWashProducts
 			.AsNoTracking()
 			.Where(p => p.IsActive)
@@ -83,6 +84,12 @@ public class CarWashSalesService : ICarWashSalesService
 		if (!AllowedPaymentMethods.Contains(request.PaymentMethod))
 			return ServiceResponse<SaleResponseDto>.Error("Unsupported payment method");
 
+		if (request.Items.Any(i => i.Quantity <= 0))
+			return ServiceResponse<SaleResponseDto>.Error("Quantity must be greater than zero");
+
+		if (request.Items.Any(i => i.ProductId.HasValue == i.PackageId.HasValue))
+			return ServiceResponse<SaleResponseDto>.Error("Each sale item must specify exactly one of ProductId or PackageId");
+
 		var vehicleType = await _db.VehicleTypes
 			.FirstOrDefaultAsync(v => v.Id == request.VehicleTypeId && v.IsActive);
 		if (vehicleType == null)
@@ -92,18 +99,42 @@ public class CarWashSalesService : ICarWashSalesService
 		if (shift == null)
 			return ServiceResponse<SaleResponseDto>.Error("No active shift — open a shift before selling");
 
-		var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
-		var products = await _db.CarWashProducts
-			.Where(p => productIds.Contains(p.Id) && p.IsActive)
-			.ToDictionaryAsync(p => p.Id);
+		var directItems = request.Items.Where(i => i.ProductId.HasValue).ToList();
+		var packageItems = request.Items.Where(i => i.PackageId.HasValue).ToList();
+
+		// ---------------------------------------------------------------------
+		// Resolve packages up front so we know every product ID we need
+		// pricing for — both standalone lines and everything nested inside
+		// a package.
+		// ---------------------------------------------------------------------
+		var packageIds = packageItems.Select(i => i.PackageId!.Value).Distinct().ToList();
+		var packages = packageIds.Count > 0
+			? await _packageService.GetActivePackagesForSaleAsync(packageIds)
+			: new Dictionary<long, CarWashPackage>();
+
+		if (packages.Count != packageIds.Count)
+			return ServiceResponse<SaleResponseDto>.Error("One or more packages were not found or inactive");
+
+		foreach (var pkg in packages.Values)
+		{
+			if (!pkg.VehicleTypePrices.Any(vp => vp.VehicleTypeId == request.VehicleTypeId))
+				return ServiceResponse<SaleResponseDto>.Error(
+					$"Package '{pkg.Name}' has no price configured for this vehicle type");
+		}
+
+		var directProductIds = directItems.Select(i => i.ProductId!.Value);
+		var packageProductIds = packages.Values.SelectMany(p => p.Items.Select(i => i.ProductId));
+		var productIds = directProductIds.Concat(packageProductIds).Distinct().ToList();
+
+		var products = productIds.Count > 0
+			? await _db.CarWashProducts
+				.Where(p => productIds.Contains(p.Id) && p.IsActive)
+				.ToDictionaryAsync(p => p.Id)
+			: new Dictionary<long, CarWashProduct>();
 
 		if (products.Count != productIds.Count)
 			return ServiceResponse<SaleResponseDto>.Error("One or more products were not found or inactive");
 
-		if (request.Items.Any(i => i.Quantity <= 0))
-			return ServiceResponse<SaleResponseDto>.Error("Quantity must be greater than zero");
-
-		// per-vehicle-type overrides for just the products in this sale
 		var priceOverrides = await _db.CarWashProductPrices
 			.Where(vp => vp.VehicleTypeId == request.VehicleTypeId && productIds.Contains(vp.ProductId))
 			.ToDictionaryAsync(vp => vp.ProductId, vp => vp.Price);
@@ -111,7 +142,53 @@ public class CarWashSalesService : ICarWashSalesService
 		decimal PriceFor(long productId) =>
 			priceOverrides.TryGetValue(productId, out var overridePrice) ? overridePrice : products[productId].Price;
 
-		var total = request.Items.Sum(i => PriceFor(i.ProductId) * i.Quantity);
+		// ---------------------------------------------------------------------
+		// Expand each package line into per-product allocations that sum
+		// exactly to (bundle price * quantity). Proportional split by each
+		// product's normal-price share of the bundle's individual total;
+		// the last product in the package absorbs the rounding remainder so
+		// the allocated lines always add up exactly to the bundle price.
+		// ---------------------------------------------------------------------
+		var expandedPackageLines = new List<(SaleItemDto SourceItem, CarWashPackage Package, Guid InstanceId,
+											  long ProductId, decimal UnitPrice)>();
+
+		foreach (var item in packageItems)
+		{
+			var pkg = packages[item.PackageId!.Value];
+			var bundlePrice = pkg.VehicleTypePrices.First(vp => vp.VehicleTypeId == request.VehicleTypeId).Price;
+
+			var normalPrices = pkg.Items.Select(pi => (pi.ProductId, Normal: PriceFor(pi.ProductId))).ToList();
+			var individualTotal = normalPrices.Sum(x => x.Normal);
+
+			if (individualTotal <= 0)
+				return ServiceResponse<SaleResponseDto>.Error($"Package '{pkg.Name}' has no valid product pricing to allocate against");
+
+			var instanceId = Guid.NewGuid();
+			decimal allocatedSoFar = 0m;
+
+			for (int i = 0; i < normalPrices.Count; i++)
+			{
+				var (productId, normal) = normalPrices[i];
+				decimal unitPrice;
+
+				if (i == normalPrices.Count - 1)
+					unitPrice = bundlePrice - allocatedSoFar; // absorbs rounding remainder
+				else
+				{
+					unitPrice = Math.Round(normal / individualTotal * bundlePrice, 2, MidpointRounding.AwayFromZero);
+					allocatedSoFar += unitPrice;
+				}
+
+				expandedPackageLines.Add((item, pkg, instanceId, productId, unitPrice));
+			}
+		}
+
+		var directTotal = directItems.Sum(i => PriceFor(i.ProductId!.Value) * i.Quantity);
+		var packageTotal = packageItems.Sum(item =>
+			packages[item.PackageId!.Value].VehicleTypePrices
+				.First(vp => vp.VehicleTypeId == request.VehicleTypeId).Price * item.Quantity);
+
+		var total = directTotal + packageTotal;
 
 		// ---------------------------------------------------------------------
 		// Customer lookup — drives standing discount + credit eligibility.
@@ -126,15 +203,6 @@ public class CarWashSalesService : ICarWashSalesService
 				.FirstOrDefaultAsync(c => c.PhoneNumber == request.CustomerPhoneNumber);
 		}
 
-		// ---------------------------------------------------------------------
-		// Discounts. Two independent sources, both applied against the gross
-		// catalog total, combined and floored at zero:
-		//   - standingDiscount: automatic, tied to the customer record, applies
-		//     regardless of payment method.
-		//   - negotiatedDiscount: a one-off knocked off at the till. Android only
-		//     ever collects this inside the Cash dialog, so it's enforced
-		//     server-side too rather than trusting the client.
-		// ---------------------------------------------------------------------
 		var standingDiscount = customer?.IsDiscountCustomer == true
 			? customer.DiscountAmount
 			: 0m;
@@ -159,7 +227,7 @@ public class CarWashSalesService : ICarWashSalesService
 		if (request.PaymentMethod == CarWashPaymetMethod.Cash)
 		{
 			var disc = request.NegotiatedDiscount;
-			if (request.AmountReceived == 0m || request.AmountReceived < amountDue-disc)
+			if (request.AmountReceived == 0m || request.AmountReceived < amountDue - disc)
 				return ServiceResponse<SaleResponseDto>.Error("Amount received must cover the total");
 		}
 		else if (request.PaymentMethod == CarWashPaymetMethod.Mpesa)
@@ -170,25 +238,18 @@ public class CarWashSalesService : ICarWashSalesService
 
 			var mpesaCode = request.MpesaCode.Trim().ToUpperInvariant();
 
-			// Attendants enter whatever code is on the confirmation SMS. For C2B
-			// payments that's TransID; for STK Push it's MpesaReceiptNumber. Check both.
 			mpesaTransaction = await _db.MpesaTransactions
 				.FirstOrDefaultAsync(m => m.TransID == mpesaCode || m.MpesaReceiptNumber == mpesaCode);
 
 			if (mpesaTransaction == null)
 				return ServiceResponse<SaleResponseDto>.Error("M-Pesa code not recognized — check the confirmation SMS and try again");
 
-			// Status: 0=Pending, 1=Success, 2=Failed. Only a confirmed Success
-			// payment can be applied to a sale.
 			if (mpesaTransaction.Status == 0)
 				return ServiceResponse<SaleResponseDto>.Error("This M-Pesa payment hasn't been confirmed yet — please wait a moment and try again");
 
 			if (mpesaTransaction.Status == 2)
 				return ServiceResponse<SaleResponseDto>.Error("This M-Pesa payment failed and cannot be used");
 
-			// Status has no "used" state of its own, so consumption is tracked via
-			// ShiftNumber: empty/null means unused, populated means it's already
-			// been applied to a sale on that shift.
 			if (!string.IsNullOrWhiteSpace(mpesaTransaction.ShiftNumber))
 				return ServiceResponse<SaleResponseDto>.Error("This M-Pesa code has already been used on another sale");
 
@@ -210,9 +271,6 @@ public class CarWashSalesService : ICarWashSalesService
 			? request.AmountReceived - amountDue
 			: 0;
 
-		// EnableRetryOnFailure requires the whole transaction to run inside
-		// the execution strategy so a transient failure can retry the entire
-		// unit atomically — a bare BeginTransactionAsync() throws.
 		var strategy = _db.Database.CreateExecutionStrategy();
 
 		var dto = await strategy.ExecuteAsync(async () =>
@@ -247,30 +305,38 @@ public class CarWashSalesService : ICarWashSalesService
 			}
 			catch (DbUpdateException ex) when (IsUniqueViolation(ex))
 			{
-				// extremely unlikely collision on receipt number — regenerate once and retry
 				sale.ReceiptNumber = GenerateReceiptNumber(shift.Id);
 				await _db.SaveChangesAsync();
 			}
 
-			foreach (var item in request.Items)
+			foreach (var item in directItems)
 			{
 				_db.CarWashTransactionItems.Add(new CarWashTransactionItem
 				{
 					UserCode = userCode,
 					TransactionId = sale.Id,
-					ProductId = item.ProductId,
+					ProductId = item.ProductId!.Value,
 					Quantity = item.Quantity,
-					UnitPrice = PriceFor(item.ProductId) // snapshot for this vehicle type, not live price
+					UnitPrice = PriceFor(item.ProductId.Value)
 				});
 			}
 
-			// Mark the M-Pesa code as consumed so it can't be reused on a second
-			// sale. Done inside the same transaction as the sale insert so a
-			// failure anywhere rolls back the "used" flag too. Status is left
-			// untouched (still 1/Success) — ShiftNumber is the consumption marker.
+			foreach (var (SourceItem, Package, InstanceId, ProductId, UnitPrice) in expandedPackageLines)
+			{
+				_db.CarWashTransactionItems.Add(new CarWashTransactionItem
+				{
+					UserCode = userCode,
+					TransactionId = sale.Id,
+					ProductId = ProductId,
+					Quantity = SourceItem.Quantity, // number of bundles sold
+					UnitPrice = UnitPrice,           // this product's slice of the bundle price, per bundle
+					PackageId = Package.Id,
+					PackageInstanceId = InstanceId
+				});
+			}
+
 			mpesaTransaction?.ShiftNumber = shift.Id.ToString();
 
-			// Post the charge to the customer's credit account.
 			if (request.PaymentMethod == CarWashPaymetMethod.Credit && customer != null)
 			{
 				customer.CurrentBalance += amountDue;
@@ -291,12 +357,24 @@ public class CarWashSalesService : ICarWashSalesService
 				MpesaReference = sale.MpesaReference,
 				CreatedAt = sale.DateCreated,
 				VehicleRegistrationNumber = sale.VehicleRegistrationNumber,
-				Items = [.. request.Items.Select(i => new SaleItemLineDto
-				{
-					ProductName = products[i.ProductId].Name,
-					Quantity = i.Quantity,
-					UnitPrice = PriceFor(i.ProductId)
-				})]
+				Items =
+				[
+					.. directItems.Select(i => new SaleItemLineDto
+					{
+						ProductName = products[i.ProductId!.Value].Name,
+						Quantity = i.Quantity,
+						UnitPrice = PriceFor(i.ProductId.Value)
+					}),
+					.. expandedPackageLines.Select(line => new SaleItemLineDto
+					{
+						ProductName = products[line.ProductId].Name,
+						Quantity = line.SourceItem.Quantity,
+						UnitPrice = line.UnitPrice,
+						PackageId = line.Package.Id,
+						PackageName = line.Package.Name,
+						PackageInstanceId = line.InstanceId
+					})
+				]
 			};
 		});
 
@@ -316,6 +394,7 @@ public class CarWashSalesService : ICarWashSalesService
 		var query = _db.CarWashTransactions
 			.AsNoTracking()
 			.Include(t => t.Items).ThenInclude(i => i.Product)
+			.Include(t => t.Items).ThenInclude(i => i.Package)
 			.Where(t => t.ShiftId == shiftId && !t.IsReversed);
 
 		var sales = await query
@@ -339,7 +418,10 @@ public class CarWashSalesService : ICarWashSalesService
 			{
 				ProductName = i.Product.Name,
 				Quantity = i.Quantity,
-				UnitPrice = i.UnitPrice
+				UnitPrice = i.UnitPrice,
+				PackageId = i.PackageId,
+				PackageName = i.Package?.Name,
+				PackageInstanceId = i.PackageInstanceId
 			}).ToList()
 		}).ToList();
 

@@ -1,4 +1,6 @@
-﻿namespace DataAccessLayer.DTOs.CarWash;
+﻿using DataAccessLayer.EntityModels.Grleamify;
+
+namespace DataAccessLayer.DTOs.CarWash;
 
 public class ProductDto
 {
@@ -27,15 +29,23 @@ public class SaleItemRequestDto
 
 public class CreateSaleRequestDto
 {
-	public List<SaleItemRequestDto> Items { get; set; } = new();
-	public int PaymentMethod { get; set; } // CarWashPaymetMethod.Cash or .Mpesa only, for now
-	public decimal AmountReceived { get; set; } = 0m; // cash only
-	public string? PhoneNumber { get; set; }      // M-Pesa STK only
+	public List<SaleItemDto> Items { get; set; } = new();   // was List<SaleItemRequestDto>
+	public int PaymentMethod { get; set; }
+	public decimal AmountReceived { get; set; } = 0m;
+	public string? PhoneNumber { get; set; }
 	public long VehicleTypeId { get; set; }
 	public string VehiceRegistrationNumber { get; set; } = string.Empty;
-	public string? CustomerPhoneNumber { get; set; } // NEW — discount/credit lookup
-	public string? MpesaCode { get; set; }                                                    // NEW — M-Pesa confirmation code
-	public decimal? NegotiatedDiscount { get; set; }  // NEW — one-off till discount, cash only
+	public string? CustomerPhoneNumber { get; set; }
+	public string? MpesaCode { get; set; }
+	public decimal? NegotiatedDiscount { get; set; }
+}
+
+public class SaleItemDto
+{
+	// Exactly one of these must be set
+	public long? ProductId { get; set; }
+	public long? PackageId { get; set; }
+	public int Quantity { get; set; } = 1;
 }
 
 public class SaleItemLineDto
@@ -43,7 +53,10 @@ public class SaleItemLineDto
 	public string ProductName { get; set; } = string.Empty;
 	public int Quantity { get; set; }
 	public decimal UnitPrice { get; set; }
-	public decimal LineTotal => UnitPrice * Quantity;
+
+	public long? PackageId { get; set; }
+	public string? PackageName { get; set; }
+	public Guid? PackageInstanceId { get; set; }
 }
 
 public class SaleResponseDto
@@ -95,3 +108,75 @@ public class VehicleTypeDto
 	public long VehicleTypeId { get; set; }
 	public string Name { get; set; } = string.Empty;
 }
+
+
+	public class CarWashPackageDto
+	{
+		public int Id { get; set; }
+		public string Name { get; set; } = string.Empty;
+		public decimal Price { get; set; } // resolved for the requested VehicleType
+	}
+
+	public class CarWashPackagePriceDto
+	{
+	public VehicleType VehicleType { get; set; } = new  VehicleType();
+		public decimal Price { get; set; }
+	}
+
+	// Used for admin/setup screens where all vehicle-type prices are visible at once
+	public class CarWashPackageWithAllPricesDto
+	{
+		public int Id { get; set; }
+		public string Name { get; set; } = string.Empty;
+		public bool IsActive { get; set; }
+		public List<CarWashPackagePriceDto> Prices { get; set; } = new();
+	}
+
+	public class CreateCarWashPackageDto
+	{
+		public string Name { get; set; } = string.Empty;
+		public List<CarWashPackagePriceDto> Prices { get; set; } = new();
+	}
+
+	public class SelectedPackageDto
+	{
+		public int PackageId { get; set; }
+		// VehicleType comes from the sale itself, not repeated per package
+	}
+
+	public class PackageDto
+	{
+		public long PackageId { get; set; }
+		public string Name { get; set; } = string.Empty;
+		public decimal Price { get; set; }
+		public decimal IndividualTotal { get; set; }
+		public decimal Savings => IndividualTotal - Price;
+		public List<PackageProductDto> Products { get; set; } = new();
+	}
+
+	public class PackageProductDto
+	{
+		public long ProductId { get; set; }
+		public string Name { get; set; } = string.Empty;
+	}
+
+	public class CreatePackageDto
+	{
+		public string Name { get; set; } = string.Empty;
+		public List<long> ProductIds { get; set; } = new();
+		public List<PackageVehicleTypePriceDto> VehicleTypePrices { get; set; } = new();
+	}
+
+	public class UpdatePackageDto
+	{
+		public long PackageId { get; set; }
+		public string Name { get; set; } = string.Empty;
+		public List<long> ProductIds { get; set; } = new();
+		public List<PackageVehicleTypePriceDto> VehicleTypePrices { get; set; } = new();
+	}
+
+	public class PackageVehicleTypePriceDto
+	{
+		public long VehicleTypeId { get; set; }
+		public decimal Price { get; set; }
+	}

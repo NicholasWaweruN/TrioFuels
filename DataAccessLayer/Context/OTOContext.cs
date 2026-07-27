@@ -153,6 +153,10 @@ namespace DataAccessLayer.Context
 		public DbSet<CarwashCustomer> CarwashCustomers { get; set; }
 		public DbSet<CarwashCreditTransaction> CarwashCreditTransactions { get; set; }
 		public DbSet<AppRelease> AppReleases { get; set; } 
+		public DbSet<CarWashPackage> CarWashPackages { get; set; }
+		public DbSet<CarWashPackageItem> CarWashPackageItems { get; set; }
+		public DbSet<CarWashPackagePrice> CarWashPackagePrices { get; set; }
+
 
 		// In OnModelCreating
 		public DbSet<ShiftSupervisorReconciliation> ShiftSupervisorReconciliations { get; set; }

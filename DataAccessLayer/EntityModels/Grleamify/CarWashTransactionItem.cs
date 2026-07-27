@@ -10,5 +10,8 @@ namespace DataAccessLayer.EntityModels.Grleamify
 		public CarWashProduct Product { get; set; } = null!;
 		public int Quantity { get; set; } = 1;
 		public decimal UnitPrice { get; set; } // snapshot at sale time, not live product price
+		public long? PackageId { get; set; }
+		public CarWashPackage? Package { get; set; }
+		public Guid? PackageInstanceId { get; set; }
 	}
 }
