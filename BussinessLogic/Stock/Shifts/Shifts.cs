@@ -136,7 +136,7 @@ namespace BussinessLogic.Stock.Shifts
 					.Select(g => new
 					{
 						NozzleCode = g.Key,
-						Quantity = g.Sum(x => x.QuantityCredit + x.QuantityDebit),
+						Quantity = g.Sum(x => x.QuantityCredit - x.QuantityDebit),
 						Count = g.Count(),
 						Cash = g.Where(x => x.PaymentTypeCode == 12).Sum(x => x.AmountCredit - x.AmountDebit)
 					})
@@ -303,7 +303,7 @@ namespace BussinessLogic.Stock.Shifts
 
 			var sales = await _context.FuelSales
 				.AsNoTracking()
-				.Where(x => x.ShiftNumber == shiftNumber && !x.IsReversed && x.Litres >= 0)
+				.Where(x => x.ShiftNumber == shiftNumber)
 				.Select(qt => new
 				{
 					VehicleRegistrationNumber = qt.Vehicle,

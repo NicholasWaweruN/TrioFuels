@@ -14,27 +14,13 @@ using Microsoft.Extensions.Logging;
 
 namespace BussinessLogic.Sales.ReverseSales
 {
-	public class ReverseSales : IReverseSales
+	public class ReverseSales(OTOContext context, IAuthCommonTasks authentication, ICommonSetups setups, ICommonSalesTasks salesTasks, ILogger<ReverseSales> logger) : IReverseSales
 	{
-		private readonly OTOContext _context;
-		private readonly IAuthCommonTasks _authentication;
-		private readonly ICommonSetups _setups;
-		private readonly ICommonSalesTasks _salesTasks;
-		private readonly ILogger<ReverseSales> _logger;
-
-		public ReverseSales(
-			OTOContext context,
-			IAuthCommonTasks authentication,
-			ICommonSetups setups,
-			ICommonSalesTasks salesTasks,
-			ILogger<ReverseSales> logger)
-		{
-			_context = context;
-			_authentication = authentication;
-			_setups = setups;
-			_salesTasks = salesTasks;
-			_logger = logger;
-		}
+		private readonly OTOContext _context = context;
+		private readonly IAuthCommonTasks _authentication = authentication;
+		private readonly ICommonSetups _setups = setups;
+		private readonly ICommonSalesTasks _salesTasks = salesTasks;
+		private readonly ILogger<ReverseSales> _logger = logger;
 
 		/// <summary>
 		/// Reverse a sale by creating compensating Quantity & Payment transactions.

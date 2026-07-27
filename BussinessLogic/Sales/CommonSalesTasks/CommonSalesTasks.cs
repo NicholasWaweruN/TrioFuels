@@ -35,8 +35,22 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 		{
 			try
 			{
-				// 1. Update Stock Summaries (ALL IN SQL)
-				await _context.Database.ExecuteSqlRawAsync(@"
+				var strategy = _context.Database.CreateExecutionStrategy();
+
+				await strategy.ExecuteAsync(async () =>
+				{
+					await using var transaction = await _context.Database.BeginTransactionAsync();
+
+					// 1. Update Stock Summaries (ALL IN SQL)
+					// FIX: previous version joined against a subquery built purely from
+					// QuantityTransactions, so any nozzle with ZERO transactions that shift
+					// (idle dispenser) had no matching row and was silently skipped by the
+					// UPDATE — leaving stale QuantitySold/ClosingVariance/VarianceStatus
+					// from a prior run in place. The subquery now enumerates nozzles from
+					// StockTakeSummaries itself (guaranteed one row per nozzle per shift)
+					// and LEFT JOINs to QuantityTransactions, so idle nozzles correctly
+					// get TotalSales = 0 instead of being left untouched.
+					await _context.Database.ExecuteSqlRawAsync(@"
 				UPDATE ""StockTakeSummaries"" s
 				SET
 					""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
@@ -57,39 +71,44 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 						END
 				FROM (
 					SELECT
-						""NozzleCode"",
-						SUM(""QuantityCredit"" - ""QuantityDebit"") AS ""TotalSales""
-					FROM ""QuantityTransactions""
-					WHERE ""ShiftNumber"" = {0}
-					GROUP BY ""NozzleCode""
+						ss.""NozzleCode"",
+						SUM(COALESCE(qt.""QuantityCredit"", 0) - COALESCE(qt.""QuantityDebit"", 0)) AS ""TotalSales""
+					FROM ""StockTakeSummaries"" ss
+					LEFT JOIN ""QuantityTransactions"" qt
+						ON qt.""NozzleCode"" = ss.""NozzleCode""
+						AND qt.""ShiftNumber"" = {0}
+					WHERE ss.""ShiftNumber"" = {0}
+					GROUP BY ss.""NozzleCode""
 				) q
 				WHERE s.""ShiftNumber"" = {0}
 				  AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
 
-				// 2. Update Shift based on updated stock
-				await _context.Database.ExecuteSqlRawAsync(@"
-			UPDATE ""Shifts""
-			SET ""ShiftStatus"" =
-				CASE
-					WHEN NOT EXISTS (
-						SELECT 1
-						FROM ""StockTakeSummaries""
-						WHERE ""ShiftNumber"" = {0}
-						  AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
-					)
-					THEN 0   -- Closed
-					ELSE 2   -- Variance
-				END
-			WHERE ""ShiftNumber"" = {0};", shiftNumber);
+					// 2. Update Shift based on updated stock
+					await _context.Database.ExecuteSqlRawAsync(@"
+				UPDATE ""Shifts""
+				SET ""ShiftStatus"" =
+					CASE
+						WHEN NOT EXISTS (
+							SELECT 1
+							FROM ""StockTakeSummaries""
+							WHERE ""ShiftNumber"" = {0}
+							  AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
+						)
+						THEN 0   -- Closed
+						ELSE 2   -- Variance
+					END
+				WHERE ""ShiftNumber"" = {0};", shiftNumber);
 
-				return ServiceResponse<object>.Success("Stock reconciled successfully",null);
+					await transaction.CommitAsync();
+				});
+
+				return ServiceResponse<object>.Success("Stock reconciled successfully", null);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex,"Failed to reconcile stock summaries for shift {ShiftNumber}",shiftNumber);
+				_logger.LogError(ex, "Failed to reconcile stock summaries for shift {ShiftNumber}", shiftNumber);
 
-				return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary",null
-				);
+				return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary", null);
 			}
 		}
 
@@ -157,10 +176,10 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 				<body style='font-family: Arial, sans-serif; color: #333;'>
 					<h2 style='color:#2E86C1;'>⛽ Shift Closing Report</h2>
 					<p><b>Shift Number:</b> {shiftNumber}</p>
-					<p><b>Attendant:</b> 👨‍💼 {attendantName}</p>
-					<p><b>Shift Start:</b> 🕒 {shiftStart:dd-MMM-yyyy HH:mm}</p>
-					<p><b>Shift End:</b> 🕒 {shiftEnd:dd-MMM-yyyy HH:mm}</p>
-					<p><b>Total Sales:</b> 💵 {totalSales:N2}</p>
+					<p><b>Attendant:</b>	👨‍💼 {attendantName}</p>
+					<p><b>Shift Start:</b>  🕒 {shiftStart:dd-MMM-yyyy HH:mm}</p>
+					<p><b>Shift End:</b>    🕒 {shiftEnd:dd-MMM-yyyy HH:mm}</p>
+					<p><b>Total Sales:</b>  💵 {totalSales:N2}</p>
 
 					<h3 style='color:#117A65;'>📊 Pump Readings</h3>
 					<table style='border-collapse: collapse; width:100%;'>
@@ -193,33 +212,48 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 
 
 
-		public async Task UpdateMpesaPaymentStatus(string transId)
+		public async Task<ServiceResponse<object>> UpdateMpesaPaymentStatus(string transId)
 		{
-			var mpesaTransaction = await _context.MpesaTransactions.FirstOrDefaultAsync(mt => mt.TransID == transId);
-
-			// Nothing to reconcile if there's no matching M-Pesa transaction record.
-			if (mpesaTransaction == null)
-				return;
-
-			var amount = await _context.PaymentTransactions.Where(x => x.PaymentRefrence == transId).SumAsync(x => x.TransactionAmount - x.TransactionAmountDebit);
-
-			var originalAmount = mpesaTransaction.TransAmount;
-			var remaining = originalAmount - amount;
-
-			if (remaining <= 0)
+			try
 			{
-				mpesaTransaction.UsageBalance = 0;
-				mpesaTransaction.Status = 1;
-			}
-			else
-			{
-				mpesaTransaction.UsageBalance = remaining;
-				mpesaTransaction.Status = 0;
-			}
+				var mpesaTransaction = await _context.MpesaTransactions
+					.FirstOrDefaultAsync(mt => mt.TransID == transId);
 
-			await _context.SaveChangesAsync();
+				// Nothing to reconcile if there's no matching M-Pesa transaction record.
+				if (mpesaTransaction == null)
+				{
+					_logger.LogWarning("UpdateMpesaPaymentStatus: no MpesaTransaction found for TransID {TransId}", transId);
+					return ServiceResponse<object>.Information("M-Pesa transaction not found", null);
+				}
+
+				var amount = await _context.PaymentTransactions
+					.Where(x => x.PaymentRefrence == transId)
+					.SumAsync(x => x.TransactionAmount - x.TransactionAmountDebit);
+
+				var originalAmount = mpesaTransaction.TransAmount;
+				var remaining = originalAmount - amount;
+
+				if (remaining <= 0)
+				{
+					mpesaTransaction.UsageBalance = 0;
+					mpesaTransaction.Status = 1;
+				}
+				else
+				{
+					mpesaTransaction.UsageBalance = remaining;
+					mpesaTransaction.Status = 0;
+				}
+
+				await _context.SaveChangesAsync();
+
+				return ServiceResponse<object>.Success("M-Pesa payment status updated successfully", null);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Failed to update M-Pesa payment status for TransID {TransId}", transId);
+				return ServiceResponse<object>.Error("An error occurred while updating the M-Pesa payment status", null);
+			}
 		}
-
 
 	}
 }

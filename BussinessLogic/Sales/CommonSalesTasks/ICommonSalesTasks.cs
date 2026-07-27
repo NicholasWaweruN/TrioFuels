@@ -5,6 +5,6 @@ namespace BusinessLogic.Sales.CommonSalesTasks
 	public interface ICommonSalesTasks
 	{
 		Task<ServiceResponse<object>> ReconcileStockSummariesAsync(string shiftNumber);
-		Task UpdateMpesaPaymentStatus(string transId);
+		Task<ServiceResponse<object>> UpdateMpesaPaymentStatus(string transId);
 	}
 }

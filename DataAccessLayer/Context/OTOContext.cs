@@ -22,6 +22,7 @@ using DataAccessLayer.EntityModels.StockTake;
 using DataAccessLayer.EntityModels.Template_Register;
 using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.EntityModels.Views;
+using DataAccessLayer.FuelFlowApk;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -151,6 +152,7 @@ namespace DataAccessLayer.Context
 
 		public DbSet<CarwashCustomer> CarwashCustomers { get; set; }
 		public DbSet<CarwashCreditTransaction> CarwashCreditTransactions { get; set; }
+		public DbSet<AppRelease> AppReleases { get; set; } 
 
 		// In OnModelCreating
 		public DbSet<ShiftSupervisorReconciliation> ShiftSupervisorReconciliations { get; set; }

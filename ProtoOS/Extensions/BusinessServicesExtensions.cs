@@ -23,6 +23,8 @@ using BusinessLogic.Station.Station;
 using BusinessLogic.Station.StationDispenser;
 using BusinessLogic.Station.StationTank;
 using BusinessLogic.Worker.SalesReport;
+using BussinessLogic.AppReleaseService;
+
 
 // ── BussinessLogic (legacy namespace – keep until unified) ─────────────────
 
@@ -192,7 +194,7 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ICarWashSalesService, CarWashSalesService>();
 		services.AddScoped<ICarWashDashboardService, CarWashDashboardService>();
 		services.AddScoped<ICarwashCustomerService, CarwashCustomerService>();
-
+		services.AddScoped<IAppReleaseService, AppReleaseService>();
 		services.AddScoped<IShiftSupervisorReconciliationService, ShiftSupervisorReconciliationService>();
 
 		return services;

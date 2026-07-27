@@ -32,7 +32,7 @@ namespace BussinessLogic.Stock.Stock
 		// Minimum time an attendant must wait after closing a shift before
 		// they are allowed to open a new one. Guards against accidentally
 		// re-opening a shift immediately after closing it.
-		private static readonly TimeSpan ShiftReopenCooldown = TimeSpan.FromMinutes(5);
+		private static readonly TimeSpan ShiftReopenCooldown = TimeSpan.FromMinutes(10);
 
 		public StockServicecs(IAuthCommonTasks authentication, OTOContext context, ICommonSetups setups, IEmailService emails, IMainData data, ICommonSalesTasks salesTasks, IStockTakeVarianceService varianceService)
 		{
