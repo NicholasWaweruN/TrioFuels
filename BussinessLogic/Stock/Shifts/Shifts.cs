@@ -101,8 +101,7 @@ namespace BussinessLogic.Stock.Shifts
 
 			// FIX 1: one query instead of 3 AnyAsync calls. Pull the relevant shifts
 			// once, then decide priority (Open > Pending > Variance) in memory.
-			var relevantShifts = await _context.Shifts
-				.Where(x => x.UserCode == userCode &&
+			var relevantShifts = await _context.Shifts.Where(x => x.UserCode == userCode &&
 							(x.ShiftStatus == ShiftStatus.Open ||
 							 x.ShiftStatus == ShiftStatus.Pending ||
 							 x.ShiftStatus == ShiftStatus.Variance))
@@ -192,7 +191,7 @@ namespace BussinessLogic.Stock.Shifts
 				return new ServiceResponse<object>
 				{
 					ResponseCode = Response.Success,
-					ResponseMessage = "You have a pending shift",
+					ResponseMessage = "Kindly open your shift to continue",
 					ResponseObject = new VariancesList
 					{
 						ShiftStatus = ShiftStatus.Pending,
@@ -260,7 +259,7 @@ namespace BussinessLogic.Stock.Shifts
 				return new ServiceResponse<object>
 				{
 					ResponseCode = Response.Success,
-					ResponseMessage = "Kindly Continue to open a shift",
+					ResponseMessage = "Kindly open your shift to continue",
 					ResponseObject = new Shiftstatus
 					{
 						ShiftStatus = ShiftStatus.Closed
