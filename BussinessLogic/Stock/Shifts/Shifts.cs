@@ -165,7 +165,54 @@ namespace BussinessLogic.Stock.Shifts
 					}
 				};
 			}
-			else if (pendingShift != null)
+			else if (varianceShiftRow != null)
+			{
+				var userDispenser = await GetDispenserAssignedToUserAsync();
+
+				var varianceRows = await (from vs in _context.StockTakeSummaries
+										  join s in _context.Shifts on vs.ShiftNumber equals s.ShiftNumber
+										  join n in _context.Nozzles on vs.NozzleCode equals n.NozzleCode
+										  where vs.UserCode == userCode && vs.VarianceStatus == ShiftStatus.Variance
+										  select new
+										  {
+											  vs.OpeningVariance,
+											  vs.ClosingVariance,
+											  vs.NozzleCode,
+											  n.NozzleName,
+											  s.ShiftNumber,
+										  }).ToListAsync();
+
+				var prices = new decimal[varianceRows.Count];
+				for (int i = 0; i < varianceRows.Count; i++)
+				{
+					prices[i] = await _stockTakeVarianceService.GetCurrentRetailPriceAsync(userDispenser, varianceRows[i].NozzleCode);
+				}
+
+				var variances = varianceRows.Select((v, i) =>
+				{
+					var totalVarianceLitres = v.OpeningVariance + v.ClosingVariance;
+					return new Variances
+					{
+						ShiftNumber = v.ShiftNumber,
+						NozzleCode = v.NozzleCode,
+						NozzleName = v.NozzleName,
+						Variance = totalVarianceLitres,
+						VarianceValue = totalVarianceLitres * prices[i]
+					};
+				}).ToList();
+
+				return new ServiceResponse<object>
+				{
+					ResponseCode = Response.Success,
+					ResponseMessage = "You have a variance shift",
+					ResponseObject = new VariancesList
+					{
+						ShiftStatus = ShiftStatus.Variance,
+						variances = variances
+					}
+				};
+			}
+			else if (pendingShift is not null)
 			{
 				var varianceRows = await (from vs in _context.StockTakeSummaries
 										  join s in _context.Shifts on vs.ShiftNumber equals s.ShiftNumber
@@ -199,61 +246,7 @@ namespace BussinessLogic.Stock.Shifts
 					}
 				};
 			}
-			else if (varianceShiftRow != null)
-			{
-				var userDispenser = await GetDispenserAssignedToUserAsync();
-
-				var varianceRows = await (from vs in _context.StockTakeSummaries
-										  join s in _context.Shifts on vs.ShiftNumber equals s.ShiftNumber
-										  join n in _context.Nozzles on vs.NozzleCode equals n.NozzleCode
-										  where vs.UserCode == userCode && vs.VarianceStatus == ShiftStatus.Variance
-										  select new
-										  {
-											  vs.OpeningVariance,
-											  vs.ClosingVariance,
-											  vs.NozzleCode,
-											  n.NozzleName,
-											  s.ShiftNumber,
-										  }).ToListAsync();
-
-				// FIX 3 (revised): Task.WhenAll caused "A second operation was started
-				// on this context instance" because GetCurrentRetailPriceAsync shares
-				// the same DbContext, and DbContext is NOT thread-safe for concurrent
-				// operations. Fetching sequentially avoids the crash. This still does
-				// N round trips — if GetCurrentRetailPriceAsync's query is simple,
-				// consider adding a batched GetCurrentRetailPricesAsync(dispenserCode,
-				// IEnumerable<int> nozzleCodes) returning a Dictionary<int, decimal>
-				// to cut this to a single query.
-				var prices = new decimal[varianceRows.Count];
-				for (int i = 0; i < varianceRows.Count; i++)
-				{
-					prices[i] = await _stockTakeVarianceService.GetCurrentRetailPriceAsync(userDispenser, varianceRows[i].NozzleCode);
-				}
-
-				var variances = varianceRows.Select((v, i) =>
-				{
-					var totalVarianceLitres = v.OpeningVariance + v.ClosingVariance;
-					return new Variances
-					{
-						ShiftNumber = v.ShiftNumber,
-						NozzleCode = v.NozzleCode,
-						NozzleName = v.NozzleName,
-						Variance = totalVarianceLitres,
-						VarianceValue = totalVarianceLitres * prices[i]
-					};
-				}).ToList();
-
-				return new ServiceResponse<object>
-				{
-					ResponseCode = Response.Success,
-					ResponseMessage = "You have a variance shift",
-					ResponseObject = new VariancesList
-					{
-						ShiftStatus = ShiftStatus.Variance,
-						variances = variances
-					}
-				};
-			}
+			
 			else
 			{
 				return new ServiceResponse<object>
