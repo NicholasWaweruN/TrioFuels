@@ -401,10 +401,14 @@ namespace BussinessLogic.Sales.NewSales
 						TopUpType = WalletFuelPurchaseTopUpType
 					});
 
+					var customerDetails = await (from c in _context.Customers
+												 where c.CustomerCode == vehicle.CustomerCode
+												 select c).FirstOrDefaultAsync() ?? new Customer();
+
 					var remainingBalance = balance - ctx.Calculated;
 
 					string sms =
-						$"Dear {FirstName} KES {ctx.Calculated:N2} has been deducted from your wallet for {s.Quantity:N2} litres " +
+						$"Dear {FirstName(customerDetails.CustomerName)} KES {ctx.Calculated:N2} has been deducted from your wallet for {s.Quantity:N2} litres " +
 						$"for vehicle {sales.RegistrationNumber} at {ctx.Station.StationName} on {UtcStamp()}. " +
 						$"Remaining wallet balance: KES {remainingBalance:N2}.";
 
