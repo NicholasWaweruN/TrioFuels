@@ -7,7 +7,10 @@ namespace DataAccessLayer.Common
         public int ResponseCode { get; set; }
         public string? ResponseMessage { get; set; }
     }
-
+	/// <summary>
+	/// /
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
 
     public class ServiceResponse<T> : ServiceResponse
     {
