@@ -336,6 +336,23 @@ namespace BussinessLogic.Sales.NewSales
 		// sufficiency check — same double-spend concern the M-Pesa path guards
 		// against with FOR UPDATE row locks, just applied to an aggregate balance
 		// instead of a single row.
+		// Wallet sale — debits the customer's prepaid wallet (CustomerTransactions
+		// ledger) for the fuel total, inside the same DB transaction as the rest of
+		// the sale. If the sale rolls back for any reason, the debit rolls back too.
+		//
+		// Balance and lock are keyed by CustomerCode, not VehicleCode — a wallet is
+		// a customer-level balance, not a per-vehicle one. VehicleCode is still
+		// persisted on the CustomerTransactions row purely as a record of which
+		// vehicle triggered this particular debit; it plays no part in the balance
+		// calculation or the concurrency lock.
+		//
+		// AcquireWalletLockAsync takes a Postgres advisory lock scoped to the
+		// customer for the life of this transaction, so two concurrent wallet sales
+		// against the same customer (e.g. two vehicles on the same account fuelling
+		// at once) can't both read the pre-debit balance and both pass the
+		// sufficiency check — same double-spend concern the M-Pesa path guards
+		// against with FOR UPDATE row locks, just applied to an aggregate balance
+		// instead of a single row.
 		private Task<ServiceResponse<object>> HandleWalletAsync(AddsaleDto sales, string saleId)
 		{
 			return ExecuteSaleAsync(
@@ -346,19 +363,28 @@ namespace BussinessLogic.Sales.NewSales
 				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
 				paymentStep: async (s, ctx, sid) =>
 				{
-					await AcquireWalletLockAsync(s.RegistrationNumber);
+					var customerCode = await (from v in _context.Vehicles
+											  where v.VehicleCode.Equals(s.RegistrationNumber)
+											  select v.CustomerCode).FirstOrDefaultAsync();
 
-					var balance = await GetWalletBalanceAsync(s.RegistrationNumber);
+					if (string.IsNullOrWhiteSpace(customerCode))
+						return Info("This vehicle is not linked to a wallet account.");
+
+					await AcquireWalletLockAsync(customerCode);
+
+					var balance = await GetWalletBalanceAsync(customerCode);
 
 					if (balance < ctx.Calculated)
-						return ServiceResponse<object>.Information($"Insufficient wallet balance. Available: KES {balance:N2}, Required: KES {ctx.Calculated:N2}",
+						return ServiceResponse<object>.Information(
+							$"Insufficient wallet balance. Available: KES {balance:N2}, Required: KES {ctx.Calculated:N2}",
 							new { Balance = balance, Required = ctx.Calculated });
 
 					_context.CustomerTransactions.Add(new CustomerTransactions
 					{
 						DateCreated = EatTime.Now,
 						UserCode = _authentication.Usercode(),
-						VehicleCode = s.RegistrationNumber,
+						CustomerCode = customerCode,
+						VehicleCode = s.RegistrationNumber,     // record-keeping only — not used for balance
 						TransactionReference = ctx.TransactionRef,
 						Credit = 0,
 						Debit = ctx.Calculated,
@@ -379,6 +405,24 @@ namespace BussinessLogic.Sales.NewSales
 			);
 		}
 
+		// Current wallet balance for a customer (sum of credits minus debits on
+		// CustomerTransactions). AsNoTracking — this is a read used purely to decide
+		// whether the debit below is allowed; the debit itself is a fresh insert.
+		private Task<decimal> GetWalletBalanceAsync(string customerCode)
+			=> _context.CustomerTransactions
+				.AsNoTracking()
+				.Where(x => x.CustomerCode == customerCode)
+				.SumAsync(x => x.Credit - x.Debit);
+
+		// Takes a Postgres transaction-scoped advisory lock keyed on the customer
+		// code. Released automatically on COMMIT/ROLLBACK of the surrounding
+		// transaction — no separate unlock call needed. Serializes concurrent
+		// wallet sales (or a wallet sale racing a wallet top-up/withdrawal/transfer,
+		// if those also take this lock) against the same customer so the balance
+		// check above can be trusted.
+		private Task AcquireWalletLockAsync(string customerCode)
+			=> _context.Database.ExecuteSqlInterpolatedAsync(
+				$@"SELECT pg_advisory_xact_lock(hashtext({customerCode}))");
 		private async Task<ServiceResponse<object>> HandleMpesaAsync(AddsaleDto sales, string saleId)
 		{
 			var mpesaCodes = sales.PaymentDetails
@@ -912,20 +956,14 @@ namespace BussinessLogic.Sales.NewSales
 		// Current wallet balance for a vehicle (sum of credits minus debits on
 		// CustomerTransactions). AsNoTracking — this is a read used purely to decide
 		// whether the debit below is allowed; the debit itself is a fresh insert.
-		private Task<decimal> GetWalletBalanceAsync(string vehicleCode)
-			=> _context.CustomerTransactions
-				.AsNoTracking()
-				.Where(x => x.VehicleCode == vehicleCode)
-				.SumAsync(x => x.Credit - x.Debit);
+	
 
 		// Takes a Postgres transaction-scoped advisory lock keyed on the vehicle code.
 		// Released automatically on COMMIT/ROLLBACK of the surrounding transaction —
 		// no separate unlock call needed. Serializes concurrent wallet sales (or a
 		// wallet sale racing a wallet withdrawal/transfer, if those also take this
 		// lock) against the same vehicle so the balance check above can be trusted.
-		private Task AcquireWalletLockAsync(string vehicleCode)
-			=> _context.Database.ExecuteSqlInterpolatedAsync(
-				$@"SELECT pg_advisory_xact_lock(hashtext({vehicleCode}))");
+	
 
 		// =====================================================================
 		// Data fetchers
