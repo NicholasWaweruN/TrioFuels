@@ -4,7 +4,6 @@ using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Safaricom_Daraja.Helpers;
 using ServiceStack.Configuration;
 
 namespace Safaricom_Daraja.Stk_Push;

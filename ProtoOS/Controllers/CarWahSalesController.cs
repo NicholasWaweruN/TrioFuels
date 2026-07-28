@@ -134,5 +134,79 @@ public class CarwashCustomersController : ControllerBase
 			return BadRequest(new { message = ex.Message });
 		}
 	}
+
+
+[ApiController]
+[Route("api/car-wash/packages")]
+public class CarWashPackageController : ControllerBase
+{
+	private readonly ICarWashPackageService _packageService;
+
+	public CarWashPackageController(ICarWashPackageService packageService)
+	{
+		_packageService = packageService;
+	}
+
+	/// <summary>
+	/// Get all active packages priced for a given vehicle type.
+	/// </summary>
+	[HttpGet]
+	public async Task<IActionResult> GetPackages([FromQuery] long vehicleTypeId)
+	{
+		var response = await _packageService.GetPackagesAsync(vehicleTypeId);
+			return Ok(response);
+	}
+
+	/// <summary>
+	/// Get a single active package priced for a given vehicle type.
+	/// </summary>
+	[HttpGet("{packageId:long}")]
+	public async Task<IActionResult> GetPackageById(long packageId, [FromQuery] long vehicleTypeId)
+	{
+		var response = await _packageService.GetPackageByIdAsync(packageId, vehicleTypeId);
+			return Ok(response);
+		}
+
+	/// <summary>
+	/// Create a new package bundling at least two products, with per-vehicle-type pricing.
+	/// </summary>
+	[HttpPost]
+	public async Task<IActionResult> CreatePackage([FromBody] CreatePackageDto dto)
+	{
+		if (!ModelState.IsValid)
+			return BadRequest(ModelState);
+
+		var response = await _packageService.CreatePackageAsync(dto);
+		return response.ResponseCode == 1
+			? CreatedAtAction(nameof(GetPackageById), new { packageId = response.ResponseObject?.PackageId }, response)
+			: BadRequest(response);
+	}
+
+	/// <summary>
+	/// Update an existing active package's name, product composition, and pricing.
+	/// </summary>
+	[HttpPut("{packageId:long}")]
+	public async Task<IActionResult> UpdatePackage(long packageId, [FromBody] UpdatePackageDto dto)
+	{
+		if (packageId != dto.PackageId)
+			return BadRequest("Route packageId does not match body PackageId");
+
+		if (!ModelState.IsValid)
+			return BadRequest(ModelState);
+
+		var response = await _packageService.UpdatePackageAsync(dto);
+		return response.ResponseCode == 1 ? Ok(response) : BadRequest(response);
+	}
+
+	/// <summary>
+	/// Soft-deletes (deactivates) a package. Historical sales retain their reference.
+	/// </summary>
+	[HttpDelete("{packageId:long}")]
+	public async Task<IActionResult> DeactivatePackage(long packageId)
+	{
+		var response = await _packageService.DeactivatePackageAsync(packageId);
+		return response.ResponseCode == 1 ? Ok(response) : BadRequest(response);
+	}
+}
 }
 

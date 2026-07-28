@@ -1,8 +1,8 @@
-﻿
+﻿using BussinessLogic.Services.Daraja;
 using BussinessLogic.Worker.PullTransactions;
-using FuelFlow.Services.Daraja;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Safaricom_Daraja;
 using Safaricom_Daraja.C2bService;
 using Safaricom_Daraja.DarajaTokenService;
@@ -39,25 +39,15 @@ public static class DarajaServiceExtensions
 		services.AddSingleton<IDarajaTokenService, DarajaTokenService>();
 		services.AddScoped<IStkPushService, StkPushService>();
 		services.AddScoped<IC2BService, C2BService>();
-		//services.AddScoped<IPullTransactionService, PullTransactionService>();
-		//services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
+		services.AddScoped<IPullTransactionService, PullTransactionService>();
+		services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
 		//services.AddHostedService<C2BRegistrationStartupService>();
 
-
-
-		// ── Add this to your DarajaServiceExtensions.cs or wherever you register Daraja ──
-		// (just one extra line next to your existing IStkPushService registration)
+		// Registers Pull for every configured till once at startup. Idempotent —
+		// safe to leave in even after registration has already succeeded once.
+		services.AddHostedService<PullRegistrationStartupService>();
 
 		services.AddScoped<StkPushDiagnosticService>();
-
-		// Also ensure appsettings.json "Daraja" section is bound:
-		// services.Configure<DarajaConfig>(configuration.GetSection("Daraja"));
-
-		// And your named HttpClient "Daraja" is registered:
-		// services.AddHttpClient("Daraja", client =>
-		// {
-		//     client.BaseAddress = new Uri(configuration["Daraja:BaseUrl"]!);
-		// });
 
 		// Callback handlers
 		services.AddScoped<IStkCallbackHandler, StkCallbackHandler>();

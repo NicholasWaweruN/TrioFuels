@@ -66,6 +66,7 @@ using BussinessLogic.Worker.StockReports;
 // ── External ───────────────────────────────────────────────────────────────
 using DataAccessLayer.DTOs.Messaging;
 using FuelFlow.Services.CarWash;
+using Safaricom_Daraja;
 using Safaricom_Daraja.Helpers;
 using Syncfusion.Pdf;
 using TrioCarWash.Services.Services;

@@ -1,6 +1,6 @@
 ﻿using DataAccessLayer.Common;
 
-namespace Safaricom_Daraja.Helpers
+namespace Safaricom_Daraja
 {
 	public interface IShiftResolver
 	{

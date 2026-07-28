@@ -15,13 +15,30 @@ namespace Safaricom_Daraja;
 public interface IPullTransactionService
 {
 	/// <summary>
+	/// Registers Pull for a single till/shortcode. Must be called at least once
+	/// before that till's transactions become queryable. Safe to call repeatedly —
+	/// Safaricom returns "already registered" (1001) rather than erroring.
+	/// </summary>
+	Task<DarajaResult<PullRegisterResponse>> RegisterAsync(
+		string tillNumber, CancellationToken ct = default);
+
+	/// <summary>
+	/// Registers Pull for every configured till, sequentially.
+	/// </summary>
+	Task<Dictionary<string, DarajaResult<PullRegisterResponse>>> RegisterAllTillsAsync(
+		CancellationToken ct = default);
+
+	/// <summary>
 	/// Pulls transactions for a specific till within a single offset window.
+	/// ShortCode in the underlying request IS the till number — Daraja has no
+	/// separate till-filter field, so per-till scoping happens by passing that
+	/// till's own number here, not the head-office/business shortcode.
 	/// </summary>
 	Task<DarajaResult<PullTransactionResponse>> PullAsync(
 		string tillNumber, DateTime from, DateTime to, int offset = 0, CancellationToken ct = default);
 
 	/// <summary>
-	/// Pulls ALL pages for a till within the window, handling pagination automatically.
+	/// Pulls ALL pages for the window, handling pagination automatically.
 	/// </summary>
 	Task<DarajaResult<List<PullTransaction>>> PullAllPagesAsync(
 		string tillNumber, DateTime from, DateTime to, CancellationToken ct = default);
@@ -37,26 +54,91 @@ public sealed class PullTransactionService(
 	private const string DateFormat = "yyyy-MM-dd HH:mm:ss";
 	private const int PageSize = 100;
 
+	public async Task<DarajaResult<PullRegisterResponse>> RegisterAsync(string tillNumber, CancellationToken ct = default)
+	{
+		try
+		{
+			// NOTE: assumes DarajaConfig exposes PullNominatedNumber and PullCallbackUrl
+			// matching the appsettings.json keys. Rename here if your DarajaConfig class
+			// uses different property names for these.
+			var payload = new PullRegisterRequest
+			{
+				ShortCode = tillNumber,
+				RequestType = "Pull",
+				NominatedNumber = _cfg.PullNominatedNumber,
+				CallBackURL = _cfg.PullCallbackUrl
+			};
+
+			var client = httpFactory.CreateClient("Daraja");
+			var accessToken = await tokenService.GetAccessTokenAsync(ct);
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+			var response = await client.PostAsJsonAsync("/pulltransactions/v1/register", payload, ct);
+			var rawJson = await response.Content.ReadAsStringAsync(ct);
+
+			if (!response.IsSuccessStatusCode)
+			{
+				logger.LogError("Pull registration failed [{StatusCode}] for Till {Till}: {Body}", response.StatusCode, tillNumber, rawJson);
+				return DarajaResult<PullRegisterResponse>.Fail(rawJson);
+			}
+
+			var result = JsonSerializer.Deserialize<PullRegisterResponse>(rawJson);
+			if (result is null)
+			{
+				logger.LogError("Pull registration response for Till {Till} deserialized to null. Raw: {Raw}", tillNumber, rawJson);
+				return DarajaResult<PullRegisterResponse>.Fail("Empty or unparseable response body.");
+			}
+
+			if (!result.IsRegistered)
+			{
+				logger.LogError("Pull registration returned unexpected status {Status} for Till {Till}: {Description}",
+					result.ResponseStatus, tillNumber, result.ResponseDescription);
+				return DarajaResult<PullRegisterResponse>.Fail($"{result.ResponseStatus}: {result.ResponseDescription}");
+			}
+
+			logger.LogInformation("Pull registration for Till {Till}: {Status} — {Description}",tillNumber, result.ResponseStatus, result.ResponseDescription);
+
+			return DarajaResult<PullRegisterResponse>.Ok(result);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Pull registration blew up for Till {Till}", tillNumber);
+			return DarajaResult<PullRegisterResponse>.Fail(ex.Message);
+		}
+	}
+
+	public async Task<Dictionary<string, DarajaResult<PullRegisterResponse>>> RegisterAllTillsAsync(CancellationToken ct = default)
+	{
+		var results = new Dictionary<string, DarajaResult<PullRegisterResponse>>();
+
+		foreach (var till in _cfg.Tills)
+		{
+			results[till.TillNumber] = await RegisterAsync(till.TillNumber, ct);
+			await Task.Delay(300, ct);
+		}
+
+		return results;
+	}
+
 	public async Task<DarajaResult<PullTransactionResponse>> PullAsync(string tillNumber, DateTime from, DateTime to, int offset = 0, CancellationToken ct = default)
 	{
 		try
 		{
 			ValidateWindow(from, to);
 
-			// FIX: Pass the Parent BusinessShortCode (Head Office 4161705) as the primary owner.
-			// Map the child retail StoreNumber to target the specific terminal query.
+			// FIX: ShortCode must be the till number itself — Daraja has no separate
+			// till-filter field. Passing the head-office BusinessShortCode here caused
+			// every till to silently query the wrong ledger and always return 1001.
 			var payload = new PullTransactionRequest
 			{
-				ShortCode = _cfg.BusinessShortCode,
+				ShortCode = tillNumber,
 				StartDate = from.ToString(DateFormat),
 				EndDate = to.ToString(DateFormat),
-				OffSetValue = offset,
-				StoreNumber = tillNumber
+				OffSetValue = offset.ToString()
 			};
 
 			var client = httpFactory.CreateClient("Daraja");
 
-			// FIX: Dynamic dynamic Bearer Token injection instead of basic auth headers
 			var accessToken = await tokenService.GetAccessTokenAsync(ct);
 			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
@@ -72,11 +154,27 @@ public sealed class PullTransactionService(
 			var rawJson = await response.Content.ReadAsStringAsync(ct);
 			var result = JsonSerializer.Deserialize<PullTransactionResponse>(rawJson);
 
-			// Fixed compilation mapping error using internal collection indicators safely
-			var count = result?.Transactions?.Count ?? 0;
-			logger.LogInformation("Pulled {Count} transactions for Till {Till} | offset={Offset}", count, tillNumber, offset);
+			if (result is null)
+			{
+				logger.LogError("Pull response for Till {Till} deserialized to null. Raw: {Raw}", tillNumber, rawJson);
+				return DarajaResult<PullTransactionResponse>.Fail("Empty or unparseable response body.");
+			}
 
-			return DarajaResult<PullTransactionResponse>.Ok(result!);
+			// Daraja returns HTTP 200 even for "no data" and some failure cases —
+			// the real status lives in ResponseCode, not the HTTP status code.
+			// 1000 = success, 1001 = success but nothing in this window, 500 = shortcode has no data at all.
+			if (!result.IsSuccess && !result.IsEmptyWindow)
+			{
+				logger.LogError("Pull returned ResponseCode {Code} for Till {Till}: {Message}",
+					result.ResponseCode, tillNumber, result.ResponseMessage);
+				return DarajaResult<PullTransactionResponse>.Fail(
+					$"{result.ResponseCode}: {result.ResponseMessage}");
+			}
+
+			var count = result.FlattenTransactions().Count;
+			logger.LogInformation("Pulled {Count} transactions for Till {Till} | offset={Offset} | ResponseCode={Code}",count, tillNumber, offset, result.ResponseCode);
+
+			return DarajaResult<PullTransactionResponse>.Ok(result);
 		}
 		catch (Exception ex)
 		{
@@ -99,10 +197,10 @@ public sealed class PullTransactionService(
 				return DarajaResult<List<PullTransaction>>.Fail(result.ErrorMessage!);
 			}
 
-			var pageTransactions = result.Data?.Transactions ?? [];
+			var pageTransactions = result.Data?.FlattenTransactions() ?? [];
 			allTransactions.AddRange(pageTransactions);
 
-			// Break loop if we run out of pages
+			// Empty window (ResponseCode 1001) or a short page both mean we're done.
 			if (pageTransactions.Count < PageSize)
 			{
 				break;

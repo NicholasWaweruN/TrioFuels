@@ -11,7 +11,7 @@ using DataAccessLayer.Context;
 using Safaricom_Daraja;
 using DataAccessLayer.Helpers;
 
-namespace FuelFlow.Services.Daraja;
+namespace BussinessLogic.Services.Daraja; 
 
 public interface IPullTransactionImportService
 {
@@ -39,7 +39,14 @@ public sealed class PullTransactionImportService(
 	public async Task<PullImportResult> ImportForTillAsync(
 		string tillNumber, DateTime from, DateTime to, CancellationToken ct = default)
 	{
-		// FIX: Consumes flat decoupled lists natively via automatic page loop tracking
+		// NOTE: Daraja's Pull API has no server-side till filter — every call for this
+		// shortcode returns the SAME full set of C2B transactions regardless of tillNumber.
+		// Calling this once per configured till (see ImportAllTillsAsync) will therefore
+		// re-fetch and re-process the identical result set multiple times. Until there's a
+		// reliable way to attribute a transaction to a specific till (e.g. via
+		// BillReferenceNumber if your tills map to distinct bill references), consider
+		// calling PullAllPagesAsync once for the shortcode and doing till-attribution here
+		// rather than looping per-till upstream.
 		var pullResult = await pullService.PullAllPagesAsync(tillNumber, from, to, ct);
 
 		if (!pullResult.Success)
@@ -51,13 +58,12 @@ public sealed class PullTransactionImportService(
 		var transactions = pullResult.Data!;
 		if (transactions.Count == 0)
 		{
-			logger.LogInformation("No records discovered inside current ledger ledger slot for Till {Till}", tillNumber);
+			logger.LogInformation("No records discovered inside current ledger slot for Till {Till}", tillNumber);
 			return new PullImportResult(tillNumber, 0, 0, 0, null);
 		}
 
 		var tillConfig = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
 
-		// OPTIMIZATION: Resolves Entity Framework warning and N+1 lookup lag by executing 1 single batch lookup
 		var receiptNos = transactions.Select(tx => tx.ReceiptNo).ToList();
 		var existingTxMap = await db.MpesaTransactions
 			.Where(m => receiptNos.Contains(m.TransID))
@@ -71,16 +77,25 @@ public sealed class PullTransactionImportService(
 		{
 			try
 			{
+				if (string.IsNullOrWhiteSpace(tx.ReceiptNo))
+				{
+					logger.LogWarning("Skipping record with missing transaction id (ReceiptNo) for Till {Till}", tillNumber);
+					skipped++;
+					continue;
+				}
+
 				if (!existingTxMap.TryGetValue(tx.ReceiptNo, out var existing))
 				{
 					db.MpesaTransactions.Add(new MpesaTransaction
 					{
 						TransactionType = "C2B",
 						TransID = tx.ReceiptNo,
-						TransTime = ParseTime(tx.CompletionTime),
-						TransAmount = tx.Amount,
-						BusinessShortCode = tillNumber,
-						TillNumber = tx.TillNumber,
+						TransTime = tx.GetCompletionTimeUtc() ?? EatTime.Now,
+						TransAmount = tx.GetAmountDecimal(),
+						BusinessShortCode = _cfg.BusinessShortCode,
+						// Daraja's Pull response has no till_number field — this is
+						// attributed from the loop's tillNumber, not from Safaricom's data.
+						TillNumber = tillNumber,
 						TillName = tillConfig?.Name ?? string.Empty,
 						PaymentMethod = "C2B",
 						MpesaReceiptNumber = tx.ReceiptNo,
@@ -90,10 +105,10 @@ public sealed class PullTransactionImportService(
 						LastName = string.Empty,
 						OrgAccountBalance = 0,
 						Status = 1,
-						DateTimeStamp =EatTime.Now,
-						DateModified =EatTime.Now,
-						DateCreated =EatTime.Now,
-						UsageBalance = tx.Amount,
+						DateTimeStamp = EatTime.Now,
+						DateModified = EatTime.Now,
+						DateCreated = EatTime.Now,
+						UsageBalance = tx.GetAmountDecimal(),
 						UserCode = tx.SenderPhone,
 						CheckoutRequestID = string.Empty,
 						MerchantRequestID = string.Empty
@@ -102,7 +117,7 @@ public sealed class PullTransactionImportService(
 				}
 				else
 				{
-					existing.DateModified =EatTime.Now;
+					existing.DateModified = EatTime.Now;
 					updated++;
 				}
 			}
@@ -134,16 +149,6 @@ public sealed class PullTransactionImportService(
 		}
 
 		return results;
-	}
-
-	private static DateTime ParseTime(string? value)
-	{
-		if (string.IsNullOrWhiteSpace(value)) return EatTime.Now;
-
-		return DateTime.TryParseExact(value, "yyyyMMddHHmmss",
-			null, System.Globalization.DateTimeStyles.None, out var dt)
-			? dt
-			:EatTime.Now;
 	}
 }
 

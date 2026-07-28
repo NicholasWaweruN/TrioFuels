@@ -300,6 +300,56 @@ public class C2BConfirmationRequest
 
 // ─── Pull Transactions ────────────────────────────────────────────────────────
 
+/// <summary>
+/// Request body for POST {base_uri}/pulltransactions/v1/register
+/// Called once per shortcode/till to activate Pull. Safe to call repeatedly —
+/// Safaricom returns ResponseCode 1001 ("already registered") if it's already active.
+/// </summary>
+public class PullRegisterRequest
+{
+	[JsonPropertyName("ShortCode")]
+	public string ShortCode { get; set; } = string.Empty;
+
+	[JsonPropertyName("RequestType")]
+	public string RequestType { get; set; } = "Pull";
+
+	[JsonPropertyName("NominatedNumber")]
+	public string NominatedNumber { get; set; } = string.Empty;   // full MSISDN, e.g. "2547XXXXXXXX"
+
+	[JsonPropertyName("CallBackURL")]
+	public string CallBackURL { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Response body from POST {base_uri}/pulltransactions/v1/register
+/// Sample codes: 1000 = registered successfully, 1001 = shortcode already registered.
+/// NOTE: Safaricom's own sample response uses "Response Status" and
+/// "Response Description" — WITH spaces in the JSON key names. This is not a typo here;
+/// it matches their documented sample verbatim.
+/// </summary>
+public class PullRegisterResponse
+{
+	[JsonPropertyName("ResponseRefID")]
+	public string ResponseRefId { get; set; } = string.Empty;
+
+	[JsonPropertyName("Response Status")]
+	public string ResponseStatus { get; set; } = string.Empty;
+
+	[JsonPropertyName("ShortCode")]
+	public string ShortCode { get; set; } = string.Empty;
+
+	[JsonPropertyName("Response Description")]
+	public string ResponseDescription { get; set; } = string.Empty;
+
+	public bool IsRegistered => ResponseStatus is "1000" or "1001";
+}
+
+/// <summary>
+/// Request body for POST {base_uri}/pulltransactions/v1/query
+/// Per Safaricom's docs, ShortCode here IS the till/paybill number you want
+/// transactions for — there is no separate till-filter field. To pull for
+/// multiple tills, call this once per till with that till's number as ShortCode.
+/// </summary>
 public class PullTransactionRequest
 {
 	[JsonPropertyName("ShortCode")]
@@ -311,16 +361,28 @@ public class PullTransactionRequest
 	[JsonPropertyName("EndDate")]
 	public string EndDate { get; set; } = string.Empty;     // yyyy-MM-dd HH:mm:ss
 
-	// Daraja's Pull Transactions API expects "OffSetValue", not "Offset".
-	// With the wrong name, Safaricom ignores it and pagination silently
-	// keeps requesting offset 0 forever.
+	// FIX: Safaricom's documented payload sends this as a quoted string,
+	// e.g. "OffSetValue":"0" — not a bare JSON number.
 	[JsonPropertyName("OffSetValue")]
-	public int OffSetValue { get; set; } = 0;
-	[JsonPropertyName("StoreNumber")]
-	public string StoreNumber { get; set; } = string.Empty;
+	public string OffSetValue { get; set; } = "0";
 }
+
+/// <summary>
+/// Response body from POST {base_uri}/pulltransactions/v1/query
+///
+/// Response codes: 1000 = success, 1001 = success but nothing in this window,
+/// 500 = shortcode has no available transactions at all.
+///
+/// IMPORTANT: "Response" is a NESTED array — an array containing one array of
+/// transaction objects, e.g. { "Response": [ [ {...}, {...} ] ] } — not a flat
+/// list. Deserializing straight into a flat List&lt;PullTransaction&gt; throws
+/// a JsonException at runtime.
+/// </summary>
 public class PullTransactionResponse
 {
+	[JsonPropertyName("ResponseRefID")]
+	public string ResponseRefId { get; set; } = string.Empty;
+
 	[JsonPropertyName("ResponseCode")]
 	public string ResponseCode { get; set; } = string.Empty;
 
@@ -328,34 +390,63 @@ public class PullTransactionResponse
 	public string ResponseMessage { get; set; } = string.Empty;
 
 	[JsonPropertyName("Response")]
-	public List<PullTransaction> Transactions { get; set; } = [];
+	public List<List<PullTransaction>>? Transactions { get; set; }
+
+	/// <summary>Flattens the nested "Response" array into a single list.</summary>
+	public List<PullTransaction> FlattenTransactions() =>
+		Transactions?.SelectMany(page => page).ToList() ?? [];
+
+	public bool IsSuccess => ResponseCode == "1000";
+
+	public bool IsEmptyWindow => ResponseCode == "1001";
 }
 
+/// <summary>
+/// A single C2B transaction record as returned inside the "Response" array.
+/// Field names match Safaricom's actual documented sample payload.
+/// </summary>
 public class PullTransaction
 {
-	[JsonPropertyName("receipt_no")]
+	[JsonPropertyName("transactionId")]
 	public string ReceiptNo { get; set; } = string.Empty;
 
-	[JsonPropertyName("completion_time")]
+	[JsonPropertyName("trxDate")]
 	public string CompletionTime { get; set; } = string.Empty;
 
-	[JsonPropertyName("initiation_time")]
-	public string InitiationTime { get; set; } = string.Empty;
-
-	[JsonPropertyName("sender_phone")]
+	[JsonPropertyName("msisdn")]
 	public string SenderPhone { get; set; } = string.Empty;
 
-	[JsonPropertyName("till_number")]
-	public string TillNumber { get; set; } = string.Empty;
+	[JsonPropertyName("sender")]
+	public string Sender { get; set; } = string.Empty;
 
-	[JsonPropertyName("amount")]
-	public decimal Amount { get; set; }
+	[JsonPropertyName("transactiontype")]
+	public string TransactionType { get; set; } = string.Empty;
 
-	[JsonPropertyName("system_trace_audit_number")]
-	public string SystemTraceAuditNumber { get; set; } = string.Empty;
-
-	[JsonPropertyName("bill_reference_number")]
+	[JsonPropertyName("billreference")]
 	public string BillReferenceNumber { get; set; } = string.Empty;
+
+	// FIX: Safaricom's sample sends amount as a quoted string ("amount": "168.00"),
+	// not a JSON number. Kept as string; use GetAmountDecimal() to parse safely.
+	[JsonPropertyName("amount")]
+	public string Amount { get; set; } = "0";
+
+	[JsonPropertyName("organizationname")]
+	public string OrganizationName { get; set; } = string.Empty;
+
+	/// <summary>Best-effort parse of Amount. Returns 0m if missing/malformed.</summary>
+	public decimal GetAmountDecimal() =>
+		decimal.TryParse(Amount, System.Globalization.NumberStyles.Number,
+			System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+			? parsed
+			: 0m;
+
+	/// <summary>Best-effort parse of the trxDate ISO-8601 timestamp. Returns null if malformed.</summary>
+	public DateTime? GetCompletionTimeUtc() =>
+		DateTime.TryParse(CompletionTime, System.Globalization.CultureInfo.InvariantCulture,
+			System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
+			out var parsed)
+			? parsed
+			: null;
 }
 
 // ─── Shared Result Wrapper ────────────────────────────────────────────────────
