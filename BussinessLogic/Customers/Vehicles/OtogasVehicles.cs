@@ -765,8 +765,8 @@ namespace BussinessLogic.Customers.Vehicles
 				else if (phoneNumber.StartsWith("+254") && phoneNumber.Length == 13)
 					phoneNumber = "0" + phoneNumber[4..];
 
-				// Single round trip: customer + loyalty balance + outstanding credit,
-				// via correlated subquery aggregates instead of 3 sequential queries.
+				// Single round trip: customer + loyalty balance + outstanding credit + wallet balance,
+				// via correlated subquery aggregates instead of sequential queries.
 				var row = await _context.Database
 					.SqlQuery<CustomerSearchRow>($@"
                 SELECT
@@ -784,7 +784,12 @@ namespace BussinessLogic.Customers.Vehicles
                         SELECT SUM(cr.""Debit"" - cr.""Credit"")
                         FROM ""CreditTransactions"" cr
                         WHERE cr.""CustomerCode"" = c.""CustomerCode""
-                    ), 0) AS ""OutstandingCredit""
+                    ), 0) AS ""OutstandingCredit"",
+                    COALESCE((
+                        SELECT SUM(wt.""Credit"" - wt.""Debit"")
+                        FROM ""CustomerTransactions"" wt
+                        WHERE wt.""CustomerCode"" = c.""CustomerCode""
+                    ), 0) AS ""WalletBalance""
                 FROM ""Customers"" c
                 WHERE c.""CustomerPhone"" = {phoneNumber}
                 LIMIT 1
@@ -806,6 +811,7 @@ namespace BussinessLogic.Customers.Vehicles
 					AvailableCredit = row.CreditLimit - row.OutstandingCredit,
 					HasLoyaltySubscription = row.LoyaltyBalance > 0,
 					LoyaltyBalance = row.LoyaltyBalance,
+					WalletBalance = row.WalletBalance,
 				};
 
 				return ServiceResponse<object>.Success("Customer retrieved successfully", result);
@@ -824,7 +830,9 @@ namespace BussinessLogic.Customers.Vehicles
 			decimal CreditLimit,
 			bool IsCreditCustomer,
 			decimal LoyaltyBalance,
-			decimal OutstandingCredit);
+			decimal OutstandingCredit,
+			decimal WalletBalance);
+	
 		public async Task<ServiceResponse<object>> TransferVehicle(TransferVehicleDto transferVehicle)
 		{
 			try

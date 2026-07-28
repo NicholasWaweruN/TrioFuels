@@ -21,6 +21,9 @@
 
 	/// <summary>
 	/// Defines the <see cref="WalletTransactions" />
+	/// The wallet belongs to the CUSTOMER, not the vehicle. A customer may have several vehicles;
+	/// all of them draw from and top up the same single balance. VehicleCode on a transaction row
+	/// is kept only to record which vehicle was used for that particular transaction.
 	/// </summary>
 	public class WalletTransactions : IWalletTransactions
 	{
@@ -44,7 +47,9 @@
 		#region Deposits & Withdrawals
 
 		/// <summary>
-		/// Deposits funds into a customer's wallet (credit). This is the counterpart to <see cref="WithdrawFromCustomerWallet"/>.
+		/// Deposits funds into a customer's wallet (credit). VehicleCode identifies which vehicle
+		/// was used to make the deposit, but the balance itself lives on the customer (resolved
+		/// from the vehicle). This is the counterpart to <see cref="WithdrawFromCustomerWallet"/>.
 		/// </summary>
 		public async Task<ServiceResponse> TopUpCustomerWallet(TopUpCustomerWalletDto topUpCustomerWalletDto)
 		{
@@ -58,18 +63,17 @@
 			if (vehicle is null)
 				return ServiceResponse<object>.Information("Vehicle does not exist");
 
-		
 			var customer = await GetCustomerDetailsAsync(topUpCustomerWalletDto.VehicleCode);
 			if (customer is null)
 				return ServiceResponse<object>.Information("Customer Not Found");
 
-			var transaction = CreateCustomerTransaction(topUpCustomerWalletDto.VehicleCode, topUpCustomerWalletDto.Amount, 0, topUpCustomerWalletDto.TransactionReference, topUpCustomerWalletDto.PaymentType, "Wallet deposit");
+			var transaction = CreateCustomerTransaction(customer.CustomerCode, vehicle.VehicleCode, topUpCustomerWalletDto.Amount, 0, topUpCustomerWalletDto.TransactionReference, topUpCustomerWalletDto.PaymentType, "Wallet deposit");
 
 			var saveResult = await SaveTransactionAsync(transaction);
 			if (saveResult.ResponseCode == Response.Error)
 				return saveResult;
 
-			var newBalance = await GetCustomerBalance(topUpCustomerWalletDto.VehicleCode);
+			var newBalance = await GetCustomerBalance(customer.CustomerCode);
 			var firstName = customer.CustomerName.Split(' ')[0];
 
 			await _africaIsTalking.SendSms(customer.CustomerPhone,
@@ -83,10 +87,13 @@
 
 		/// <summary>
 		/// Withdraws (debits) funds from a customer's wallet. Fails if the wallet does not have sufficient balance.
+		/// VehicleCode identifies which vehicle triggered the withdrawal; the balance check happens against the
+		/// customer wallet, not the vehicle.
 		/// NOTE: balance check + insert are two separate round trips. Under high concurrency two simultaneous
-		/// withdrawals on the same wallet could both pass the check before either commits. If that's a real risk
-		/// for you, wrap this in a serializable transaction or add a Postgres CHECK/trigger that rejects a resulting
-		/// negative balance as a backstop.
+		/// withdrawals on the same wallet (even from two different vehicles belonging to the same customer)
+		/// could both pass the check before either commits. If that's a real risk for you, wrap this in a
+		/// serializable transaction or add a Postgres CHECK/trigger that rejects a resulting negative balance
+		/// as a backstop. This risk is now higher than before, since multiple vehicles can hit one wallet.
 		/// </summary>
 		public async Task<ServiceResponse> WithdrawFromCustomerWallet(WithdrawCustomerWalletDto withdrawDto)
 		{
@@ -104,14 +111,14 @@
 			if (customer is null)
 				return ServiceResponse<object>.Information("Customer Not Found");
 
-			var balanceResponse = await GetCustomerBalance(withdrawDto.VehicleCode);
+			var balanceResponse = await GetCustomerBalance(customer.CustomerCode);
 			if (balanceResponse.ResponseCode == Response.Error)
 				return ServiceResponse<object>.Error("Could not verify wallet balance, please try again");
 
 			if (balanceResponse.ResponseObject < withdrawDto.Amount)
 				return ServiceResponse<object>.Information($"Insufficient wallet balance. Available balance is {balanceResponse.ResponseObject:N2} ksh");
 
-			var transaction = CreateCustomerTransaction(withdrawDto.VehicleCode, 0, withdrawDto.Amount, withdrawDto.TransactionReference, withdrawDto.WithdrawalType, withdrawDto.Narration ?? "Wallet withdrawal");
+			var transaction = CreateCustomerTransaction(customer.CustomerCode, vehicle.VehicleCode, 0, withdrawDto.Amount, withdrawDto.TransactionReference, withdrawDto.WithdrawalType, withdrawDto.Narration ?? "Wallet withdrawal");
 
 			var saveResult = await SaveTransactionAsync(transaction);
 			if (saveResult.ResponseCode == Response.Error)
@@ -131,6 +138,11 @@
 
 		/// <summary>
 		/// Transfers balance between two vehicle wallets. Validates the source wallet has sufficient funds first.
+		/// DESIGN DECISION: since wallets are now per-customer, this only makes sense between two DIFFERENT
+		/// customers (transferring within the same customer's own vehicles would be moving money from a
+		/// wallet to itself). If both vehicles resolve to the same CustomerCode, this now short-circuits with
+		/// an Information response instead of writing two no-op ledger rows. Confirm this is the behaviour you
+		/// want — the alternative is to silently allow it (it's a net-zero pair of rows either way).
 		/// </summary>
 		public async Task<ServiceResponse> TransferCustomerBalance(TransferCustomerBalanceDto transferCustomerBalanceDto)
 		{
@@ -148,17 +160,25 @@
 			if (toVehicle is null)
 				return ServiceResponse<object>.Information("To vehicle does not exist");
 
-			var fromBalance = await GetCustomerBalance(transferCustomerBalanceDto.FromVehicleCode);
+			var fromCustomer = await GetCustomerDetailsAsync(transferCustomerBalanceDto.FromVehicleCode);
+			var toCustomer = await GetCustomerDetailsAsync(transferCustomerBalanceDto.ToVehicleCode);
+			if (fromCustomer is null || toCustomer is null)
+				return ServiceResponse<object>.Information("Could not resolve the customer for one of these vehicles");
+
+			if (fromCustomer.CustomerCode == toCustomer.CustomerCode)
+				return ServiceResponse<object>.Information("Both vehicles belong to the same customer wallet — no transfer needed");
+
+			var fromBalance = await GetCustomerBalance(fromCustomer.CustomerCode);
 			if (fromBalance.ResponseObject < transferCustomerBalanceDto.Amount)
-				return ServiceResponse<object>.Information($"Insufficient balance on {fromVehicle.VehicleRegistrationNumber} to complete this transfer");
+				return ServiceResponse<object>.Information($"Insufficient balance on {fromVehicle.VehicleRegistrationNumber}'s wallet to complete this transfer");
 
 			using var transaction = await _context.Database.BeginTransactionAsync();
 			try
 			{
-				var narration = $"{transferCustomerBalanceDto.Amount:N2} transferred from vehicle {fromVehicle.VehicleRegistrationNumber} to {toVehicle.VehicleRegistrationNumber}";
+				var narration = $"{transferCustomerBalanceDto.Amount:N2} transferred from {fromCustomer.CustomerName} to {toCustomer.CustomerName}";
 
-				var fromTransaction = CreateCustomerTransaction(transferCustomerBalanceDto.FromVehicleCode, 0, transferCustomerBalanceDto.Amount, "", 5, narration);
-				var toTransaction = CreateCustomerTransaction(transferCustomerBalanceDto.ToVehicleCode, transferCustomerBalanceDto.Amount, 0, "", 5, narration);
+				var fromTransaction = CreateCustomerTransaction(fromCustomer.CustomerCode, fromVehicle.VehicleCode, 0, transferCustomerBalanceDto.Amount, "", 5, narration);
+				var toTransaction = CreateCustomerTransaction(toCustomer.CustomerCode, toVehicle.VehicleCode, transferCustomerBalanceDto.Amount, 0, "", 5, narration);
 
 				await _context.CustomerTransactions.AddRangeAsync(fromTransaction, toTransaction);
 				await _context.SaveChangesAsync();
@@ -182,14 +202,15 @@
 		#region Balances & History
 
 		/// <summary>
-		/// Current wallet balance (sum of credits minus debits) for a single vehicle.
+		/// Current wallet balance (sum of credits minus debits) for a customer, shared across all
+		/// their vehicles. Takes a CustomerCode now, not a VehicleCode.
 		/// </summary>
-		public async Task<ServiceResponse<decimal>> GetCustomerBalance(string vehicleCode)
+		public async Task<ServiceResponse<decimal>> GetCustomerBalance(string customerCode)
 		{
 			try
 			{
 				var balance = await _context.CustomerTransactions
-					.Where(x => x.VehicleCode == vehicleCode)
+					.Where(x => x.CustomerCode == customerCode)
 					.SumAsync(x => x.Credit - x.Debit);
 
 				return ServiceResponse<decimal>.Success("Balance Found", balance);
@@ -201,38 +222,52 @@
 		}
 
 		/// <summary>
-		/// Paginated, filterable wallet balances per vehicle (LINQ only, no stored procedure).
+		/// Convenience overload for callers that only have a VehicleCode on hand (e.g. a POS screen
+		/// that scanned a vehicle). Resolves the owning customer first, then returns the shared balance.
+		/// </summary>
+		public async Task<ServiceResponse<decimal>> GetCustomerBalanceByVehicle(string vehicleCode)
+		{
+			var customer = await GetCustomerDetailsAsync(vehicleCode);
+			if (customer is null)
+				return ServiceResponse<decimal>.Information("Customer Not Found", 0);
+
+			return await GetCustomerBalance(customer.CustomerCode);
+		}
+
+		/// <summary>
+		/// Paginated, filterable wallet balances — one row PER CUSTOMER (not per vehicle, since the
+		/// wallet is now shared). registrationNumber filters to customers who own a matching vehicle.
+		/// DESIGN DECISION: the old CustomerBalanceDto had VehicleCode/RegistrationNumber columns tied
+		/// to a single vehicle, which no longer makes sense for a shared wallet. This returns an
+		/// anonymous shape with CustomerCode, CustomerName, Balance instead — update/trim
+		/// CustomerBalanceDto in DataAccessLayer.DTOs.Transactions to match (or tell me its current
+		/// shape and I'll wire it back to a named DTO).
 		/// </summary>
 		public async Task<ServiceResponse<object>> GetCustomerBalances(string? registrationNumber = null, string? customerName = null, int pageNumber = 1, int pageSize = 15)
 		{
 			try
 			{
 				var query = _context.CustomerTransactions
-					.Join(_context.Vehicles, ct => ct.VehicleCode, v => v.VehicleCode, (ct, v) => new { ct, v })
-					.Join(_context.Customers, cv => cv.v.CustomerCode, c => c.CustomerCode, (cv, c) => new
-					{
-						c.CustomerCode,
-						c.CustomerName,
-						cv.v.VehicleCode,
-						RegistrationNumber = cv.v.VehicleRegistrationNumber,
-						cv.ct.Credit,
-						cv.ct.Debit
-					})
-					.GroupBy(g => new { g.CustomerCode, g.CustomerName, g.VehicleCode, g.RegistrationNumber })
-					.Select(group => new CustomerBalanceDto
+					.Join(_context.Customers, ct => ct.CustomerCode, c => c.CustomerCode, (ct, c) => new { ct, c })
+					.GroupBy(g => new { g.c.CustomerCode, g.c.CustomerName })
+					.Select(group => new
 					{
 						CustomerCode = group.Key.CustomerCode,
 						CustomerName = group.Key.CustomerName,
-						VehicleCode = group.Key.VehicleCode,
-						RegistrationNumber = group.Key.RegistrationNumber,
-						Balance = group.Sum(x => x.Credit) - group.Sum(x => x.Debit)
+						Balance = group.Sum(x => x.ct.Credit) - group.Sum(x => x.ct.Debit)
 					});
-
-				if (!string.IsNullOrEmpty(registrationNumber))
-					query = query.Where(q => q.RegistrationNumber.Contains(registrationNumber));
 
 				if (!string.IsNullOrEmpty(customerName))
 					query = query.Where(q => q.CustomerName.Contains(customerName));
+
+				if (!string.IsNullOrEmpty(registrationNumber))
+				{
+					var matchingCustomerCodes = _context.Vehicles
+						.Where(v => v.VehicleRegistrationNumber.Contains(registrationNumber))
+						.Select(v => v.CustomerCode);
+
+					query = query.Where(q => matchingCustomerCodes.Contains(q.CustomerCode));
+				}
 
 				var totalRecords = await query.CountAsync();
 
@@ -260,50 +295,55 @@
 		}
 
 		/// <summary>
-		/// All wallet transactions for a vehicle registration number, with a running balance.
+		/// All wallet transactions for a customer, across every vehicle they own, with a running balance.
+		/// DESIGN DECISION: previously this took a single vehicle's reg no and only showed that vehicle's
+		/// rows. Since the wallet is now shared, I resolve the owning customer from the reg no supplied
+		/// and then return the FULL customer wallet history (every vehicle), each row tagged with which
+		/// vehicle it came from. If you actually want a "which transactions used this specific vehicle"
+		/// report (not a wallet statement), that's a different, simpler query — let me know and I'll add
+		/// it as a separate method instead of overloading this one.
 		/// </summary>
 		public async Task<ServiceResponse<object>> WalletHistories(string vRegno)
 		{
 			try
 			{
+				var customer = await GetCustomerDetailsAsync(
+					await _context.Vehicles.Where(v => v.VehicleRegistrationNumber == vRegno).Select(v => v.VehicleCode).FirstOrDefaultAsync() ?? string.Empty);
+
+				if (customer is null)
+					return ServiceResponse<object>.Information("Vehicle/customer not found", null);
+
 				var history = await (from ct in _context.CustomerTransactions
 									 join v in _context.Vehicles on ct.VehicleCode equals v.VehicleCode
-									 join c in _context.Customers on v.CustomerCode equals c.CustomerCode
-									 where v.VehicleRegistrationNumber == vRegno
-									 orderby c.CustomerCode, v.VehicleRegistrationNumber, ct.DateCreated
+									 where ct.CustomerCode == customer.CustomerCode
+									 orderby ct.DateCreated
 									 select new
 									 {
-										 c.CustomerName,
-										 c.CustomerPhone,
-										 v.VehicleRegistrationNumber,
+										 customer.CustomerName,
+										 customer.CustomerPhone,
+										 VehicleRegistrationNumber = v.VehicleRegistrationNumber,
 										 ct.TransactionReference,
 										 ct.DateCreated,
 										 ct.Credit,
 										 ct.Debit
 									 }).ToListAsync();
 
-				var runningBalanceHistory = history
-					.GroupBy(x => new { x.CustomerName, x.VehicleRegistrationNumber })
-					.SelectMany(group =>
+				decimal runningBalance = 0;
+				var runningBalanceHistory = history.Select(item =>
+				{
+					runningBalance += item.Credit - item.Debit;
+					return new
 					{
-						decimal runningBalance = 0;
-						return group.Select(item =>
-						{
-							runningBalance += item.Credit - item.Debit;
-							return new
-							{
-								item.CustomerName,
-								item.CustomerPhone,
-								item.VehicleRegistrationNumber,
-								item.TransactionReference,
-								item.DateCreated,
-								item.Credit,
-								item.Debit,
-								RunningBalance = runningBalance
-							};
-						});
-					})
-					.ToList();
+						item.CustomerName,
+						item.CustomerPhone,
+						item.VehicleRegistrationNumber,
+						item.TransactionReference,
+						item.DateCreated,
+						item.Credit,
+						item.Debit,
+						RunningBalance = runningBalance
+					};
+				}).ToList();
 
 				if (runningBalanceHistory.Count != 0)
 					return ServiceResponse<object>.Success("Customer transactions", runningBalanceHistory);
@@ -317,22 +357,25 @@
 		}
 
 		/// <summary>
-		/// Wallet statement for a single vehicle over a date range, with an opening balance line.
+		/// Wallet statement for a customer over a date range, with an opening balance line.
+		/// DESIGN DECISION: now takes customerCode instead of vehicleCode (the wallet is the
+		/// customer's, so this is the natural key). If your controller only has a vehicleCode at
+		/// the call site, resolve it first via GetCustomerDetailsAsync and pass customer.CustomerCode in.
 		/// </summary>
-		public async Task<ServiceResponse<List<CustomerTransactionDto>>> GetCustomerStatement(string vehicleCode, DateTime startDate, DateTime endDate)
+		public async Task<ServiceResponse<List<CustomerTransactionDto>>> GetCustomerStatement(string customerCode, DateTime startDate, DateTime endDate)
 		{
 			try
 			{
-				var vehicleExists = await _context.Vehicles.AnyAsync(x => x.VehicleCode == vehicleCode);
-				if (!vehicleExists)
-					return ServiceResponse<List<CustomerTransactionDto>>.Information("Vehicle does not exist", null);
+				var customerExists = await _context.Customers.AnyAsync(x => x.CustomerCode == customerCode);
+				if (!customerExists)
+					return ServiceResponse<List<CustomerTransactionDto>>.Information("Customer does not exist", null);
 
 				var startingBalance = await _context.CustomerTransactions
-					.Where(x => x.VehicleCode == vehicleCode && x.DateCreated < startDate)
+					.Where(x => x.CustomerCode == customerCode && x.DateCreated < startDate)
 					.SumAsync(x => x.Credit - x.Debit);
 
 				var transactions = await _context.CustomerTransactions
-					.Where(x => x.VehicleCode == vehicleCode && x.DateCreated >= startDate && x.DateCreated <= endDate)
+					.Where(x => x.CustomerCode == customerCode && x.DateCreated >= startDate && x.DateCreated <= endDate)
 					.OrderBy(x => x.DateCreated)
 					.ToListAsync();
 
@@ -374,28 +417,33 @@
 		}
 
 		/// <summary>
-		/// All deposit transactions (Credit column) recorded for a vehicle.
+		/// All deposit transactions (Credit column) recorded for a customer's wallet, across every
+		/// vehicle. Takes vehicleCode (as before, for callers that only have that on hand) and
+		/// resolves the customer internally.
 		/// </summary>
 		public async Task<ServiceResponse<object>> GetCustomerPayments(string vehicleCode)
 		{
 			try
 			{
+				var customer = await GetCustomerDetailsAsync(vehicleCode);
+				if (customer is null)
+					return ServiceResponse<object>.Information("Customer Not Found", null);
+
 				var transactions = await (from ct in _context.CustomerTransactions
 										  join v in _context.Vehicles on ct.VehicleCode equals v.VehicleCode
-										  join c in _context.Customers on v.CustomerCode equals c.CustomerCode
-										  where v.VehicleCode == vehicleCode
+										  where ct.CustomerCode == customer.CustomerCode
 										  select new
 										  {
-											  c.CustomerName,
-											  c.CustomerPhone,
-											  v.VehicleRegistrationNumber,
+											  customer.CustomerName,
+											  customer.CustomerPhone,
+											  VehicleRegistrationNumber = v.VehicleRegistrationNumber,
 											  ct.TransactionReference,
 											  ct.DateCreated,
 											  Payments = ct.Credit
 										  }).ToListAsync();
 
 				if (transactions.Count == 0)
-					return ServiceResponse<object>.Information("No transactions found for the specified vehicle", null);
+					return ServiceResponse<object>.Information("No transactions found for the specified customer", null);
 
 				return ServiceResponse<object>.Success("Transactions found", transactions);
 			}
@@ -410,7 +458,9 @@
 		#region Batch Operations
 
 		/// <summary>
-		/// Batch-credits multiple vehicle wallets from an uploaded Excel file (column 1 = amount, column 2 = vehicle reg no).
+		/// Batch-credits multiple CUSTOMER wallets from an uploaded Excel file (column 1 = amount,
+		/// column 2 = vehicle reg no). The vehicle reg no is only used to look up which customer/vehicle
+		/// pair to tag the row with; the credit lands on the customer's shared wallet.
 		/// </summary>
 		public async Task<ServiceResponse<object>> UploadCustomerTransactions(IFormFile file, int topUpType)
 		{
@@ -433,10 +483,13 @@
 
 			var vehicleRegNos = rows.Select(row => row.Cell(2).GetValue<string>().Replace(" ", "").ToUpper()).Distinct().ToList();
 
+			// Now carries CustomerCode alongside VehicleCode, since the credit lands on the customer wallet.
 			var existingVehicles = await _context.Vehicles
 				.AsNoTracking()
 				.Where(v => vehicleRegNos.Contains(v.VehicleRegistrationNumber.Replace(" ", "").ToUpper()))
-				.ToDictionaryAsync(v => v.VehicleRegistrationNumber.Replace(" ", "").ToUpper(), v => v.VehicleCode);
+				.ToDictionaryAsync(
+					v => v.VehicleRegistrationNumber.Replace(" ", "").ToUpper(),
+					v => new { v.VehicleCode, v.CustomerCode });
 
 			var batchNo = _setups.GenerateSaleId();
 
@@ -446,7 +499,7 @@
 				decimal amount = row.Cell(1).GetValue<decimal>();
 				string vehicleRegNo = row.Cell(2).GetValue<string>().Replace(" ", "").ToUpper();
 
-				if (!existingVehicles.TryGetValue(vehicleRegNo, out var vehicleCode))
+				if (!existingVehicles.TryGetValue(vehicleRegNo, out var vehicleInfo))
 				{
 					failedTransactions.Add(new FailedTransactions
 					{
@@ -466,14 +519,14 @@
 					TransactionReference = saleId,
 					UserCode = _authentication.Usercode(),
 					UserReference = saleId,
-					VehicleCode = vehicleCode,
+					VehicleCode = vehicleInfo.VehicleCode,
+					CustomerCode = vehicleInfo.CustomerCode,
 					Narration = "Batch Credit Upload",
 					TopUpType = topUpType,
-					BatchNumber = batchNo
 				});
 
 				var phoneNumber = await (from v in _context.Vehicles
-										 where v.VehicleCode.Equals(vehicleCode)
+										 where v.VehicleCode.Equals(vehicleInfo.VehicleCode)
 										 select v.PhoneNumber).FirstAsync();
 
 				var smsMessage = $"Congrats! 🎉 You have been awarded a fuel voucher No: {saleId} ⛽ Amount: {amount} Redeem at any of our OTOGas Stations.";
@@ -496,7 +549,8 @@
 		}
 
 		/// <summary>
-		/// Manual top-up of a separate "customer funds" pool (distinct from the vehicle wallet ledger).
+		/// Manual top-up of a separate "customer funds" pool (distinct from the CustomerTransactions
+		/// wallet ledger). Unchanged — this was already keyed by CustomerCode.
 		/// </summary>
 		public async Task<ServiceResponse> TopUpFundssWallet(TopUpFundsDto customerFunds)
 		{
@@ -538,7 +592,7 @@
 		}
 
 		/// <summary>
-		/// Reverses a previous "customer funds" top-up.
+		/// Reverses a previous "customer funds" top-up. Unchanged — already keyed by CustomerCode.
 		/// </summary>
 		public async Task<ServiceResponse> ReverseTopUpFundssWallet(TopUpFundsDto customerFunds)
 		{
@@ -599,7 +653,12 @@
 		#region Statements & Exports (ClosedXML only)
 
 		/// <summary>
-		/// Exports a single vehicle's full wallet transaction history to a password-protected Excel workbook.
+		/// Exports a customer's full wallet transaction history (across every vehicle they own) to a
+		/// password-protected Excel workbook. DESIGN DECISION: previously this took a vehicleCode and
+		/// showed only that vehicle's rows with a running balance — that running balance is now
+		/// meaningless for a single vehicle since the wallet is shared. I resolve the customer from the
+		/// vehicleCode passed in, then export the FULL customer history, with a Vehicle Used column so
+		/// you can still see which vehicle each transaction came from.
 		/// </summary>
 		public async Task<ServiceResponse<byte[]>> ExportCustomerTransactions(string vehicleCode)
 		{
@@ -609,23 +668,28 @@
 				if (!isVehicleExist)
 					return ServiceResponse<byte[]>.Information("Vehicle does not exist", null);
 
-				var customer = await (from v in _context.Vehicles
-									  join c in _context.Customers on v.CustomerCode equals c.CustomerCode
-									  where v.VehicleCode == vehicleCode
-									  select new { c.CustomerName, v.VehicleRegistrationNumber, c.CustomerPhone }).FirstOrDefaultAsync();
+				var customer = await GetCustomerDetailsAsync(vehicleCode);
 				if (customer == null)
 					return ServiceResponse<byte[]>.Information("Customer of the vehicle not found", null);
 
-				var transactions = await _context.CustomerTransactions
-					.Where(x => x.VehicleCode == vehicleCode)
-					.OrderBy(x => x.DateCreated)
-					.ToListAsync();
+				var transactions = await (from ct in _context.CustomerTransactions
+										  join v in _context.Vehicles on ct.VehicleCode equals v.VehicleCode
+										  where ct.CustomerCode == customer.CustomerCode
+										  orderby ct.DateCreated
+										  select new
+										  {
+											  ct.TransactionReference,
+											  ct.DateCreated,
+											  ct.Credit,
+											  ct.Debit,
+											  VehicleUsed = v.VehicleRegistrationNumber
+										  }).ToListAsync();
 
 				if (transactions.Count == 0)
-					return ServiceResponse<byte[]>.Information("No transactions found for the specified vehicle", null);
+					return ServiceResponse<byte[]>.Information("No transactions found for the specified customer", null);
 
 				using var workbook = new XLWorkbook();
-				var worksheet = workbook.Worksheets.Add(customer.VehicleRegistrationNumber);
+				var worksheet = workbook.Worksheets.Add(customer.CustomerName);
 
 				ApplyTitleStyle(worksheet, "Wallet Statement", "A1:F1");
 
@@ -633,14 +697,14 @@
 				worksheet.Cell(2, 2).Value = customer.CustomerName;
 				worksheet.Cell(3, 1).Value = "Phone Number:";
 				worksheet.Cell(3, 2).Value = customer.CustomerPhone;
-				worksheet.Cell(4, 1).Value = "Vehicle Registration:";
-				worksheet.Cell(4, 2).Value = customer.VehicleRegistrationNumber;
+				worksheet.Cell(4, 1).Value = "Customer Code:";
+				worksheet.Cell(4, 2).Value = customer.CustomerCode;
 				StyleDetailsBlock(worksheet.Range("A2:B4"));
 
-				string[] headers = { "Transaction Reference", "Date Created", "Credit", "Debit", "Running Balance" };
+				string[] headers = { "Transaction Reference", "Date Created", "Vehicle Used", "Credit", "Debit", "Running Balance" };
 				for (int i = 0; i < headers.Length; i++)
 					worksheet.Cell(6, i + 1).Value = headers[i];
-				StyleHeaderRow(worksheet.Range("A6:E6"));
+				StyleHeaderRow(worksheet.Range("A6:F6"));
 
 				decimal runningBalance = 0;
 				for (int i = 0; i < transactions.Count; i++)
@@ -650,25 +714,26 @@
 
 					worksheet.Cell(row, 1).Value = transactions[i].TransactionReference;
 					worksheet.Cell(row, 2).Value = transactions[i].DateCreated;
-					worksheet.Cell(row, 3).Value = transactions[i].Credit;
-					worksheet.Cell(row, 4).Value = transactions[i].Debit;
-					worksheet.Cell(row, 5).Value = runningBalance;
+					worksheet.Cell(row, 3).Value = transactions[i].VehicleUsed;
+					worksheet.Cell(row, 4).Value = transactions[i].Credit;
+					worksheet.Cell(row, 5).Value = transactions[i].Debit;
+					worksheet.Cell(row, 6).Value = runningBalance;
 
 					worksheet.Cell(row, 2).Style.DateFormat.Format = "yyyy-mm-dd";
-					worksheet.Range(row, 3, row, 5).Style.NumberFormat.Format = "#,##0.00";
+					worksheet.Range(row, 4, row, 6).Style.NumberFormat.Format = "#,##0.00";
 
-					ApplyRowStyle(worksheet, row, i, 5);
+					ApplyRowStyle(worksheet, row, i, 6);
 				}
 
 				var lastRow = transactions.Count + 7;
-				worksheet.Cell(lastRow, 4).Value = "Total Running Balance:";
-				worksheet.Cell(lastRow, 5).Value = runningBalance;
-				StyleTotalRow(worksheet.Range(lastRow, 4, lastRow, 5));
-				worksheet.Cell(lastRow, 5).Style.NumberFormat.Format = "#,##0.00";
+				worksheet.Cell(lastRow, 5).Value = "Total Running Balance:";
+				worksheet.Cell(lastRow, 6).Value = runningBalance;
+				StyleTotalRow(worksheet.Range(lastRow, 5, lastRow, 6));
+				worksheet.Cell(lastRow, 6).Style.NumberFormat.Format = "#,##0.00";
 
 				worksheet.Columns().AdjustToContents();
 				worksheet.SheetView.FreezeRows(6);
-				workbook.Protect(vehicleCode);
+				workbook.Protect(customer.CustomerCode);
 
 				using var stream = new MemoryStream();
 				workbook.SaveAs(stream);
@@ -687,8 +752,10 @@
 		}
 
 		/// <summary>
-		/// Exports a customer-level wallet statement (across all their vehicles) from a given start date, including
-		/// an opening balance line, to Excel.
+		/// Exports a customer-level wallet statement (across all their vehicles) from a given start date,
+		/// including an opening balance line, to Excel. Already took customerCode before — unchanged in
+		/// shape, but now benefits from the CustomerCode column directly instead of the VehicleCode-based
+		/// workaround in GetCustomerTransactionsAsync (see MIGRATION_NOTES.md for the bug this fixes).
 		/// </summary>
 		public async Task<ServiceResponse<byte[]>> CustomerStatement(string customerCode, DateTime from)
 		{
@@ -772,12 +839,13 @@
 
 		#region Private Helpers
 
-		private CustomerTransactions CreateCustomerTransaction(string vehicleCode, decimal credit, decimal debit, string reference, int topUpType, string narration)
+		private CustomerTransactions CreateCustomerTransaction(string customerCode, string vehicleCode, decimal credit, decimal debit, string reference, int topUpType, string narration)
 		{
 			return new CustomerTransactions
 			{
 				DateCreated = EatTime.Now,
 				UserCode = _authentication.Usercode(),
+				CustomerCode = customerCode,
 				VehicleCode = vehicleCode,
 				TransactionReference = _setups.GenerateSaleId(),
 				Credit = credit,
@@ -806,13 +874,15 @@
 			}
 		}
 
-	
-
 		/// <summary>
 		/// Cached lookup of a customer's details via their vehicle code (10 minute cache).
+		/// Still the main resolver used everywhere a caller only has a VehicleCode on hand.
 		/// </summary>
 		private async Task<Customer?> GetCustomerDetailsAsync(string vehicleCode)
 		{
+			if (string.IsNullOrEmpty(vehicleCode))
+				return null;
+
 			if (_cache.TryGetValue(vehicleCode, out Customer? cached))
 				return cached;
 
@@ -840,15 +910,20 @@
 			return await _context.Customers.FirstOrDefaultAsync(c => c.CustomerCode == customerCode) ?? new Customer();
 		}
 
+		/// <summary>
+		/// FIX: previously filtered balanceBefore by `x.VehicleCode == customerCode`, comparing a
+		/// vehicle code against a customer code — that could never match, so the opening balance line
+		/// on customer statements was effectively always 0. Now filters by the real CustomerCode column.
+		/// </summary>
 		private async Task<List<TransactionDto>> GetCustomerTransactionsAsync(string customerCode, DateTime from)
 		{
 			var balanceBefore = await _context.CustomerTransactions
-				.Where(x => x.VehicleCode == customerCode && x.DateCreated.Date <= from.Date)
+				.Where(x => x.CustomerCode == customerCode && x.DateCreated.Date <= from.Date)
 				.SumAsync(x => x.Credit - x.Debit);
 
 			var transactions = await (from c in _context.CustomerTransactions
 									  join v in _context.Vehicles on c.VehicleCode equals v.VehicleCode
-									  where v.CustomerCode == customerCode
+									  where c.CustomerCode == customerCode
 									  select new TransactionDto
 									  {
 										  VehicleRegistrationNumber = v.VehicleRegistrationNumber,
@@ -934,10 +1009,6 @@
 				Method = method is null ? "" : method.Name
 			});
 		}
-
-
-
-
 
 		#endregion
 	}

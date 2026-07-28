@@ -351,8 +351,7 @@ namespace BussinessLogic.Sales.NewSales
 					var balance = await GetWalletBalanceAsync(s.RegistrationNumber);
 
 					if (balance < ctx.Calculated)
-						return ServiceResponse<object>.Information(
-							$"Insufficient wallet balance. Available: KES {balance:N2}, Required: KES {ctx.Calculated:N2}",
+						return ServiceResponse<object>.Information($"Insufficient wallet balance. Available: KES {balance:N2}, Required: KES {ctx.Calculated:N2}",
 							new { Balance = balance, Required = ctx.Calculated });
 
 					_context.CustomerTransactions.Add(new CustomerTransactions

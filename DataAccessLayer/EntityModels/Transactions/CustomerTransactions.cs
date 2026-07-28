@@ -10,51 +10,20 @@
 	/// </summary>
 	public class CustomerTransactions : BaseEntity
 	{
-		/// <summary>
-		/// Gets or sets the VehicleCode
-		/// </summary>
+
+		[Required, StringLength(10), Unicode(false)]
+		public string CustomerCode { get; set; } = string.Empty;
 		[Required, StringLength(10), Unicode(false)]
 		public string VehicleCode { get; set; } = string.Empty;
-
-		/// <summary>
-		/// Gets or sets the TransactionReference
-		/// </summary>
 		[Required, StringLength(30), Unicode(false)]
 		public string TransactionReference { get; set; } = string.Empty;
-
-		/// <summary>
-		/// Gets or sets the Credit
-		/// </summary>
 		[Precision(18, 2)] public decimal Credit { get; set; } = 0;
-
-		/// <summary>
-		/// Gets or sets the Debit
-		/// </summary>
 		[Precision(18, 2)] public decimal Debit { get; set; } = 0;
-
-		/// <summary>
-		/// Gets or sets the UserReference
-		/// </summary>
 		[Required, StringLength(30), Unicode(false)]
 		public string UserReference { get; set; } = string.Empty;
-
-		/// <summary>
-		/// Gets or sets the Narration
-		/// </summary>
 		[Required, StringLength(100), Unicode(false)]
 		public string Narration { get; set; } = string.Empty;
-
-		/// <summary>
-		/// Gets or sets the TopUpType
-		/// </summary>
 		public int TopUpType { get; set; }
-
-		/// <summary>
-		/// Gets or sets the Source
-		/// </summary>
-		public int Source { get; set; }
-		[Required, StringLength(30), Unicode(false)]
-		public string BatchNumber { get; set; } = string.Empty;
 	}
 
 	/// <summary>
