@@ -11,7 +11,7 @@ using DataAccessLayer.Context;
 using Safaricom_Daraja;
 using DataAccessLayer.Helpers;
 
-namespace BussinessLogic.Services.Daraja; 
+namespace BussinessLogic.Services.Daraja;
 
 public interface IPullTransactionImportService
 {
@@ -65,7 +65,13 @@ public sealed class PullTransactionImportService(
 		var tillConfig = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
 
 		var receiptNos = transactions.Select(tx => tx.ReceiptNo).ToList();
+
+		// FIX: .AsTracking() added — without it, if OTOContext has global NoTracking
+		// configured (as it does elsewhere in this codebase), entities returned here
+		// are untracked. Mutating existing.DateModified below would then silently fail
+		// to persist on SaveChangesAsync — no exception, just a no-op update.
 		var existingTxMap = await db.MpesaTransactions
+			.AsTracking()
 			.Where(m => receiptNos.Contains(m.TransID))
 			.ToDictionaryAsync(m => m.TransID, m => m, ct);
 
@@ -88,7 +94,7 @@ public sealed class PullTransactionImportService(
 				{
 					db.MpesaTransactions.Add(new MpesaTransaction
 					{
-						TransactionType = "C2B",
+						TransactionType = "Pull",
 						TransID = tx.ReceiptNo,
 						TransTime = tx.GetCompletionTimeUtc() ?? EatTime.Now,
 						TransAmount = tx.GetAmountDecimal(),
@@ -111,7 +117,8 @@ public sealed class PullTransactionImportService(
 						UsageBalance = tx.GetAmountDecimal(),
 						UserCode = tx.SenderPhone,
 						CheckoutRequestID = string.Empty,
-						MerchantRequestID = string.Empty
+						MerchantRequestID = string.Empty,
+						ShiftNumber = string.Empty
 					});
 					inserted++;
 				}
