@@ -1,7 +1,6 @@
 ﻿using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.PlateRecognition;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Headers;
@@ -33,7 +32,7 @@ namespace BussinessLogic.PlateRecognitionService
 		}
 
 		public async Task<ServiceResponse<PlateVerificationDto>> VerifyWalletVehicleAsync(
-			IFormFile image, string customerCode, CancellationToken ct)
+			string base64Image, string customerCode, CancellationToken ct)
 		{
 			// 1. Vehicles registered to this wallet/customer account.
 			// NOTE: assumes Vehicles has a CustomerCode column linking a vehicle
@@ -50,7 +49,39 @@ namespace BussinessLogic.PlateRecognitionService
 				return ServiceResponse<PlateVerificationDto>.Information(
 					"No vehicles are registered under this wallet account", null);
 
-			// 2. Call Platerecognizer Snapshot Cloud.
+			if (string.IsNullOrWhiteSpace(base64Image))
+				return ServiceResponse<PlateVerificationDto>.Error("No image data was provided", null);
+
+			// 2. Decode the base64 payload. Handles both a raw base64 string and
+			// a data URI like "data:image/jpeg;base64,/9j/4AAQ...".
+			string mimeType = "image/jpeg";
+			var payload = base64Image;
+
+			var commaIndex = base64Image.IndexOf(',');
+			if (base64Image.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && commaIndex >= 0)
+			{
+				var header = base64Image[..commaIndex]; // e.g. "data:image/png;base64"
+				payload = base64Image[(commaIndex + 1)..];
+
+				var mimeMatch = Regex.Match(header, @"data:(?<mime>[^;]+);base64", RegexOptions.IgnoreCase);
+				if (mimeMatch.Success)
+					mimeType = mimeMatch.Groups["mime"].Value;
+			}
+
+			byte[] imageBytes;
+			try
+			{
+				imageBytes = Convert.FromBase64String(payload);
+			}
+			catch (FormatException)
+			{
+				return ServiceResponse<PlateVerificationDto>.Error("Invalid base64 image data", null);
+			}
+
+			if (imageBytes.Length == 0)
+				return ServiceResponse<PlateVerificationDto>.Error("Decoded image data was empty", null);
+
+			// 3. Call Platerecognizer Snapshot Cloud.
 			var apiToken = _config["PlateRecognizer:ApiToken"]
 				?? throw new InvalidOperationException("PlateRecognizer:ApiToken is not configured");
 
@@ -58,12 +89,17 @@ namespace BussinessLogic.PlateRecognitionService
 			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", apiToken);
 
 			using var form = new MultipartFormDataContent();
-			await using var imageStream = image.OpenReadStream();
-			using var streamContent = new StreamContent(imageStream);
-			streamContent.Headers.ContentType =
-				new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(image.ContentType) ? "image/jpeg" : image.ContentType);
+			using var byteContent = new ByteArrayContent(imageBytes);
+			byteContent.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
 
-			form.Add(streamContent, "upload", image.FileName);
+			var fileName = mimeType switch
+			{
+				"image/png" => "plate.png",
+				"image/webp" => "plate.webp",
+				_ => "plate.jpg"
+			};
+
+			form.Add(byteContent, "upload", fileName);
 			form.Add(new StringContent("ke"), "regions");
 
 			using var response = await client.PostAsync(SnapshotCloudUrl, form, ct);
@@ -89,7 +125,7 @@ namespace BussinessLogic.PlateRecognitionService
 				.Select(r => Normalize(r.GetProperty("plate").GetString() ?? ""))
 				.ToList();
 
-			// 3. Compare against registered plates (normalized: uppercase, no spaces/hyphens).
+			// 4. Compare against registered plates (normalized: uppercase, no spaces/hyphens).
 			var matchedPlate = registeredPlates.FirstOrDefault(p => Normalize(p) == recognizedPlate);
 
 			var dto = new PlateVerificationDto(

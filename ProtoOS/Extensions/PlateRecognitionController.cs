@@ -1,5 +1,4 @@
-﻿
-using BussinessLogic.PlateRecognitionService;
+﻿using BussinessLogic.PlateRecognitionService;
 using DataAccessLayer.Common;
 using DataAccessLayer.DTOs.PlateRecognition;
 using Microsoft.AspNetCore.Authorization;
@@ -20,11 +19,11 @@ namespace FuelFlow.Api.Controllers
 		}
 
 		[HttpPost("verify-wallet-vehicle")]
-		[Consumes("multipart/form-data")]
+		[Consumes("application/json")]
 		[RequestSizeLimit(10_000_000)]
-		public async Task<IActionResult> VerifyWalletVehicle([FromForm] VerifyWalletVehicleRequest request)
+		public async Task<IActionResult> VerifyWalletVehicle([FromBody] VerifyWalletVehicleRequest request)
 		{
-			if (request.Image is null || request.Image.Length == 0)
+			if (string.IsNullOrWhiteSpace(request.Image))
 				return BadRequest(ServiceResponse<object>.Information("No image received", null));
 
 			if (string.IsNullOrWhiteSpace(request.CustomerCode))

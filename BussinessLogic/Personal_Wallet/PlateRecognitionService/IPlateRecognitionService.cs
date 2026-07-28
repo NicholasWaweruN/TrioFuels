@@ -7,6 +7,6 @@ namespace BussinessLogic.PlateRecognitionService
 	public interface IPlateRecognitionService
 	{
 		Task<ServiceResponse<PlateVerificationDto>> VerifyWalletVehicleAsync(
-			IFormFile image, string customerCode, CancellationToken ct);
+		   string base64Image, string customerCode, CancellationToken ct);
 	}
 }
