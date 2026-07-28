@@ -31,6 +31,87 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 			_logger = logger;
 		}
 
+		//public async Task<ServiceResponse<object>> ReconcileStockSummariesAsync(string shiftNumber)
+		//{
+		//	try
+		//	{
+		//		var strategy = _context.Database.CreateExecutionStrategy();
+
+		//		await strategy.ExecuteAsync(async () =>
+		//		{
+		//			await using var transaction = await _context.Database.BeginTransactionAsync();
+
+		//			// 1. Update Stock Summaries (ALL IN SQL)
+		//			// FIX: previous version joined against a subquery built purely from
+		//			// QuantityTransactions, so any nozzle with ZERO transactions that shift
+		//			// (idle dispenser) had no matching row and was silently skipped by the
+		//			// UPDATE — leaving stale QuantitySold/ClosingVariance/VarianceStatus
+		//			// from a prior run in place. The subquery now enumerates nozzles from
+		//			// StockTakeSummaries itself (guaranteed one row per nozzle per shift)
+		//			// and LEFT JOINs to QuantityTransactions, so idle nozzles correctly
+		//			// get TotalSales = 0 instead of being left untouched.
+		//			await _context.Database.ExecuteSqlRawAsync(@"
+		//		UPDATE ""StockTakeSummaries"" s
+		//		SET
+		//			""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
+
+		//			""ExpectedClosingReading"" =
+		//				s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
+
+		//			""ClosingVariance"" =
+		//				s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
+
+		//			""VarianceStatus"" =
+		//				CASE
+		//					WHEN ABS(
+		//						s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0))
+		//					) = 0
+		//					THEN 0   -- Closed
+		//					ELSE 2   -- Variance
+		//				END
+		//		FROM (
+		//			SELECT
+		//				ss.""NozzleCode"",
+		//				SUM(COALESCE(qt.""QuantityCredit"", 0) - COALESCE(qt.""QuantityDebit"", 0)) AS ""TotalSales""
+		//			FROM ""StockTakeSummaries"" ss
+		//			LEFT JOIN ""QuantityTransactions"" qt
+		//				ON qt.""NozzleCode"" = ss.""NozzleCode""
+		//				AND qt.""ShiftNumber"" = {0}
+		//			WHERE ss.""ShiftNumber"" = {0}
+		//			GROUP BY ss.""NozzleCode""
+		//		) q
+		//		WHERE s.""ShiftNumber"" = {0}
+		//		  AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
+
+		//			// 2. Update Shift based on updated stock
+		//			await _context.Database.ExecuteSqlRawAsync(@"
+		//		UPDATE ""Shifts""
+		//		SET ""ShiftStatus"" =
+		//			CASE
+		//				WHEN NOT EXISTS (
+		//					SELECT 1
+		//					FROM ""StockTakeSummaries""
+		//					WHERE ""ShiftNumber"" = {0}
+		//					  AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
+		//				)
+		//				THEN 0   -- Closed
+		//				ELSE 2   -- Variance
+		//			END
+		//		WHERE ""ShiftNumber"" = {0};", shiftNumber);
+
+		//			await transaction.CommitAsync();
+		//		});
+
+		//		return ServiceResponse<object>.Success("Stock reconciled successfully", null);
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		_logger.LogError(ex, "Failed to reconcile stock summaries for shift {ShiftNumber}", shiftNumber);
+
+		//		return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary", null);
+		//	}
+		//}
+
 		public async Task<ServiceResponse<object>> ReconcileStockSummariesAsync(string shiftNumber)
 		{
 			try
@@ -51,53 +132,56 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 					// and LEFT JOINs to QuantityTransactions, so idle nozzles correctly
 					// get TotalSales = 0 instead of being left untouched.
 					await _context.Database.ExecuteSqlRawAsync(@"
-				UPDATE ""StockTakeSummaries"" s
-				SET
-					""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
+                UPDATE ""StockTakeSummaries"" s
+                SET
+                    ""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
 
-					""ExpectedClosingReading"" =
-						s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
+                    ""ExpectedClosingReading"" =
+                        s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
 
-					""ClosingVariance"" =
-						s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
+                    ""ClosingVariance"" =
+                        s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
 
-					""VarianceStatus"" =
-						CASE
-							WHEN ABS(
-								s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0))
-							) = 0
-							THEN 0   -- Closed
-							ELSE 2   -- Variance
-						END
-				FROM (
-					SELECT
-						ss.""NozzleCode"",
-						SUM(COALESCE(qt.""QuantityCredit"", 0) - COALESCE(qt.""QuantityDebit"", 0)) AS ""TotalSales""
-					FROM ""StockTakeSummaries"" ss
-					LEFT JOIN ""QuantityTransactions"" qt
-						ON qt.""NozzleCode"" = ss.""NozzleCode""
-						AND qt.""ShiftNumber"" = {0}
-					WHERE ss.""ShiftNumber"" = {0}
-					GROUP BY ss.""NozzleCode""
-				) q
-				WHERE s.""ShiftNumber"" = {0}
-				  AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
+                    ""VarianceStatus"" =
+                        CASE
+                            WHEN ABS(
+                                s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0))
+                            ) = 0
+                            THEN 0   -- Closed
+                            ELSE 2   -- Variance
+                        END
+                FROM (
+                    SELECT
+                        ss.""NozzleCode"",
+                        SUM(COALESCE(qt.""QuantityCredit"", 0) - COALESCE(qt.""QuantityDebit"", 0)) AS ""TotalSales""
+                    FROM ""StockTakeSummaries"" ss
+                    LEFT JOIN ""QuantityTransactions"" qt
+                        ON qt.""NozzleCode"" = ss.""NozzleCode""
+                        AND qt.""ShiftNumber"" = {0}
+                    WHERE ss.""ShiftNumber"" = {0}
+                    GROUP BY ss.""NozzleCode""
+                ) q
+                WHERE s.""ShiftNumber"" = {0}
+                  AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
 
 					// 2. Update Shift based on updated stock
+					// Reuses ClosingVariance from step 1 instead of recomputing the
+					// reading arithmetic — single source of truth, no risk of the two
+					// formulas drifting apart if the variance calculation changes.
 					await _context.Database.ExecuteSqlRawAsync(@"
-				UPDATE ""Shifts""
-				SET ""ShiftStatus"" =
-					CASE
-						WHEN NOT EXISTS (
-							SELECT 1
-							FROM ""StockTakeSummaries""
-							WHERE ""ShiftNumber"" = {0}
-							  AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
-						)
-						THEN 0   -- Closed
-						ELSE 2   -- Variance
-					END
-				WHERE ""ShiftNumber"" = {0};", shiftNumber);
+                UPDATE ""Shifts""
+                SET ""ShiftStatus"" =
+                    CASE
+                        WHEN NOT EXISTS (
+                            SELECT 1
+                            FROM ""StockTakeSummaries""
+                            WHERE ""ShiftNumber"" = {0}
+                              AND ""ClosingVariance"" <> 0
+                        )
+                        THEN 0   -- Closed
+                        ELSE 2   -- Variance
+                    END
+                WHERE ""ShiftNumber"" = {0};", shiftNumber);
 
 					await transaction.CommitAsync();
 				});
@@ -111,8 +195,6 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 				return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary", null);
 			}
 		}
-
-
 		public async Task<ServiceResponse<object>> SendShiftCloseEmailAsync(string shiftNumber, decimal totalsales)
 		{
 			try
