@@ -363,8 +363,10 @@ namespace BussinessLogic.Sales.NewSales
 				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
 				paymentStep: async (s, ctx, sid) =>
 				{
+					
+
 					var customerCode = await (from v in _context.Vehicles
-											  where v.VehicleCode.Equals(s.RegistrationNumber)
+											  where v.VehicleRegistrationNumber.Equals(s.RegistrationNumber)
 											  select v.CustomerCode).FirstOrDefaultAsync();
 
 					if (string.IsNullOrWhiteSpace(customerCode))
