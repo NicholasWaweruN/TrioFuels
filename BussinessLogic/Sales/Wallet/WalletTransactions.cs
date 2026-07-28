@@ -70,7 +70,7 @@
 			// ⚠️ ASSUMPTION: CreateCustomerTransaction's second param was vehicle.VehicleCode.
 			// Passing null here — confirm the transaction schema actually allows a
 			// null/empty vehicle code for a wallet top-up that isn't tied to a specific vehicle.
-			var transaction = CreateCustomerTransaction(customer.CustomerCode, null, topUpCustomerWalletDto.Amount, 0, topUpCustomerWalletDto.TransactionReference, topUpCustomerWalletDto.PaymentType, "Wallet deposit");
+			var transaction = CreateCustomerTransaction(customer.CustomerCode, string.Empty, topUpCustomerWalletDto.Amount, 0, topUpCustomerWalletDto.TransactionReference, topUpCustomerWalletDto.PaymentType, "Wallet deposit");
 
 			var saveResult = await SaveTransactionAsync(transaction);
 			if (saveResult.ResponseCode == Response.Error)
