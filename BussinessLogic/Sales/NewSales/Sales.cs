@@ -42,6 +42,15 @@ namespace BussinessLogic.Sales.NewSales
 
 	public class Sales : ISales
 	{
+		// NOTE: this class writes wallet debits (see HandleWalletAsync below) directly
+		// against the same CustomerTransactions table the standalone wallet/top-up
+		// service (WalletTransactions.cs) uses, deliberately bypassing that service.
+		// A "TopUpType" code is used to distinguish a fuel-purchase debit from a
+		// top-up, withdrawal, or transfer when reporting on the CustomerTransactions
+		// ledger — adjust WalletFuelPurchaseTopUpType below to match whatever code
+		// your TopUpTypes table actually uses for this.
+		private const int WalletFuelPurchaseTopUpType = 9;
+
 		private readonly ILoyaltyServices _loyalty;
 		private readonly IMemoryCache _cache;
 		private readonly OTOContext _context;
@@ -93,6 +102,7 @@ namespace BussinessLogic.Sales.NewSales
 				PaymetMethod.Credit => await HandleCreditAsync(sales, saleId),
 				PaymetMethod.Loyalty => await HandleLoyaltyAsync(sales, saleId),
 				PaymetMethod.PDQ => await HandlePDQAsync(sales, saleId),
+				PaymetMethod.Wallet => await HandleWalletAsync(sales, saleId),
 				_ => Info("Feature Coming Soon"),
 			};
 		}
@@ -310,6 +320,60 @@ namespace BussinessLogic.Sales.NewSales
 						$"has been recorded for vehicle {sales.RegistrationNumber} " +
 						$"at {ctx.Station.StationName} on {UtcStamp()}. " +
 						$"Remaining credit: KES {remainingCredit:N2}."));
+
+					return null;
+				}
+			);
+		}
+
+		// Wallet sale — debits the vehicle's prepaid wallet (CustomerTransactions
+		// ledger) for the fuel total, inside the same DB transaction as the rest of
+		// the sale. If the sale rolls back for any reason, the debit rolls back too.
+		//
+		// AcquireWalletLockAsync takes a Postgres advisory lock scoped to the vehicle
+		// for the life of this transaction, so two concurrent wallet sales against the
+		// same vehicle can't both read the pre-debit balance and both pass the
+		// sufficiency check — same double-spend concern the M-Pesa path guards
+		// against with FOR UPDATE row locks, just applied to an aggregate balance
+		// instead of a single row.
+		private Task<ServiceResponse<object>> HandleWalletAsync(AddsaleDto sales, string saleId)
+		{
+			return ExecuteSaleAsync(
+				sales, saleId,
+				operationType: "WALLET SALE",
+				receiptPaymentMethod: "Wallet",
+				awardLoyalty: true,
+				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
+				paymentStep: async (s, ctx, sid) =>
+				{
+					await AcquireWalletLockAsync(s.RegistrationNumber);
+
+					var balance = await GetWalletBalanceAsync(s.RegistrationNumber);
+
+					if (balance < ctx.Calculated)
+						return ServiceResponse<object>.Information(
+							$"Insufficient wallet balance. Available: KES {balance:N2}, Required: KES {ctx.Calculated:N2}",
+							new { Balance = balance, Required = ctx.Calculated });
+
+					_context.CustomerTransactions.Add(new CustomerTransactions
+					{
+						DateCreated = EatTime.Now,
+						UserCode = _authentication.Usercode(),
+						VehicleCode = s.RegistrationNumber,
+						TransactionReference = ctx.TransactionRef,
+						Credit = 0,
+						Debit = ctx.Calculated,
+						UserReference = sid,
+						Narration = $"Fuel purchase - {s.Quantity:N2}L at {ctx.Station.StationName}",
+						TopUpType = WalletFuelPurchaseTopUpType
+					});
+
+					var remainingBalance = balance - ctx.Calculated;
+
+					StageQueuedSms(ctx.Customer.CustomerPhone, BuildSms(ctx,
+						$"KES {ctx.Calculated:N2} has been deducted from your wallet for {s.Quantity:N2} litres " +
+						$"for vehicle {sales.RegistrationNumber} at {ctx.Station.StationName} on {UtcStamp()}. " +
+						$"Remaining wallet balance: KES {remainingBalance:N2}."));
 
 					return null;
 				}
@@ -845,6 +909,24 @@ namespace BussinessLogic.Sales.NewSales
 				.AsNoTracking()
 				.Where(c => c.CustomerCode == customerCode)
 				.SumAsync(c => c.Debit - c.Credit);
+
+		// Current wallet balance for a vehicle (sum of credits minus debits on
+		// CustomerTransactions). AsNoTracking — this is a read used purely to decide
+		// whether the debit below is allowed; the debit itself is a fresh insert.
+		private Task<decimal> GetWalletBalanceAsync(string vehicleCode)
+			=> _context.CustomerTransactions
+				.AsNoTracking()
+				.Where(x => x.VehicleCode == vehicleCode)
+				.SumAsync(x => x.Credit - x.Debit);
+
+		// Takes a Postgres transaction-scoped advisory lock keyed on the vehicle code.
+		// Released automatically on COMMIT/ROLLBACK of the surrounding transaction —
+		// no separate unlock call needed. Serializes concurrent wallet sales (or a
+		// wallet sale racing a wallet withdrawal/transfer, if those also take this
+		// lock) against the same vehicle so the balance check above can be trusted.
+		private Task AcquireWalletLockAsync(string vehicleCode)
+			=> _context.Database.ExecuteSqlInterpolatedAsync(
+				$@"SELECT pg_advisory_xact_lock(hashtext({vehicleCode}))");
 
 		// =====================================================================
 		// Data fetchers
