@@ -363,18 +363,21 @@ namespace BussinessLogic.Sales.NewSales
 				generateRef: _ => Task.FromResult(_setups.GenerateSaleId()),
 				paymentStep: async (s, ctx, sid) =>
 				{
-					
+					// s.RegistrationNumber is the plate string the attendant entered
+					// (e.g. "KDA 123A") — NOT the vehicle's VehicleCode. Resolve both
+					// CustomerCode and the real VehicleCode off the same row so the
+					// plate number never leaks into a column expecting VehicleCode.
+					var vehicle = await (from v in _context.Vehicles
+										 where v.VehicleRegistrationNumber.Equals(s.RegistrationNumber)
+										 select new { v.CustomerCode, v.VehicleCode })
+										 .FirstOrDefaultAsync();
 
-					var customerCode = await (from v in _context.Vehicles
-											  where v.VehicleRegistrationNumber.Equals(s.RegistrationNumber)
-											  select v.CustomerCode).FirstOrDefaultAsync();
-
-					if (string.IsNullOrWhiteSpace(customerCode))
+					if (vehicle is null || string.IsNullOrWhiteSpace(vehicle.CustomerCode))
 						return Info("This vehicle is not linked to a wallet account.");
 
-					await AcquireWalletLockAsync(customerCode);
+					await AcquireWalletLockAsync(vehicle.CustomerCode);
 
-					var balance = await GetWalletBalanceAsync(customerCode);
+					var balance = await GetWalletBalanceAsync(vehicle.CustomerCode);
 
 					if (balance < ctx.Calculated)
 						return ServiceResponse<object>.Information(
@@ -385,8 +388,8 @@ namespace BussinessLogic.Sales.NewSales
 					{
 						DateCreated = EatTime.Now,
 						UserCode = _authentication.Usercode(),
-						CustomerCode = customerCode,
-						VehicleCode = s.RegistrationNumber,     // record-keeping only — not used for balance
+						CustomerCode = vehicle.CustomerCode,
+						VehicleCode = vehicle.VehicleCode,       // real vehicle code, not the plate string
 						TransactionReference = ctx.TransactionRef,
 						Credit = 0,
 						Debit = ctx.Calculated,
@@ -406,7 +409,6 @@ namespace BussinessLogic.Sales.NewSales
 				}
 			);
 		}
-
 		// Current wallet balance for a customer (sum of credits minus debits on
 		// CustomerTransactions). AsNoTracking — this is a read used purely to decide
 		// whether the debit below is allowed; the debit itself is a fresh insert.
