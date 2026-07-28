@@ -105,6 +105,8 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
+
+
 		[HttpPost]
 		[Route("TransferSaleToAnotherNozzle")]
 		[Authorize(Roles = "can transfer sale to another nozzle")]

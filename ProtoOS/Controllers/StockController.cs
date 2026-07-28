@@ -1,4 +1,5 @@
-﻿using BusinessLogic.Stock.Stock;
+﻿using BusinessLogic.Sales.CommonSalesTasks;
+using BusinessLogic.Stock.Stock;
 using BussinessLogic.Reports.Shifts_Clossing;
 using BussinessLogic.Stock.Shifts;
 using BussinessLogic.Stock.Stock;
@@ -24,14 +25,16 @@ namespace FuelFlow.Controllers
 		private readonly ReadingsTotalizers _reading;
 		private readonly IShiftClosingReport _closingReport;
 		private readonly IStockTakeVarianceService _varianceService;
+		private readonly ICommonSalesTasks _recon;
 
-		public StockController(IStockServicecs stockService, IShifts shiftsService, ReadingsTotalizers reading, IShiftClosingReport closingReport,IStockTakeVarianceService varianceService)
+		public StockController(IStockServicecs stockService, IShifts shiftsService, ReadingsTotalizers reading, IShiftClosingReport closingReport,IStockTakeVarianceService varianceService, ICommonSalesTasks recon)
 		{
 			_stockService = stockService;
 			_shiftsService = shiftsService;
 			_reading = reading;
 			_closingReport = closingReport;
 			_varianceService = varianceService;
+			_recon = recon;
 		}
 		private IActionResult HandleResponse<T>(T response)
 		{
@@ -126,8 +129,16 @@ namespace FuelFlow.Controllers
 			var response = await _stockService.AdjustStockTakes(adjust);
 			return HandleResponse(response);
 		}
+
+		[HttpPost]
+		[Route("reconcileshift")]
+		public async Task<IActionResult> ReconcileStockSummariesAsync(string shiftNumber)
+		{
+			var response = await _recon.ReconcileStockSummariesAsync(shiftNumber);
+			return HandleResponse(response);
+		}
 		//export all variances
-	
+
 		//GetTotalizerReadings
 		[HttpGet]
 		[Route("GetTotalizerReadings")]

@@ -119,50 +119,72 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 				var strategy = _context.Database.CreateExecutionStrategy();
 				await strategy.ExecuteAsync(async () =>
 				{
-					await using var transaction = await _context.Database.BeginTransactionAsync();
+					var existingTransaction = _context.Database.CurrentTransaction;
+					var ownsTransaction = existingTransaction is null;
 
-					// 1. Update Stock Summaries (ALL IN SQL)
-					await _context.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""StockTakeSummaries"" s SET
-					""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
-                    ""ExpectedClosingReading"" =s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
-                    ""ClosingVariance"" = s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
-                    ""VarianceStatus"" =
+					var transaction = existingTransaction
+						?? await _context.Database.BeginTransactionAsync();
+
+					try
+					{
+						// 1. Update Stock Summaries (ALL IN SQL)
+						await _context.Database.ExecuteSqlRawAsync(@"
+                    UPDATE ""StockTakeSummaries"" s
+                    SET
+                        ""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
+                        ""ExpectedClosingReading"" =
+                            s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
+                        ""ClosingVariance"" =
+                            s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
+                        ""VarianceStatus"" =
+                            CASE
+                                WHEN ABS(
+                                    s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0))
+                                ) = 0
+                                THEN 0   -- Closed
+                                ELSE 2   -- Variance
+                            END
+                    FROM (
+                        SELECT
+                            ""NozzleCode"",
+                            SUM(""QuantityCredit"" - ""QuantityDebit"") AS ""TotalSales""
+                        FROM ""QuantityTransactions""
+                        WHERE ""ShiftNumber"" = {0}
+                        GROUP BY ""NozzleCode""
+                    ) q
+                    WHERE s.""ShiftNumber"" = {0}
+                      AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
+
+						// 2. Update Shift based on updated stock
+						await _context.Database.ExecuteSqlRawAsync(@"
+                    UPDATE ""Shifts""
+                    SET ""ShiftStatus"" =
                         CASE
-                            WHEN ABS(
-                                s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0))
-                            ) = 0
+                            WHEN NOT EXISTS (
+                                SELECT 1
+                                FROM ""StockTakeSummaries""
+                                WHERE ""ShiftNumber"" = {0}
+                                  AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
+                            )
                             THEN 0   -- Closed
                             ELSE 2   -- Variance
                         END
-                FROM (
-                    SELECT
-                        ""NozzleCode"",
-                        SUM(""QuantityCredit"" - ""QuantityDebit"") AS ""TotalSales""
-                    FROM ""QuantityTransactions""
-                    WHERE ""ShiftNumber"" = {0}
-                    GROUP BY ""NozzleCode""
-                ) q
-                WHERE s.""ShiftNumber"" = {0}
-                  AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
+                    WHERE ""ShiftNumber"" = {0};", shiftNumber);
 
-					// 2. Update Shift based on updated stock
-					await _context.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""Shifts""
-                SET ""ShiftStatus"" =
-                    CASE
-                        WHEN NOT EXISTS (
-                            SELECT 1
-                            FROM ""StockTakeSummaries""
-                            WHERE ""ShiftNumber"" = {0}
-                              AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
-                        )
-                        THEN 0   -- Closed
-                        ELSE 2   -- Variance
-                    END
-                WHERE ""ShiftNumber"" = {0};", shiftNumber);
-
-					await transaction.CommitAsync();
+						if (ownsTransaction)
+							await transaction.CommitAsync();
+					}
+					catch
+					{
+						if (ownsTransaction)
+							await transaction.RollbackAsync();
+						throw;
+					}
+					finally
+					{
+						if (ownsTransaction)
+							await transaction.DisposeAsync();
+					}
 				});
 
 				return ServiceResponse<object>.Success("Stock reconciled successfully", null);
