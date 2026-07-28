@@ -173,13 +173,13 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 		//execute sql get statement pasing parameters transid and ShortCode
 
 		public async Task<ServiceResponse<object>> MpesaTransactions(
-			string? tillNumber,
-			DateTime? dateFrom,
-			DateTime? dateTo,
-			string? transId,
-			string? shiftNumber,
-			int pageNumber = 1,
-			int pageSize = 50)
+		string? tillNumber,
+		DateTime? dateFrom,
+		DateTime? dateTo,
+		string? transId,
+		string? shiftNumber,
+		int pageNumber = 1,
+		int pageSize = 50)
 		{
 			if (pageNumber < 1) pageNumber = 1;
 			if (pageSize < 1) pageSize = 50;
@@ -197,10 +197,10 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				parameters.Add(new NpgsqlParameter("@transId", transId));
 			}
 
-			if (!string.IsNullOrWhiteSpace(transId))
+			if (!string.IsNullOrWhiteSpace(shiftNumber))
 			{
 				whereClause.Append(@" AND Mp.""ShiftNumber"" = @shiftNumber");
-				parameters.Add(new NpgsqlParameter("@transId", shiftNumber));
+				parameters.Add(new NpgsqlParameter("@shiftNumber", shiftNumber));
 			}
 
 			if (!string.IsNullOrWhiteSpace(tillNumber))
@@ -220,8 +220,6 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 				whereClause.Append(@" AND CAST(Mp.""DateTimeStamp"" AS DATE) <= @dateTo");
 				parameters.Add(new NpgsqlParameter("@dateTo", NpgsqlDbType.Date) { Value = dateTo.Value });
 			}
-
-
 
 			var joinSql = @"
         FROM ""MpesaTransactions"" Mp INNER JOIN ""Tills"" t
@@ -273,8 +271,8 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 
 				var pagedParameters = new List<NpgsqlParameter>(parameters)
 		{
-			new NpgsqlParameter("@pageSize", pageSize),
-			new NpgsqlParameter("@offset", (pageNumber - 1) * pageSize)
+			new NpgsqlParameter("@pageSize", NpgsqlDbType.Integer) { Value = pageSize },
+			new NpgsqlParameter("@offset", NpgsqlDbType.Integer) { Value = (pageNumber - 1) * pageSize }
 		};
 
 				var transactions = await _context.Database
@@ -295,8 +293,8 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving Mpesa transactions for Till={Till}, TransId={TransId}, From={From}, To={To}, Page={Page}, Size={Size}.",
-					tillNumber, transId, dateFrom, dateTo, pageNumber, pageSize);
+				_logger.LogError(ex, "Error retrieving Mpesa transactions for Till={Till}, TransId={TransId}, Shift={Shift}, From={From}, To={To}, Page={Page}, Size={Size}.",
+					tillNumber, transId, shiftNumber, dateFrom, dateTo, pageNumber, pageSize);
 
 				return GetErrorResponse("Error getting mpesa transactions");
 			}
@@ -563,12 +561,14 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			{
 				var entity = new MpesaTransaction
 				{
+					TransTime  = EatTime.Now,
+					TransactionType = "Manual",
 					TransID = mpesaC2BPayment.TransID,
 					TransAmount = mpesaC2BPayment.Amount,
 					BusinessShortCode = mpesaC2BPayment.BusinessShortCode,
 					MSISDN = mpesaC2BPayment.PhoneNumber,
 					DateTimeStamp =EatTime.Now,
-					Status = 0,
+					Status = 1,
 					UsageBalance = mpesaC2BPayment.Amount,
 					UserCode = _authentication.Usercode(),
 					DateCreated = EatTime.Now,

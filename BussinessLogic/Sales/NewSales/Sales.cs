@@ -13,6 +13,7 @@ using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using OnfonSms;
 using System.Text.RegularExpressions;
 
 namespace BussinessLogic.Sales.NewSales
@@ -59,6 +60,7 @@ namespace BussinessLogic.Sales.NewSales
 		private readonly ICommonSalesTasks _salesTasks;
 		private readonly IAfricaIsTalking _isTalking;
 		private readonly ReceiptService _receipt;
+		private readonly ISmsService _sms;
 
 		public Sales(
 			OTOContext context,
@@ -68,7 +70,7 @@ namespace BussinessLogic.Sales.NewSales
 			IAfricaIsTalking isTalking,
 			IMemoryCache cache,
 			ReceiptService receipt,
-			ILoyaltyServices loyalty)
+			ILoyaltyServices loyalty, ISmsService sms)
 		{
 			_context = context;
 			_setups = setups;
@@ -78,6 +80,7 @@ namespace BussinessLogic.Sales.NewSales
 			_cache = cache;
 			_receipt = receipt;
 			_loyalty = loyalty;
+			_sms = sms;
 		}
 
 		// =====================================================================
@@ -400,11 +403,12 @@ namespace BussinessLogic.Sales.NewSales
 
 					var remainingBalance = balance - ctx.Calculated;
 
-					StageQueuedSms(ctx.Customer.CustomerPhone, BuildSms(ctx,
-						$"KES {ctx.Calculated:N2} has been deducted from your wallet for {s.Quantity:N2} litres " +
+					string sms =
+						$"Dear {FirstName} KES {ctx.Calculated:N2} has been deducted from your wallet for {s.Quantity:N2} litres " +
 						$"for vehicle {sales.RegistrationNumber} at {ctx.Station.StationName} on {UtcStamp()}. " +
-						$"Remaining wallet balance: KES {remainingBalance:N2}."));
+						$"Remaining wallet balance: KES {remainingBalance:N2}.";
 
+					await _sms.SendAsync(ctx.Customer.CustomerPhone, sms);
 					return null;
 				}
 			);
