@@ -109,22 +109,7 @@
 			};
 		}
 
-		private CustomerTransactions CreateVoucherTransaction(string vehicleCode, decimal credit, decimal debit, string reference, int topUpType, string narration)
-		{
-			return new CustomerTransactions
-			{
-				DateCreated =EatTime.Now,
-				UserCode = _authentication.Usercode(),
-				VehicleCode = vehicleCode,
-				TransactionReference = _setups.GenerateSaleId(),
-				Credit = credit,
-				Debit = debit,
-				UserReference = reference,
-				Narration = narration,
-				TopUpType = topUpType
-
-			};
-		}
+	
 
 		/// <summary>
 		/// The CreateFundCustomerTransaction
@@ -134,20 +119,6 @@
 		/// <param name="debit">The debit<see cref="decimal"/></param>
 		/// <param name="reference">The reference<see cref="string"/></param>
 		/// <returns>The <see cref="CustomerTransactions"/></returns>
-		private CustomerTransactions CreateFundCustomerTransaction(string vehicleCode, decimal credit, decimal debit, string reference)
-		{
-			return new CustomerTransactions
-			{
-				DateCreated =EatTime.Now,
-				UserCode = _authentication.Usercode(),
-				VehicleCode = vehicleCode,
-				TransactionReference = _setups.GenerateSaleId(),
-				Credit = credit,
-				Debit = debit,
-				UserReference = string.Empty,
-				Narration = $"Top up ref no {reference} "
-			};
-		}
 
 		// Common method to save a transaction and return a success response
 

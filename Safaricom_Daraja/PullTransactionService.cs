@@ -113,7 +113,7 @@ public sealed class PullTransactionService(
 
 		foreach (var till in _cfg.Tills)
 		{
-			results[till.TillNumber] = await RegisterAsync(till.TillNumber, ct);
+			results[till.TillNumber] = await RegisterAsync(till.StoreNumber, ct);
 			await Task.Delay(300, ct);
 		}
 
