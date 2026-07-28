@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -30,9 +31,9 @@ public interface IPullTransactionService
 
 	/// <summary>
 	/// Pulls transactions for a specific till within a single offset window.
-	/// ShortCode in the underlying request IS the till number — Daraja has no
-	/// separate till-filter field, so per-till scoping happens by passing that
-	/// till's own number here, not the head-office/business shortcode.
+	/// tillNumber is your internal identifier — it is resolved to that till's
+	/// StoreNumber (settlement shortcode) before being sent to Daraja as ShortCode,
+	/// matching what RegisterAsync already uses.
 	/// </summary>
 	Task<DarajaResult<PullTransactionResponse>> PullAsync(
 		string tillNumber, DateTime from, DateTime to, int offset = 0, CancellationToken ct = default);
@@ -96,7 +97,7 @@ public sealed class PullTransactionService(
 				return DarajaResult<PullRegisterResponse>.Fail($"{result.ResponseStatus}: {result.ResponseDescription}");
 			}
 
-			logger.LogInformation("Pull registration for Till {Till}: {Status} — {Description}",tillNumber, result.ResponseStatus, result.ResponseDescription);
+			logger.LogInformation("Pull registration for Till {Till}: {Status} — {Description}", tillNumber, result.ResponseStatus, result.ResponseDescription);
 
 			return DarajaResult<PullRegisterResponse>.Ok(result);
 		}
@@ -120,18 +121,33 @@ public sealed class PullTransactionService(
 		return results;
 	}
 
+	/// <summary>
+	/// Pulls transactions for a specific till within a single offset window.
+	/// ShortCode in the underlying request is the STORE NUMBER (settlement shortcode),
+	/// not the till number — same identifier RegisterAsync already uses. The till
+	/// number customers dial is a different, non-registrable identifier for this API.
+	/// tillNumber here is still your internal identifier, used to resolve the store
+	/// number from config and for logging/DB attribution downstream.
+	/// </summary>
 	public async Task<DarajaResult<PullTransactionResponse>> PullAsync(string tillNumber, DateTime from, DateTime to, int offset = 0, CancellationToken ct = default)
 	{
 		try
 		{
 			ValidateWindow(from, to);
 
-			// FIX: ShortCode must be the till number itself — Daraja has no separate
-			// till-filter field. Passing the head-office BusinessShortCode here caused
-			// every till to silently query the wrong ledger and always return 1001.
+			var tillConfig = _cfg.Tills.FirstOrDefault(t => t.TillNumber == tillNumber);
+			if (tillConfig is null)
+			{
+				logger.LogError("Pull aborted: no configured Till entry found for {Till}", tillNumber);
+				return DarajaResult<PullTransactionResponse>.Fail($"Unknown till number: {tillNumber}");
+			}
+
+			// FIX: ShortCode must be the StoreNumber (settlement shortcode), matching
+			// RegisterAsync — not the till number. The till number is customer-facing
+			// and isn't recognized by Daraja as a queryable/registrable shortcode.
 			var payload = new PullTransactionRequest
 			{
-				ShortCode = tillNumber,
+				ShortCode = tillConfig.StoreNumber,
 				StartDate = from.ToString(DateFormat),
 				EndDate = to.ToString(DateFormat),
 				OffSetValue = offset.ToString()
@@ -147,7 +163,8 @@ public sealed class PullTransactionService(
 			if (!response.IsSuccessStatusCode)
 			{
 				var error = await response.Content.ReadAsStringAsync(ct);
-				logger.LogError("Pull failed [{StatusCode}] for Till {Till}: {Error}", response.StatusCode, tillNumber, error);
+				logger.LogError("Pull failed [{StatusCode}] for Till {Till} (StoreNumber {StoreNumber}): {Error}",
+					response.StatusCode, tillNumber, tillConfig.StoreNumber, error);
 				return DarajaResult<PullTransactionResponse>.Fail(error);
 			}
 
@@ -172,7 +189,8 @@ public sealed class PullTransactionService(
 			}
 
 			var count = result.FlattenTransactions().Count;
-			logger.LogInformation("Pulled {Count} transactions for Till {Till} | offset={Offset} | ResponseCode={Code}",count, tillNumber, offset, result.ResponseCode);
+			logger.LogInformation("Pulled {Count} transactions for Till {Till} (StoreNumber {StoreNumber}) | offset={Offset} | ResponseCode={Code}",
+				count, tillNumber, tillConfig.StoreNumber, offset, result.ResponseCode);
 
 			return DarajaResult<PullTransactionResponse>.Ok(result);
 		}

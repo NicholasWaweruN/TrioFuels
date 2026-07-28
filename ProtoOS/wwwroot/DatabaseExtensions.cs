@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
-namespace FuelFlow.Extensions;
+namespace FuelFlow.wwwroot;
 
 public static class DatabaseExtensions
 {

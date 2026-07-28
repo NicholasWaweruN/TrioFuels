@@ -1,10 +1,9 @@
-﻿
-using BussinessLogic.Services.Daraja;
+﻿using BussinessLogic.Services.Daraja;
 using DataAccessLayer.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
+using Safaricom_Daraja;
 
 namespace BussinessLogic.Worker.PullTransactions;
 
@@ -12,9 +11,9 @@ namespace BussinessLogic.Worker.PullTransactions;
 /// Background worker that pulls M-Pesa transactions from Safaricom
 /// every hour and upserts them into the MpesaTransactions table.
 /// </summary>
-public sealed class PullTransactionWorker(IServiceScopeFactory scopeFactory,ILogger<PullTransactionWorker> logger) : BackgroundService
+public sealed class PullTransactionWorker(IServiceScopeFactory scopeFactory, ILogger<PullTransactionWorker> logger) : BackgroundService
 {
-	private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
+	private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 	{
@@ -34,42 +33,34 @@ public sealed class PullTransactionWorker(IServiceScopeFactory scopeFactory,ILog
 
 	private async Task RunPullAsync(CancellationToken ct)
 	{
-		logger.LogInformation("Pull cycle starting at {Time}",EatTime.Now);
+		logger.LogInformation("Pull cycle starting at {Now}", EatTime.Now);
+
+		using var scope = scopeFactory.CreateScope();
+		var importService = scope.ServiceProvider.GetRequiredService<IPullTransactionImportService>();
+
+		var to = EatTime.Now;
+		var from = to.AddHours(-1);
 
 		try
 		{
-			// Use a new scope per run — ImportService depends on scoped OTOContext
-			await using var scope = scopeFactory.CreateAsyncScope();
-			var importService = scope.ServiceProvider
-				.GetRequiredService<IPullTransactionImportService>();
-
-			// Pull the last 2 hours (overlap to avoid missing transactions near the boundary)
-			var to =EatTime.Now;
-			var from = to.AddHours(-2);
-
 			var results = await importService.ImportAllTillsAsync(from, to, ct);
 
-			var totalInserted = results.Values.Sum(r => r.Inserted);
-			var totalUpdated = results.Values.Sum(r => r.Updated);
-			var totalSkipped = results.Values.Sum(r => r.Skipped);
-			var failed = results.Values.Where(r => !r.Success).ToList();
-
-			logger.LogInformation("Pull cycle complete. Inserted={Inserted} Updated={Updated} Skipped={Skipped}",totalInserted, totalUpdated, totalSkipped);
-
-			if (failed.Count > 0)
+			foreach (var (tillNumber, result) in results)
 			{
-				foreach (var f in failed)
-					logger.LogError("Pull failed for till {Till}: {Error}", f.TillNumber, f.Error);
+				if (!result.Success)
+				{
+					logger.LogError("Pull cycle failed for Till {Till}: {Error}", tillNumber, result.Error);
+					continue;
+				}
+
+				logger.LogInformation(
+					"Pull cycle complete for Till {Till}: {Inserted} added, {Updated} matched/modified, {Skipped} failures",
+					tillNumber, result.Inserted, result.Updated, result.Skipped);
 			}
-		}
-		catch (OperationCanceledException)
-		{
-			// App is shutting down — exit cleanly
 		}
 		catch (Exception ex)
 		{
-			// Log but don't crash the worker — it will retry next hour
-			logger.LogError(ex, "Unhandled exception in pull cycle");
+			logger.LogError(ex, "Pull cycle threw an unhandled exception.");
 		}
 	}
 }
