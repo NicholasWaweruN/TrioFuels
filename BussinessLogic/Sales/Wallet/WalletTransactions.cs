@@ -53,21 +53,24 @@
 		/// </summary>
 		public async Task<ServiceResponse> TopUpCustomerWallet(TopUpCustomerWalletDto topUpCustomerWalletDto)
 		{
-			if (string.IsNullOrEmpty(topUpCustomerWalletDto.VehicleCode))
-				return ServiceResponse<object>.Information("Kindly provide the vehicle registration number");
+			if (string.IsNullOrEmpty(topUpCustomerWalletDto.CustomerCode))
+				return ServiceResponse<object>.Information("Kindly provide the customer code");
 
 			if (topUpCustomerWalletDto.Amount <= 0)
 				return ServiceResponse<object>.Information("Deposit amount must be greater than zero");
 
-			var vehicle = await _context.Vehicles.FirstOrDefaultAsync(x => x.VehicleCode == topUpCustomerWalletDto.VehicleCode);
-			if (vehicle is null)
-				return ServiceResponse<object>.Information("Vehicle does not exist");
-
-			var customer = await GetCustomerDetailsAsync(topUpCustomerWalletDto.VehicleCode);
+			// ⚠️ ASSUMPTION: swapped GetCustomerDetailsAsync(vehicleCode) for a
+			// customer-code lookup. I don't have your customer repository/service,
+			// so I'm guessing this method name — confirm it exists, or point me to
+			// whatever your codebase actually uses to fetch a customer by CustomerCode.
+			var customer = await GetCustomerDetailsByCustomerCodeAsync(topUpCustomerWalletDto.CustomerCode);
 			if (customer is null)
 				return ServiceResponse<object>.Information("Customer Not Found");
 
-			var transaction = CreateCustomerTransaction(customer.CustomerCode, vehicle.VehicleCode, topUpCustomerWalletDto.Amount, 0, topUpCustomerWalletDto.TransactionReference, topUpCustomerWalletDto.PaymentType, "Wallet deposit");
+			// ⚠️ ASSUMPTION: CreateCustomerTransaction's second param was vehicle.VehicleCode.
+			// Passing null here — confirm the transaction schema actually allows a
+			// null/empty vehicle code for a wallet top-up that isn't tied to a specific vehicle.
+			var transaction = CreateCustomerTransaction(customer.CustomerCode, null, topUpCustomerWalletDto.Amount, 0, topUpCustomerWalletDto.TransactionReference, topUpCustomerWalletDto.PaymentType, "Wallet deposit");
 
 			var saveResult = await SaveTransactionAsync(transaction);
 			if (saveResult.ResponseCode == Response.Error)
@@ -79,10 +82,16 @@
 			await _africaIsTalking.SendSms(customer.CustomerPhone,
 				$"Dear {firstName}, your wallet has been topped up with {topUpCustomerWalletDto.Amount:N2} ksh on {DateTime.UtcNow:dd/MM/yy} at {DateTime.UtcNow:hh:mm tt}. Your new balance is {newBalance.ResponseObject:N2} ksh. Thank you for choosing Otogas.");
 
-			var message = $"{_authentication.Name()} has topped up {vehicle.VehicleRegistrationNumber} with {topUpCustomerWalletDto.Amount:N2} ksh on {DateTime.UtcNow}";
+			var message = $"{_authentication.Name()} has topped up customer {customer.CustomerName} ({customer.CustomerCode}) with {topUpCustomerWalletDto.Amount:N2} ksh on {DateTime.UtcNow}";
 			await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
 
 			return ServiceResponse<object>.Success($"Customer Wallet Topped Up with {topUpCustomerWalletDto.Amount:N2}");
+		}
+
+		private async Task<Customer> GetCustomerDetailsByCustomerCodeAsync(string customerCode)
+		{
+			return await _context.Customers
+				.FirstOrDefaultAsync(x => x.CustomerCode == customerCode) ?? new Customer();
 		}
 
 		/// <summary>

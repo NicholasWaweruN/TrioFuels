@@ -23,9 +23,9 @@ namespace DataAccessLayer.EntityModels.Wallet
 		public class TopUpCustomerWalletDto
 		{
 			public int PaymentType { get; set; } = 0;
-			public string VehicleCode { get; set; } = string.Empty;
+			public string CustomerCode { get; set; } = string.Empty;
 			public string TransactionReference { get; set; } = string.Empty;
-			[Precision(18,2)] public decimal Amount { get; set; } = 0;
+			[Precision(18, 2)] public decimal Amount { get; set; } = 0;
 		}
 		public class TopUpFundsDto
 		{
