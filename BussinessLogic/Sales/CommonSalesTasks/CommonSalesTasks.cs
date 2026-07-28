@@ -117,31 +117,16 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 			try
 			{
 				var strategy = _context.Database.CreateExecutionStrategy();
-
 				await strategy.ExecuteAsync(async () =>
 				{
 					await using var transaction = await _context.Database.BeginTransactionAsync();
 
 					// 1. Update Stock Summaries (ALL IN SQL)
-					// FIX: previous version joined against a subquery built purely from
-					// QuantityTransactions, so any nozzle with ZERO transactions that shift
-					// (idle dispenser) had no matching row and was silently skipped by the
-					// UPDATE — leaving stale QuantitySold/ClosingVariance/VarianceStatus
-					// from a prior run in place. The subquery now enumerates nozzles from
-					// StockTakeSummaries itself (guaranteed one row per nozzle per shift)
-					// and LEFT JOINs to QuantityTransactions, so idle nozzles correctly
-					// get TotalSales = 0 instead of being left untouched.
 					await _context.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""StockTakeSummaries"" s
-                SET
-                    ""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
-
-                    ""ExpectedClosingReading"" =
-                        s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
-
-                    ""ClosingVariance"" =
-                        s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
-
+                UPDATE ""StockTakeSummaries"" s SET
+					""QuantitySold"" = COALESCE(q.""TotalSales"", 0),
+                    ""ExpectedClosingReading"" =s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0),
+                    ""ClosingVariance"" = s.""ClosingReading"" - (s.""OpeningReading"" + COALESCE(q.""TotalSales"", 0)),
                     ""VarianceStatus"" =
                         CASE
                             WHEN ABS(
@@ -152,22 +137,16 @@ namespace BussinessLogic.Sales.CommonSalesTasks
                         END
                 FROM (
                     SELECT
-                        ss.""NozzleCode"",
-                        SUM(COALESCE(qt.""QuantityCredit"", 0) - COALESCE(qt.""QuantityDebit"", 0)) AS ""TotalSales""
-                    FROM ""StockTakeSummaries"" ss
-                    LEFT JOIN ""QuantityTransactions"" qt
-                        ON qt.""NozzleCode"" = ss.""NozzleCode""
-                        AND qt.""ShiftNumber"" = {0}
-                    WHERE ss.""ShiftNumber"" = {0}
-                    GROUP BY ss.""NozzleCode""
+                        ""NozzleCode"",
+                        SUM(""QuantityCredit"" - ""QuantityDebit"") AS ""TotalSales""
+                    FROM ""QuantityTransactions""
+                    WHERE ""ShiftNumber"" = {0}
+                    GROUP BY ""NozzleCode""
                 ) q
                 WHERE s.""ShiftNumber"" = {0}
                   AND s.""NozzleCode"" = q.""NozzleCode"";", shiftNumber);
 
 					// 2. Update Shift based on updated stock
-					// Reuses ClosingVariance from step 1 instead of recomputing the
-					// reading arithmetic — single source of truth, no risk of the two
-					// formulas drifting apart if the variance calculation changes.
 					await _context.Database.ExecuteSqlRawAsync(@"
                 UPDATE ""Shifts""
                 SET ""ShiftStatus"" =
@@ -176,7 +155,7 @@ namespace BussinessLogic.Sales.CommonSalesTasks
                             SELECT 1
                             FROM ""StockTakeSummaries""
                             WHERE ""ShiftNumber"" = {0}
-                              AND ""ClosingVariance"" <> 0
+                              AND ABS(""ClosingReading"" - (""OpeningReading"" + ""QuantitySold"")) <> 0
                         )
                         THEN 0   -- Closed
                         ELSE 2   -- Variance
@@ -191,7 +170,6 @@ namespace BussinessLogic.Sales.CommonSalesTasks
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Failed to reconcile stock summaries for shift {ShiftNumber}", shiftNumber);
-
 				return ServiceResponse<object>.Error("An error occurred while reconciling the stock summary", null);
 			}
 		}
