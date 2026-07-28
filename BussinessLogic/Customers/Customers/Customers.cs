@@ -426,9 +426,9 @@ namespace BusinessLogic.CustomerService
 		/// </summary>
 		/// <param name="searchTerm">Search term to match customer names</param>
 		/// <returns>ServiceResponse<object> containing the list of matching customers</returns>
-		public async Task<ServiceResponse<object>> GetAllCustomers(string searchTerm)
+		public async Task<ServiceResponse<List<Customer>>> GetAllCustomers(string searchTerm)
 		{
-			return ServiceResponse<object>.Success("Customers retrieved successfully", await _context.Customers.Where(x => x.CustomerName.Contains(searchTerm)).Take(10).ToListAsync());
+			return ServiceResponse<List<Customer>>.Success("Customers retrieved successfully", await _context.Customers.Where(x => x.CustomerName.Contains(searchTerm)).Take(10).ToListAsync() ?? new List<Customer>());
 		}
 
 		/// <summary>
@@ -759,6 +759,18 @@ namespace BusinessLogic.CustomerService
 				return customer;
 			return new Customer();
 		}
+
+		public async Task<Customer> GetCustomerByPhoneNumber(string phoneNumber)
+		{
+			var customer = await (from c in _context.Customers
+								  where c.CustomerPhone == phoneNumber
+								  select c).FirstOrDefaultAsync();
+			if (customer != null)
+				return customer;
+			return new Customer();
+		}
+
+
 		///	
 	}
 
