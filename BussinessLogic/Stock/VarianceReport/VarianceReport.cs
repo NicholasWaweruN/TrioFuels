@@ -9,7 +9,6 @@ using System.Reflection;
 using static BussinessLogic.Sales.MissingSales.MisingSale;
 using static BusinessLogic.Services.Services;
 using static BussinessLogic.Stock.Stock.StockServicecs;
-using BussinessLogic.PlateDetection;
 using Syncfusion.XlsIO.Implementation.Collections;
 using BussinessLogic.Messaging;
 using BussinessLogic.Setup;

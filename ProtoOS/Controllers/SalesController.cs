@@ -156,16 +156,7 @@ namespace FuelFlow.Controllers
 
 	
 
-		#endregion
-		#region Wallet Management Endpoints
-		[HttpGet]
-		[Authorize(Roles = "can view all customer balances")]
-		[Route("GetAllCustomerBalances")]
-		public async Task<IActionResult> GetAllCustomerBalances()
-		{
-			var response = await _wallet.GetAllCustomerBalances();
-			return CreateResponse(response);
-		}
+		
 
 		[HttpPost]
 		[Authorize(Roles = "can view customer statement")]
@@ -205,25 +196,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-		[HttpGet]
-		[Route("CustomerAllVehiclesStatement/{customerCode}")]
-		[Authorize(Roles = "can view a vehicle statement")]
-		public async Task<IActionResult> CustomerAllVehiclesStatement(string customerCode, DateTime from)
-		{
-
-			var result = await _wallet.CustomerStatement2(customerCode,from);
-			if (result.ResponseCode != 1)
-			{
-				return NotFound(result.ResponseMessage);  // Return appropriate error response
-			}
-
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return NotFound("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CustomerStatement.xlsx");
-		}
+	
 
 		[HttpGet]
 		[Route("GetPaymentTransactions/{transactionCode}")]
@@ -245,25 +218,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-		[HttpGet]
-		[Route("ExportWalletStatement/{vehicleCode}")]
-		[Authorize(Roles = "can view customer statement")]
-		public async Task<IActionResult> ExportCustomerTransactionsEplus(string vehicleCode)
-		{
-			var result = await _wallet.ExportCustomerTransactionsEplus(vehicleCode);
-			if (result.ResponseCode != 1)
-			{
 
-				return BadRequest(result.ResponseMessage);  // Return appropriate error response
-			}
-
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return BadRequest("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CustomerStatement.xlsx");
-		}
 		#endregion
 
 		
@@ -312,24 +267,7 @@ namespace FuelFlow.Controllers
 		}
 
 
-		[HttpGet]
-		[Route("CustomerStatement/{customerCode}")]
-		[Authorize(Roles = "can download customer statements")]
-		public async Task<IActionResult> CustomerStatement(string customerCode)
-		{
-			var result = await _wallet.CustomerStatement(customerCode);
-			if (result.ResponseCode != 1)
-			{
-				return NotFound(result.ResponseMessage);  // Return appropriate error response
-			}
 
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return BadRequest("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CustomerStatement.xlsx");
-		}
 		// archive 
 		[HttpGet]
 		[Authorize(Roles = "can view archive data")]

@@ -40,7 +40,7 @@ using BussinessLogic.DashBoard;
 using BussinessLogic.Messaging;
 using BussinessLogic.Personal_Wallet;
 using BussinessLogic.Personal_Wallet.Payments.PaymentSetups;
-using BussinessLogic.PlateDetection;
+using BussinessLogic.PlateRecognitionService;
 using BussinessLogic.Reports;
 using BussinessLogic.Reports.Shifts_Clossing;
 using BussinessLogic.Sales.CommonSalesTasks;
@@ -174,6 +174,7 @@ public static class BusinessServicesExtensions
 
 		// ── Plate recognition ───────────────────────────────────────────────
 		services.AddScoped<PlateRecognition>();
+		services.AddHttpClient();
 		services.AddScoped<IPlateRecognitionService, PlateRecognitionService>();
 
 		// ── Loyalty & coupons ───────────────────────────────────────────────
