@@ -37,6 +37,29 @@ namespace BussinessLogic.Sales.Credit_Management
 			return ServiceResponse<object>.Success("is a credit customer", customer);
 		}
 
+		/// <summary>
+		/// Public read of a customer's current outstanding credit balance — used
+		/// by the front end to show a live balance preview before recording a
+		/// repayment. Thin wrapper around the same GetOutstandingCreditAsync used
+		/// internally by RepayCreditAsync, so the two never drift apart.
+		/// </summary>
+		public async Task<ServiceResponse<object>> GetOutstandingBalanceAsync(string customerCode)
+		{
+			if (string.IsNullOrWhiteSpace(customerCode))
+				return ServiceResponse<object>.Information("Customer code is required", null);
+
+			var customerExists = await _context.Customers
+				.AsNoTracking()
+				.AnyAsync(c => c.CustomerCode == customerCode);
+
+			if (!customerExists)
+				return ServiceResponse<object>.Information("Customer not found", null);
+
+			var outstanding = await GetOutstandingCreditAsync(customerCode);
+
+			return ServiceResponse<object>.Success("Outstanding balance retrieved", new { Outstanding = outstanding });
+		}
+
 		// =====================================================================
 		// Credit repayment — Cash / PDQ / Mpesa
 		// =====================================================================
@@ -137,7 +160,7 @@ namespace BussinessLogic.Sales.Credit_Management
 					if (!dto.AllowOverpayment && amountToCredit > outstanding)
 					{
 						await tx.RollbackAsync();
-						return ServiceResponse<object>.Information($"Payment of {amountToCredit:N2} exceeds outstanding balance of {outstanding:N2}. " +$"Either collect {outstanding:N2} exactly, or pass AllowOverpayment: true to accept it as a credit surplus.",
+						return ServiceResponse<object>.Information($"Payment of {amountToCredit:N2} exceeds outstanding balance of {outstanding:N2}. " + $"Either collect {outstanding:N2} exactly, or pass AllowOverpayment: true to accept it as a credit surplus.",
 							new
 							{
 								Outstanding = outstanding,
@@ -250,7 +273,7 @@ namespace BussinessLogic.Sales.Credit_Management
 		// Outstanding balance
 		// =====================================================================
 
-		private async Task<decimal> GetOutstandingCreditAsync(string customerCode)
+		public async Task<decimal> GetOutstandingCreditAsync(string customerCode)
 		{
 			var totals = await _context.CreditTransactions
 				.Where(c => c.CustomerCode == customerCode)

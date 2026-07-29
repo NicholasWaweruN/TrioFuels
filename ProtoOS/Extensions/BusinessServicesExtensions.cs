@@ -190,7 +190,7 @@ public static class BusinessServicesExtensions
 		services.AddScoped<IShiftResolver,ShiftResolver>();
 		services.AddScoped<ISalesByPaymentMethod, SalesByPaymentMethod>();
 	
-		services.AddScoped<ICreditManagement,CreditManagement>();
+		services.AddScoped<ICreditStatementService, CreditStatementService>();
 		services.AddScoped<IAllReports, AllReports>();
 
 		services.AddScoped<ICarWashShiftService, CarWashShiftService>();

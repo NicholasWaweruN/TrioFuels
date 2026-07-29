@@ -6,10 +6,12 @@ using BusinessLogic.Sales.ReverseSales;
 using BusinessLogic.Sales.Wallet;
 using BussinessLogic.CouponsService;
 using BussinessLogic.Messaging;
+using BussinessLogic.Sales.Credit_Management;
 using BussinessLogic.Sales.MissingSales;
 using BussinessLogic.Sales.NewSales;
 using BussinessLogic.Sales.SalesData;
 using BussinessLogic.Sales.Wallet;
+using DataAccessLayer.DTOs.Credit;
 using DataAccessLayer.DTOs.Sales;
 using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Authorization;
@@ -40,11 +42,15 @@ namespace FuelFlow.Controllers
 		private readonly ILoyaltyProgramSubscription _subscription;
 		private readonly ICouponsService _coupons;
 		private readonly ISalesByPaymentMethod _salesByPaymentMethod;
+		private readonly ICreditManagement _credit;
+		private readonly ICreditStatementService _creditStatements;
+
 
 		public SalesController(ISalesManagementService salesService, ISales sales, IWalletTransactions wallet,
 			IDashBoard dashBoard, IMissingSales missing, IReverseSales reverse, IEmailService emailService,
 			IMisingSale misingSale, Archive_Data archive, ReceiptService receipt, ICustomerStatementService statements,
-			ILoyaltyProgramSubscription loyaltyServices, ICouponsService coupons, ISalesByPaymentMethod salesByPaymentMethod)
+			ILoyaltyProgramSubscription loyaltyServices, ICouponsService coupons, ISalesByPaymentMethod salesByPaymentMethod,
+			ICreditManagement credit, ICreditStatementService creditStatements)
 		{
 			_salesService = salesService;
 			_addingSales = sales;
@@ -60,6 +66,8 @@ namespace FuelFlow.Controllers
 			_subscription = loyaltyServices;
 			_coupons = coupons;
 			_salesByPaymentMethod = salesByPaymentMethod;
+			_credit = credit;
+			_creditStatements = creditStatements;
 		}
 
 		private OkObjectResult CreateResponse<T>(T response) => Ok(response);
@@ -391,6 +399,110 @@ namespace FuelFlow.Controllers
 			var fileBytes = _statements.BuildStatementPdf(statement);
 			return File(fileBytes, "application/pdf",
 				$"Statement_{customerCode}_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
+		}
+
+		#endregion
+
+
+		#region Credit Management
+
+		[HttpGet]
+		[Authorize(Roles = "can view customer balances")]
+		[Route("Credit/IsCreditCustomer/{customerCode}")]
+		public async Task<IActionResult> CheckIfIsACreditCustomer(string customerCode)
+		{
+			var response = await _credit.CheckifIsAcreditCustomer(customerCode);
+			return CreateResponse(response);
+		}
+
+		[HttpGet]
+		[Authorize(Roles = "can view customer balances")]
+		[Route("Credit/Outstanding")]
+		public async Task<IActionResult> GetOutstandingCreditBalance([FromQuery] string customerCode)
+		{
+			if (string.IsNullOrWhiteSpace(customerCode))
+				return BadRequest(new { message = "customerCode is required." });
+
+			var response = await _credit.GetOutstandingCreditAsync(customerCode);
+			return CreateResponse(response);
+		}
+
+		[HttpPost]
+		[Authorize(Roles = "can record credit repayment")]
+		[Route("Credit/Repay")]
+		public async Task<IActionResult> RepayCredit([FromBody] CreditRepaymentDto dto)
+		{
+			var response = await _credit.RepayCreditAsync(dto);
+			return CreateResponse(response);
+		}
+
+		[HttpGet("Credit/Statement")]
+		[Authorize(Roles = "can view customer balances")]
+		public async Task<IActionResult> GetCreditStatement(
+			[FromQuery] string customerCode,
+			[FromQuery] DateTime? fromDate,
+			[FromQuery] DateTime? toDate)
+		{
+			if (string.IsNullOrWhiteSpace(customerCode))
+				return BadRequest(new { message = "customerCode is required." });
+
+			var from = fromDate ?? EatTime.Now.AddMonths(-1);
+			var to = toDate ?? EatTime.Now;
+
+			var statement = await _creditStatements.GetCreditStatementAsync(customerCode, from, to);
+			if (statement == null)
+				return NotFound(new { message = $"No customer found for code \"{customerCode}\"." });
+
+			return Ok(new { responseObject = statement });
+		}
+
+		[HttpGet("Credit/Statement/Excel")]
+		[Authorize(Roles = "can view customer balances")]
+		public async Task<IActionResult> DownloadCreditStatementExcel(
+			[FromQuery] string customerCode,
+			[FromQuery] DateTime? fromDate,
+			[FromQuery] DateTime? toDate)
+		{
+			if (string.IsNullOrWhiteSpace(customerCode))
+				return BadRequest(new { message = "customerCode is required." });
+
+			var from = fromDate ?? EatTime.Now.AddMonths(-1);
+			var to = toDate ?? EatTime.Now;
+
+			var statement = await _creditStatements.GetCreditStatementAsync(customerCode, from, to);
+			if (statement == null)
+				return NotFound(new { message = $"No customer found for code \"{customerCode}\"." });
+
+			var bytes = _creditStatements.BuildStatementExcel(statement);
+			var fileName = $"CreditStatement_{statement.CustomerCode}_{from:yyyyMMdd}_{to:yyyyMMdd}.xlsx";
+
+			return File(
+				bytes,
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				fileName
+			);
+		}
+
+		[HttpGet("Credit/Statement/Pdf")]
+		[Authorize(Roles = "can view customer balances")]
+		public async Task<IActionResult> DownloadCreditStatementPdf(
+			[FromQuery] string customerCode,
+			[FromQuery] DateTime? fromDate,
+			[FromQuery] DateTime? toDate)
+		{
+			if (string.IsNullOrWhiteSpace(customerCode))
+				return BadRequest(new { message = "customerCode is required." });
+
+			var from = fromDate ?? EatTime.Now.AddMonths(-1);
+			var to = toDate ?? EatTime.Now;
+
+			var statement = await _creditStatements.GetCreditStatementAsync(customerCode, from, to);
+			if (statement == null)
+				return NotFound(new { message = $"No customer found for code \"{customerCode}\"." });
+
+			var fileBytes = _creditStatements.BuildStatementPdf(statement);
+			return File(fileBytes, "application/pdf",
+				$"CreditStatement_{customerCode}_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
 		}
 
 		#endregion
