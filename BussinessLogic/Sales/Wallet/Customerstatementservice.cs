@@ -24,6 +24,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -148,7 +149,7 @@ namespace BussinessLogic.Sales.Wallet
 
 			ws.Columns().AdjustToContents();
 
-			using var stream = new System.IO.MemoryStream();
+			using var stream = new MemoryStream();
 			workbook.SaveAs(stream);
 			return stream.ToArray();
 		}
