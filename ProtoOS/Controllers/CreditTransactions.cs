@@ -24,7 +24,7 @@ namespace FuelFlow.Controllers
 		/// </summary>
 		[HttpPost("repay")]
 		[Authorize]
-		public async Task<IActionResult> RepayCredit([FromBody] CreditRepaymentDto dto)
+		public async Task<IActionResult> RepayCredit([FromBody] CreditpaymentDto dto)
 		{
 			var result = await _creditManagement.RepayCreditAsync(dto);
 			return Ok(result);
