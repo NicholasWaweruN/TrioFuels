@@ -97,26 +97,15 @@ namespace BussinessLogic.Sales.Credit_Management
 			if (string.IsNullOrWhiteSpace(dto.CustomerCode))
 				return ServiceResponse<object>.Information("Customer code is required", null);
 
-			if (string.IsNullOrWhiteSpace(dto.StationCode))
-				return ServiceResponse<object>.Information("Station code is required", null);
+			// TransactionReference is now generated client-side (YYYYMMDDHHMMSSmmm,
+			// same format as the wallet top-up page) and sent in, rather than
+			// generated here via _setups.GenerateSaleId(). It doubles as both the
+			// repayment ref and the CreditTransactions.SaleId placeholder.
+			if (string.IsNullOrWhiteSpace(dto.TransactionReference))
+				return ServiceResponse<object>.Information("Transaction reference is required", null);
 
-			if (dto.PaymentTypeCode == CreditRepaymentMethod.Mpesa)
-			{
-				if (string.IsNullOrWhiteSpace(dto.TransactionReference))
-					return ServiceResponse<object>.Information("Mpesa transaction code is required", null);
-
-				if (string.IsNullOrWhiteSpace(dto.MpesaTillNumber))
-					return ServiceResponse<object>.Information("Till number is required to verify the Mpesa code", null);
-			}
-			else if (dto.PaymentTypeCode == CreditRepaymentMethod.Cash || dto.PaymentTypeCode == CreditRepaymentMethod.PDQ)
-			{
-				if (dto.AmountPaid <= 0)
-					return ServiceResponse<object>.Information("Payment amount must be greater than zero", null);
-			}
-			else
-			{
-				return ServiceResponse<object>.Information("Unsupported repayment method — only Cash, PDQ, and Mpesa are accepted", null);
-			}
+			if (dto.AmountPaid <= 0)
+				return ServiceResponse<object>.Information("Payment amount must be greater than zero", null);
 
 			var customerExists = await _context.Customers
 				.AsNoTracking()
@@ -138,24 +127,7 @@ namespace BussinessLogic.Sales.Credit_Management
 
 				try
 				{
-					// For Cash/PDQ the credited amount is simply dto.AmountPaid.
-					// For Mpesa it's overwritten below with the code's full balance —
-					// never a partial amount, regardless of what dto.AmountPaid holds.
 					decimal amountToCredit = dto.AmountPaid;
-
-					if (dto.PaymentTypeCode == CreditRepaymentMethod.Mpesa)
-					{
-						var (mpesaResult, fullBalance) = await ValidateAndConsumeMpesaAsync(
-							dto.TransactionReference!, dto.MpesaTillNumber!);
-
-						if (mpesaResult is not null)
-						{
-							await tx.RollbackAsync();
-							return mpesaResult;
-						}
-
-						amountToCredit = fullBalance;
-					}
 
 					if (!dto.AllowOverpayment && amountToCredit > outstanding)
 					{
@@ -168,28 +140,21 @@ namespace BussinessLogic.Sales.Credit_Management
 							});
 					}
 
-					// Reusing the same id generator as sales for a unique repayment
-					// reference — CreditTransactions.SaleId is required but this isn't
-					// tied to any actual sale, so this is just a unique identifier for
-					// the row.
-					var repaymentRef = _setups.GenerateSaleId();
-
-					var paymentMethodLabel = dto.PaymentTypeCode switch
-					{
-						CreditRepaymentMethod.Mpesa => "M-Pesa",
-						CreditRepaymentMethod.PDQ => "PDQ",
-						_ => "Cash"
-					};
-
+					// NOTE: StationCode and VehicleCode are no longer required —
+					// this is a straight wallet-style credit top-up, not tied to a
+					// sale or a specific vehicle/station. Passing null below assumes
+					// CreditTransactions.StationCode / VehicleCode are nullable
+					// columns. If they're non-nullable in the DB, you'll need a
+					// migration to relax that constraint before this will save.
 					_context.CreditTransactions.Add(new CreditTransactions
 					{
 						CustomerCode = dto.CustomerCode,
 						Credit = amountToCredit,
 						Debit = 0,
-						SaleId = repaymentRef,
-						TransactionReference = dto.TransactionReference ?? string.Empty,
-						VehicleCode = dto.VehicleCode,
-						StationCode = dto.StationCode,
+						SaleId = dto.TransactionReference,
+						TransactionReference = dto.TransactionReference,
+						VehicleCode = string.Empty,
+						StationCode = string.Empty,
 						DateCreated = EatTime.Now,
 						UserCode = _authentication.Usercode()
 					});
@@ -200,12 +165,12 @@ namespace BussinessLogic.Sales.Credit_Management
 					var newBalance = outstanding - amountToCredit;
 
 					await WriteCreditRepaymentAuditTrailAsync(
-						dto.CustomerCode, dto.VehicleCode, dto.StationCode, paymentMethodLabel,
-						amountToCredit, outstanding, newBalance, repaymentRef, dto.TransactionReference);
+						dto.CustomerCode, string.Empty, string.Empty, "Top Up",
+						amountToCredit, outstanding, newBalance, dto.TransactionReference, dto.TransactionReference);
 
 					var result = new CreditRepaymentResultDto(
-						RepaymentRef: repaymentRef,
-						PaymentTypeCode: dto.PaymentTypeCode,
+						RepaymentRef: dto.TransactionReference,
+						PaymentTypeCode: 0,
 						AmountPaid: amountToCredit,
 						PreviousBalance: outstanding,
 						NewBalance: newBalance,
@@ -221,7 +186,6 @@ namespace BussinessLogic.Sales.Credit_Management
 				}
 			});
 		}
-
 		// =====================================================================
 		// Mpesa validation + full-balance consumption (inline, inside the repayment transaction)
 		// =====================================================================
