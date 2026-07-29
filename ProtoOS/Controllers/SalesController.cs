@@ -163,9 +163,6 @@ namespace FuelFlow.Controllers
 
 
 
-
-
-
 		[HttpPost]
 		[Authorize(Roles = "can top up customer wallet")]
 		[Route("TopUpCustomerWallet")]
@@ -428,7 +425,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpPost]
-		[Authorize(Roles = "can record credit repayment")]
+	
 		[Route("Credit/Repay")]
 		public async Task<IActionResult> RepayCredit([FromBody] CreditRepaymentDto dto)
 		{
