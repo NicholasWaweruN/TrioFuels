@@ -193,9 +193,6 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ICreditManagement,CreditManagement>();
 		services.AddScoped<IAllReports, AllReports>();
 
-
-		
-
 		services.AddScoped<ICarWashShiftService, CarWashShiftService>();
 		services.AddScoped<ICarWashSalesService, CarWashSalesService>();
 		services.AddScoped<ICarWashDashboardService, CarWashDashboardService>();

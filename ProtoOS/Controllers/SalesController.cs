@@ -19,7 +19,7 @@ using static BusinessLogic.Sales.Archive_data.Archive_Data;
 using static BussinessLogic.CouponsService.LoyaltyProgramSubscription;
 using static DataAccessLayer.EntityModels.Wallet.WalletDto;
 
-namespace FuelFlow.Controllers 
+namespace FuelFlow.Controllers
 {
 	[Route("fuelflow/[controller]")]
 	[ApiController]
@@ -36,15 +36,15 @@ namespace FuelFlow.Controllers
 		private readonly IMisingSale _misingSale;
 		private readonly Archive_Data _archive;
 		private readonly ReceiptService _receipt;
-		private readonly Statements _statements;
+		private readonly ICustomerStatementService _statements;
 		private readonly ILoyaltyProgramSubscription _subscription;
 		private readonly ICouponsService _coupons;
 		private readonly ISalesByPaymentMethod _salesByPaymentMethod;
 
 		public SalesController(ISalesManagementService salesService, ISales sales, IWalletTransactions wallet,
 			IDashBoard dashBoard, IMissingSales missing, IReverseSales reverse, IEmailService emailService,
-			IMisingSale misingSale,Archive_Data archive,ReceiptService receipt,Statements statements, 
-			ILoyaltyProgramSubscription loyaltyServices,ICouponsService coupons,ISalesByPaymentMethod salesByPaymentMethod)
+			IMisingSale misingSale, Archive_Data archive, ReceiptService receipt, ICustomerStatementService statements,
+			ILoyaltyProgramSubscription loyaltyServices, ICouponsService coupons, ISalesByPaymentMethod salesByPaymentMethod)
 		{
 			_salesService = salesService;
 			_addingSales = sales;
@@ -84,7 +84,7 @@ namespace FuelFlow.Controllers
 		}
 
 
-		
+
 
 
 		[HttpPost]
@@ -116,7 +116,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-	
+
 
 		[HttpGet]
 		[Authorize]
@@ -152,20 +152,11 @@ namespace FuelFlow.Controllers
 			var response = await _dashBoard.GetDashBoardData();
 			return CreateResponse(response);
 		}
-		
 
-	
 
-		
 
-		[HttpPost]
-		[Authorize(Roles = "can view customer statement")]
-		[Route("GetCustomerStatement/{vehicleCode}/{startDate}/{endDate}")]
-		public async Task<IActionResult> GetCustomerStatement(string vehicleCode, DateTime startDate, DateTime endDate)
-		{
-			var response = await _wallet.GetCustomerStatement(vehicleCode, startDate, endDate);
-			return CreateResponse(response);
-		}
+
+
 
 		[HttpPost]
 		[Authorize(Roles = "can top up customer wallet")]
@@ -196,7 +187,7 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
-	
+
 
 		[HttpGet]
 		[Route("GetPaymentTransactions/{transactionCode}")]
@@ -221,14 +212,14 @@ namespace FuelFlow.Controllers
 
 		#endregion
 
-		
+
 
 		[HttpGet]
 		[Route("ExportDailySales")]
 		[Authorize(Roles = "can view daily sales data")]
 		public async Task<IActionResult> ExportCustomerTransactionsEplus(DateTime date)
 		{
-			
+
 			var reportName = "SaleReport" + date;
 			var result = await _salesService.ExportSalesReport(date);
 			if (result.ResponseCode != 1)
@@ -274,7 +265,7 @@ namespace FuelFlow.Controllers
 		[Route("monthly_archive_data")]
 		public async Task<IActionResult> Monthly_Archive_Data([FromQuery] int month, [FromQuery] int year)
 		{
-			string name =EatTime.Now.ToString("yyyyMMddHHmmss");
+			string name = EatTime.Now.ToString("yyyyMMddHHmmss");
 			var data = new ArchiveDataDto { Month = month, Year = year }; // Create the DTO from the query parameters
 			var result = await _archive.GetSalesTransactionsByMonth(data);
 
@@ -296,7 +287,7 @@ namespace FuelFlow.Controllers
 		[Route("day_archive_data")]
 		public async Task<IActionResult> Day_Archive_Data(DateTime date)
 		{
-			string name =EatTime.Now.ToString().Replace("/","").Replace("-","").Replace(" ","");
+			string name = EatTime.Now.ToString().Replace("/", "").Replace("-", "").Replace(" ", "");
 			var result = await _archive.GetSalesTransactionsDate(date);
 			if (result.ResponseCode != 1)
 			{
@@ -332,29 +323,75 @@ namespace FuelFlow.Controllers
 		}
 
 
+		#region Customer Statement
 
-		[HttpGet]
-		[Route("customer-transactions-pdf/{customerCode}")]
-		[Authorize(Roles = "can view transactions statement")]
-		public async Task<IActionResult> CustomerTransactionsPdf(string customerCode, DateTime from)
+
+		[HttpGet("Statement")]
+		[Authorize("can view customer Wallet statement")]
+		public async Task<IActionResult> GetStatement(
+			[FromQuery] string customerCode,
+			[FromQuery] DateTime? fromDate,
+			[FromQuery] DateTime? toDate)
 		{
+			if (string.IsNullOrWhiteSpace(customerCode))
+				return BadRequest(new { message = "customerCode is required." });
 
-			var result = await _statements.CustomerStatementAsPdf(customerCode, from);
-			if (result.ResponseCode != 1)
-			{
-				return NotFound(result.ResponseMessage);  // Return appropriate error response
-			}
+			var from = fromDate ?? DateTime.UtcNow.AddMonths(-1);
+			var to = toDate ?? DateTime.UtcNow;
 
-			var fileBytes = result.ResponseObject;
-			if (fileBytes == null)
-			{
-				return NotFound("An error occurred while exporting the customer transactions");
-			}
-			return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CustomerStatement.pdf");
+			var statement = await _statements.GetCustomerStatementAsync(customerCode, from, to);
+			if (statement == null)
+				return NotFound(new { message = $"No customer found for code \"{customerCode}\"." });
+
+			return Ok(new { responseObject = statement });
 		}
 
+		[HttpGet("Statement/Excel")]
+		[Authorize("can download excel Wallet statement")]
+		public async Task<IActionResult> DownloadStatementExcel(
+			[FromQuery] string customerCode,
+			[FromQuery] DateTime? fromDate,
+			[FromQuery] DateTime? toDate)
+		{
+			var from = fromDate ?? DateTime.UtcNow.AddMonths(-1);
+			var to = toDate ?? DateTime.UtcNow;
 
-		
+			var statement = await _statements.GetCustomerStatementAsync(customerCode, from, to);
+			if (statement == null)
+				return NotFound(new { message = $"No customer found for code \"{customerCode}\"." });
+
+			var bytes = _statements.BuildStatementExcel(statement);
+			var fileName = $"Statement_{statement.CustomerCode}_{from:yyyyMMdd}_{to:yyyyMMdd}.xlsx";
+
+			return File(
+				bytes,
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				fileName
+			);
+		}
+
+		[HttpGet("Statement/Pdf")]
+		[Authorize("Can view Pdf Wallet Statement")]
+		public async Task<IActionResult> DownloadStatementPdf(
+			[FromQuery] string customerCode,
+			[FromQuery] DateTime? fromDate,
+			[FromQuery] DateTime? toDate)
+		{
+			var from = fromDate ?? DateTime.UtcNow.AddMonths(-1);
+			var to = toDate ?? DateTime.UtcNow;
+
+			var statement = await _statements.GetCustomerStatementAsync(customerCode, from, to);
+			if (statement == null)
+				return NotFound(new { message = $"No customer found for code \"{customerCode}\"." });
+
+			var bytes = _statements.BuildStatementPdf(statement);
+			var fileName = $"Statement_{statement.CustomerCode}_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf";
+
+			return File(bytes, "application/pdf", fileName);
+		}
+
+		#endregion
+
 
 		//[HttpGet]
 		//[Route("receipt")]
@@ -392,7 +429,7 @@ namespace FuelFlow.Controllers
 
 		#region MyRegion
 		[HttpGet("salesbypaymentmethod")]
-		public async Task<IActionResult> GetSalesByPaymentMethodAsync() 
+		public async Task<IActionResult> GetSalesByPaymentMethodAsync()
 		{
 			var result = await _salesByPaymentMethod.GetSalesByPaymentMethodAsync();
 
@@ -400,7 +437,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpGet("salespernozzle")]
-		public async Task<IActionResult> GetSalesPerNozzleAsync() 
+		public async Task<IActionResult> GetSalesPerNozzleAsync()
 		{
 			var result = await _salesByPaymentMethod.GetSalesPerNozzleAsync();
 
@@ -409,4 +446,3 @@ namespace FuelFlow.Controllers
 		#endregion
 	}
 }
-

@@ -30,6 +30,7 @@ namespace FuelFlow.Controllers // rename to match your actual namespace
 		}
 
 		[HttpGet("Statement")]
+		[Authorize("can view customer Wallet statement")]
 		public async Task<IActionResult> GetStatement(
 			[FromQuery] string customerCode,
 			[FromQuery] DateTime? fromDate,
@@ -49,6 +50,7 @@ namespace FuelFlow.Controllers // rename to match your actual namespace
 		}
 
 		[HttpGet("Statement/Excel")]
+		[Authorize("can download excel Wallet statement")]
 		public async Task<IActionResult> DownloadStatementExcel(
 			[FromQuery] string customerCode,
 			[FromQuery] DateTime? fromDate,
@@ -72,6 +74,7 @@ namespace FuelFlow.Controllers // rename to match your actual namespace
 		}
 
 		[HttpGet("Statement/Pdf")]
+		[Authorize("Can view Pdf Wallet Statement")]
 		public async Task<IActionResult> DownloadStatementPdf(
 			[FromQuery] string customerCode,
 			[FromQuery] DateTime? fromDate,
