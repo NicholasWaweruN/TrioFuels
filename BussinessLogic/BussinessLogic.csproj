@@ -10,6 +10,7 @@
 		<None Remove="Stock\TankStockTake\**" />
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="QuestPDF" Version="2026.7.1" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.10" />
 		<PackageReference Include="AfricasTalking.NET" Version="1.2.4" />
 		<PackageReference Include="Azure.Identity" Version="1.15.0" />

@@ -136,6 +136,8 @@ public static class BusinessServicesExtensions
 		services.AddScoped<Personal_Wallet_Transactions>();
 		services.AddScoped<WalletDashBoard>();
 
+		services.AddScoped<ICustomerStatementService, CustomerStatementService>();
+
 		// ── Dashboard & reporting ───────────────────────────────────────────
 		services.AddScoped<IDashBoard, DashBoard>();
 		services.AddScoped<IMainData, MainData>();
