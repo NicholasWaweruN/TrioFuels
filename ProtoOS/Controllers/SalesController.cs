@@ -427,7 +427,7 @@ namespace FuelFlow.Controllers
 		[HttpPost]
 		[Authorize]
 		[Route("Credit/Repay")]
-		public async Task<IActionResult> RepayCredit([FromBody] CreditRepaymentDto dto)
+		public async Task<IActionResult> RepayCredit([FromBody] CreditpaymentDto dto)
 		{
 			var response = await _credit.RepayCreditAsync(dto);
 			return CreateResponse(response);
