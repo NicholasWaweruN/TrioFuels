@@ -370,24 +370,27 @@ namespace FuelFlow.Controllers
 			);
 		}
 
-		[HttpGet("Statement/Pdf")]
+		[HttpGet]
 		[Authorize]
-		public async Task<IActionResult> DownloadStatementPdf(
+		[Route("Statement/Pdf")]
+		public async Task<IActionResult> DownloadCustomerStatementPdf(
 			[FromQuery] string customerCode,
 			[FromQuery] DateTime? fromDate,
 			[FromQuery] DateTime? toDate)
 		{
-			var from = fromDate ?? DateTime.UtcNow.AddMonths(-1);
-			var to = toDate ?? DateTime.UtcNow;
+			if (string.IsNullOrWhiteSpace(customerCode))
+				return BadRequest("customerCode is required.");
+
+			var from = fromDate ?? EatTime.Now.AddMonths(-1);
+			var to = toDate ?? EatTime.Now;
 
 			var statement = await _statements.GetCustomerStatementAsync(customerCode, from, to);
 			if (statement == null)
-				return NotFound(new { message = $"No customer found for code \"{customerCode}\"." });
+				return NotFound($"No customer found for code \"{customerCode}\".");
 
-			var bytes = _statements.BuildStatementPdf(statement);
-			var fileName = $"Statement_{statement.CustomerCode}_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf";
-
-			return File(bytes, "application/pdf", fileName);
+			var fileBytes = _statements.BuildStatementPdf(statement);
+			return File(fileBytes, "application/pdf",
+				$"Statement_{customerCode}_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf");
 		}
 
 		#endregion

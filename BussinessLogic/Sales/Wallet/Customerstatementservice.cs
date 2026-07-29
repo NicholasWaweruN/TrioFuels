@@ -160,79 +160,181 @@ namespace BussinessLogic.Sales.Wallet
 		{
 			QuestPDF.Settings.License = LicenseType.Community;
 
+			var logoPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "assets", "trio-fuels-logo.png");
+			byte[]? logoBytes = File.Exists(logoPath) ? File.ReadAllBytes(logoPath) : null;
+
+			// Declared as Color (not string) so every ternary like
+			// "condition ? success : muted" resolves to Color unambiguously.
+			var ink = Color.FromHex("#14224F");
+			var primary = Color.FromHex("#1C2F7A");
+			var muted = Color.FromHex("#64748B");
+			var border = Color.FromHex("#E2E8F0");
+			var success = Color.FromHex("#1F9D55");
+			var danger = Color.FromHex("#E24B4A");
+			var rowAlt = Color.FromHex("#F8FAFC");
+
 			var document = Document.Create(container =>
 			{
 				container.Page(page =>
 				{
 					page.Size(PageSizes.A4);
-					page.Margin(30);
-					page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
+					page.Margin(22);
+					page.DefaultTextStyle(x => x.FontSize(8.5f).FontColor(ink).FontFamily("Arial"));
 
+					// ── Header ──
 					page.Header().Column(col =>
 					{
-						col.Item().Text("Customer Statement").FontSize(16).Bold().FontColor("#1c2f7a");
-						col.Item().Text($"{statement.CustomerName} ({statement.CustomerCode})").FontSize(11).SemiBold();
-						if (!string.IsNullOrWhiteSpace(statement.CustomerPhone))
-							col.Item().Text(statement.CustomerPhone).FontColor(Colors.Grey.Darken1);
-						col.Item().PaddingTop(4).Text(
-							$"Period: {statement.FromDate:dd MMM yyyy} – {statement.ToDate:dd MMM yyyy}"
-						).FontColor(Colors.Grey.Darken1);
-					});
-
-					page.Content().PaddingTop(15).Table(table =>
-					{
-						table.ColumnsDefinition(columns =>
+						col.Item().Row(row =>
 						{
-							columns.RelativeColumn(2); // Date
-							columns.RelativeColumn(2); // Reference
-							columns.RelativeColumn(2); // Vehicle
-							columns.RelativeColumn(3); // Narration
-							columns.RelativeColumn(1.5f); // Credit
-							columns.RelativeColumn(1.5f); // Debit
-							columns.RelativeColumn(1.5f); // Balance
+							row.ConstantItem(110).Height(42).AlignMiddle().Element(e =>
+							{
+								if (logoBytes != null)
+									e.Image(logoBytes).FitArea();
+								else
+									e.Text("TRIO FUELS").Bold().FontSize(15).FontColor(primary);
+							});
+
+							row.RelativeItem().AlignRight().Column(c =>
+							{
+								c.Item().Text("Trio Fuels").Bold().FontSize(12).FontColor(primary);
+								c.Item().Text("Nairobi, Kenya").FontSize(8).FontColor(muted);
+							});
 						});
 
-						table.Header(header =>
+						col.Item().PaddingTop(8).LineHorizontal(1).LineColor(border);
+
+						col.Item().PaddingTop(8).Text("Customer Wallet Statement")
+							.Bold().FontSize(12).FontColor(ink);
+
+						col.Item().PaddingTop(6).Row(row =>
 						{
-							string[] headers = { "Date", "Reference", "Vehicle Reg.", "Narration", "Credit", "Debit", "Balance" };
-							foreach (var h in headers)
+							row.RelativeItem().Column(c =>
 							{
-								header.Cell().Background("#1c2f7a").Padding(4)
-									.Text(h).FontColor(Colors.White).SemiBold();
+								c.Item().Text("CUSTOMER DETAILS").FontSize(6.5f).FontColor(muted).Bold();
+								c.Item().Text(statement.CustomerName).FontSize(9).Bold();
+								c.Item().Text(statement.CustomerPhone ?? "—").FontSize(8).FontColor(muted);
+								c.Item().Text(statement.CustomerCode).FontSize(7.5f).FontColor(muted);
+							});
+
+							row.RelativeItem().AlignRight().Column(c =>
+							{
+								c.Item().Text("STATEMENT PERIOD").FontSize(6.5f).FontColor(muted).Bold();
+								c.Item().Text($"{statement.FromDate:dd MMM yyyy} \u2013 {statement.ToDate:dd MMM yyyy}")
+									.FontSize(9).Bold();
+								c.Item().Text($"Generated {DateTime.Now:dd MMM yyyy, HH:mm}")
+									.FontSize(7.5f).FontColor(muted);
+							});
+						});
+
+						col.Item().PaddingTop(8).LineHorizontal(1).LineColor(border);
+					});
+
+					// ── Body ──
+					page.Content().PaddingTop(10).Column(col =>
+					{
+						col.Item().Row(row =>
+						{
+							void SummaryCard(string label, decimal value, Color color, bool last = false)
+							{
+								row.RelativeItem().Background(rowAlt).Padding(6).PaddingRight(last ? 6 : 3).Column(c =>
+								{
+									c.Item().Text(label).FontSize(6.5f).FontColor(muted).Bold();
+									c.Item().PaddingTop(2).Text($"KSh {value:N2}").FontSize(9.5f).Bold().FontColor(color);
+								});
+								if (!last) row.ConstantItem(3);
+							}
+
+							SummaryCard("OPENING BALANCE", statement.OpeningBalance, ink);
+							SummaryCard("TOTAL CREDITS", statement.TotalCredits, success);
+							SummaryCard("TOTAL DEBITS", statement.TotalDebits, danger);
+							SummaryCard("CLOSING BALANCE", statement.ClosingBalance, primary, last: true);
+						});
+
+						col.Item().PaddingTop(12);
+
+						col.Item().Table(table =>
+						{
+							table.ColumnsDefinition(c =>
+							{
+								c.RelativeColumn(2.1f);  // Date
+								c.RelativeColumn(2.2f);  // Reference
+								c.RelativeColumn(1.5f);  // Vehicle
+								c.RelativeColumn(3.0f);  // Narration
+								c.RelativeColumn(1.3f);  // Credit
+								c.RelativeColumn(1.3f);  // Debit
+								c.RelativeColumn(1.5f);  // Balance
+							});
+
+							table.Header(header =>
+							{
+								void HeaderCell(string text) =>
+									header.Cell().Background(primary).Padding(4)
+										.Text(text).FontSize(7).Bold().FontColor(Colors.White);
+
+								HeaderCell("Date");
+								HeaderCell("Reference");
+								HeaderCell("Vehicle");
+								HeaderCell("Narration");
+								HeaderCell("Credit");
+								HeaderCell("Debit");
+								HeaderCell("Balance");
+							});
+
+							if (statement.Lines.Count == 0)
+							{
+								table.Cell().ColumnSpan(7).Padding(12).AlignCenter()
+									.Text("No transactions in this period.").FontColor(muted).Italic();
+							}
+							else
+							{
+								for (int i = 0; i < statement.Lines.Count; i++)
+								{
+									var line = statement.Lines[i];
+									var bg = i % 2 == 0 ? Colors.White : rowAlt;
+
+									table.Cell().Background(bg).Padding(4)
+										.Text(line.Date.ToString("dd MMM yy, HH:mm")).FontSize(7.5f);
+									table.Cell().Background(bg).Padding(4)
+										.Text(line.TransactionReference ?? "—").FontSize(7.5f);
+									table.Cell().Background(bg).Padding(4)
+										.Text(line.RegistrationNumber ?? "—").FontSize(7.5f);
+									table.Cell().Background(bg).Padding(4)
+										.Text(line.Narration ?? "—").FontSize(7.5f);
+									table.Cell().Background(bg).Padding(4).AlignRight()
+										.Text(line.Credit > 0 ? $"{line.Credit:N2}" : "\u2014")
+										.FontSize(7.5f).FontColor(line.Credit > 0 ? success : muted);
+									table.Cell().Background(bg).Padding(4).AlignRight()
+										.Text(line.Debit > 0 ? $"{line.Debit:N2}" : "\u2014")
+										.FontSize(7.5f).FontColor(line.Debit > 0 ? danger : muted);
+									table.Cell().Background(bg).Padding(4).AlignRight()
+										.Text($"{line.RunningBalance:N2}").FontSize(7.5f).Bold();
+								}
+
+								table.Footer(footer =>
+								{
+									footer.Cell().ColumnSpan(6).Background(rowAlt).Padding(5).AlignRight()
+										.Text("Closing Balance").FontSize(8).Bold();
+									footer.Cell().Background(rowAlt).Padding(5).AlignRight()
+										.Text($"KSh {statement.ClosingBalance:N2}").FontSize(8).Bold().FontColor(primary);
+								});
 							}
 						});
-
-						foreach (var line in statement.Lines)
-						{
-							table.Cell().Padding(4).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-								.Text(line.Date.ToString("dd-MMM-yy HH:mm"));
-							table.Cell().Padding(4).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-								.Text(line.TransactionReference);
-							table.Cell().Padding(4).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-								.Text(line.RegistrationNumber ?? "—");
-							table.Cell().Padding(4).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-								.Text(line.Narration);
-							table.Cell().Padding(4).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-								.Text(line.Credit > 0 ? line.Credit.ToString("#,##0.00") : "");
-							table.Cell().Padding(4).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-								.Text(line.Debit > 0 ? line.Debit.ToString("#,##0.00") : "");
-							table.Cell().Padding(4).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2)
-								.Text(line.RunningBalance.ToString("#,##0.00")).SemiBold();
-						}
 					});
 
-					page.Footer().PaddingTop(10).Row(row =>
+					// ── Footer ──
+					page.Footer().PaddingTop(6).Column(col =>
 					{
-						row.RelativeItem().Text(text =>
+						col.Item().LineHorizontal(0.5f).LineColor(border);
+						col.Item().PaddingTop(3).Row(row =>
 						{
-							text.Span("Closing balance: ").SemiBold();
-							text.Span($"KSh {statement.ClosingBalance:#,##0.00}").Bold().FontColor("#1c2f7a");
-						});
-						row.RelativeItem().AlignRight().Text(x =>
-						{
-							x.CurrentPageNumber();
-							x.Span(" / ");
-							x.TotalPages();
+							row.RelativeItem().Text("Trio Fuels \u00b7 Nairobi, Kenya").FontSize(6.5f).FontColor(muted);
+							row.RelativeItem().AlignRight().Text(t =>
+							{
+								t.Span("Page ").FontSize(6.5f).FontColor(muted);
+								t.CurrentPageNumber().FontSize(6.5f).FontColor(muted);
+								t.Span(" of ").FontSize(6.5f).FontColor(muted);
+								t.TotalPages().FontSize(6.5f).FontColor(muted);
+							});
 						});
 					});
 				});

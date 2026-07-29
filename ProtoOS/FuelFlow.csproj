@@ -42,6 +42,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Content Include="..\..\..\..\Users\Hp\Downloads\trio-fuels-logo.png" Link="wwwroot\assets\trio-fuels-logo.png" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
 		<PackageReference Include="JWT" Version="11.0.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.24" />
@@ -68,6 +72,7 @@
 	<ItemGroup>
 		<Folder Include="wwwroot\DeliveryNote\" />
 		<Folder Include="wwwroot\Authorised_Document\" />
+		<Folder Include="wwwroot\assets\" />
 		<Folder Include="wwwroot\OtogasApk\" />
 		<Folder Include="wwwroot\Sales\" />
 	</ItemGroup>
