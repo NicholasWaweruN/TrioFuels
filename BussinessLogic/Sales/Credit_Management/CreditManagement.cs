@@ -92,7 +92,11 @@ namespace BussinessLogic.Sales.Credit_Management
 		/// producing a negative NewBalance (a credit surplus) rather than being
 		/// rejected. Pass false if you want the old strict behavior back.
 		/// </summary>
-		public async Task<ServiceResponse<object>> RepayCreditAsync(CreditRepaymentDto dto)
+		/// 
+		
+  
+  
+		public async Task<ServiceResponse<object>> RepayCreditAsync(CreditpaymentDto dto)
 		{
 			if (string.IsNullOrWhiteSpace(dto.CustomerCode))
 				return ServiceResponse<object>.Information("Customer code is required", null);

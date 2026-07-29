@@ -425,7 +425,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpPost]
-	
+		[Authorize]
 		[Route("Credit/Repay")]
 		public async Task<IActionResult> RepayCredit([FromBody] CreditRepaymentDto dto)
 		{
@@ -434,7 +434,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpGet("Credit/Statement")]
-		[Authorize(Roles = "can view customer balances")]
+		[Authorize]
 		public async Task<IActionResult> GetCreditStatement(
 			[FromQuery] string customerCode,
 			[FromQuery] DateTime? fromDate,
@@ -454,7 +454,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpGet("Credit/Statement/Excel")]
-		[Authorize(Roles = "can view customer balances")]
+		[Authorize]
 		public async Task<IActionResult> DownloadCreditStatementExcel(
 			[FromQuery] string customerCode,
 			[FromQuery] DateTime? fromDate,

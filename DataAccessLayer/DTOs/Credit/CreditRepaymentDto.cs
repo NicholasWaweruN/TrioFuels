@@ -41,7 +41,15 @@ namespace DataAccessLayer.DTOs.Credit
 		bool AllowOverpayment = true
 	);
 
-	public record CreditRepaymentResultDto(
+	public record CreditpaymentDto(
+		string CustomerCode,
+		decimal AmountPaid,
+		string? TransactionReference = null,
+		bool AllowOverpayment = true
+	);
+
+
+public record CreditRepaymentResultDto(
 		string RepaymentRef,
 		CreditRepaymentMethod PaymentTypeCode,
 		decimal AmountPaid,

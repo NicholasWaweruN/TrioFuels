@@ -7,6 +7,6 @@ namespace BussinessLogic.Sales.Credit_Management
 	{
 		Task<decimal> GetOutstandingCreditAsync(string customerCode);
 		Task<ServiceResponse<object>> CheckifIsAcreditCustomer(string customerCode);
-		Task<ServiceResponse<object>> RepayCreditAsync(CreditRepaymentDto dto);
+		Task<ServiceResponse<object>> RepayCreditAsync(CreditpaymentDto dto);
 	}
 }
