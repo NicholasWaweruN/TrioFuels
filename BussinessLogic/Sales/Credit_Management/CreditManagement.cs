@@ -4,6 +4,7 @@ using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Credit;
 using DataAccessLayer.EntityModels.CreditTransactions;
+using DataAccessLayer.EntityModels.Transactions;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
@@ -93,9 +94,9 @@ namespace BussinessLogic.Sales.Credit_Management
 		/// rejected. Pass false if you want the old strict behavior back.
 		/// </summary>
 		/// 
-		
-  
-  
+
+
+
 		public async Task<ServiceResponse<object>> RepayCreditAsync(CreditpaymentDto dto)
 		{
 			if (string.IsNullOrWhiteSpace(dto.CustomerCode))
@@ -144,6 +145,46 @@ namespace BussinessLogic.Sales.Credit_Management
 							});
 					}
 
+					// ---- M-Pesa validation happens BEFORE we stage the credit row,
+					// so a bad code never gets anywhere near CreditTransactions. ----
+					if (dto.RepaymentType == 2)
+					{
+						var mpesaTx = await _context.MpesaTransactions
+							.FromSqlInterpolated($@"
+                        SELECT * FROM ""MpesaTransactions""
+                        WHERE ""TransID"" = {dto.TransactionCode}
+                        FOR UPDATE")
+							.FirstOrDefaultAsync();
+
+						if (mpesaTx is null)
+						{
+							await tx.RollbackAsync();
+							return ServiceResponse<object>.Information($"Mpesa code {dto.TransactionCode} does not exist", null);
+						}
+
+						var (error, fullBalance) = ValidateAndConsumeMpesa(mpesaTx,mpesaTx.TillNumber);
+
+						if (error is not null)
+						{
+							await tx.RollbackAsync();
+							return error;
+						}
+
+						// ValidateAndConsumeMpesa always consumes the FULL balance on
+						// the M-Pesa row (never partial). Credit the customer for
+						// that same full amount so the two ledgers can't drift apart.
+						amountToCredit = fullBalance;
+
+						if (!dto.AllowOverpayment && amountToCredit > outstanding)
+						{
+							await tx.RollbackAsync();
+							return ServiceResponse<object>.Information(
+								$"Mpesa balance of {amountToCredit:N2} exceeds outstanding balance of {outstanding:N2}. " +
+								$"Pass AllowOverpayment: true to accept it as a credit surplus.",
+								new { Outstanding = outstanding, AmountPaid = amountToCredit });
+						}
+					}
+
 					// NOTE: StationCode and VehicleCode are no longer required —
 					// this is a straight wallet-style credit top-up, not tied to a
 					// sale or a specific vehicle/station. Passing null below assumes
@@ -190,41 +231,34 @@ namespace BussinessLogic.Sales.Credit_Management
 				}
 			});
 		}
+
 		// =====================================================================
-		// Mpesa validation + full-balance consumption (inline, inside the repayment transaction)
+		// Mpesa validation + full-balance consumption
 		// =====================================================================
 
 		/// <summary>
-		/// Locks the MpesaTransactions row (FOR UPDATE — prevents a concurrent sale
-		/// or another repayment from double-spending the same code while this
-		/// transaction is open), validates the till number, and — if there's a
-		/// positive balance — consumes ALL of it: UsageBalance -> 0, Status -> 0
-		/// (fully used). Never a partial amount.
+		/// Validates an already-locked (FOR UPDATE) MpesaTransactions row against
+		/// the expected till, and — if valid — consumes ALL of its balance:
+		/// UsageBalance -> 0, Status -> 0 (fully used). Never a partial amount.
+		///
+		/// Takes the entity directly rather than re-querying by TransID, since the
+		/// caller already holds the row lock inside the same transaction; a second
+		/// lookup here was redundant and, worse, its result was previously being
+		/// discarded by the caller instead of checked.
 		///
 		/// Returns (null, fullBalance) on success — fullBalance is what the caller
 		/// should credit. Returns (ServiceResponse, 0) on failure, which the caller
-		/// rolls back and returns directly.
+		/// must roll back and return directly.
 		/// </summary>
-		private async Task<(ServiceResponse<object>? Error, decimal FullBalance)> ValidateAndConsumeMpesaAsync(
-			string transId, string tillNumber)
+		private (ServiceResponse<object>? Error, decimal FullBalance) ValidateAndConsumeMpesa(MpesaTransaction mpesaTx, string tillNumber)
 		{
-			var mpesaTx = await _context.MpesaTransactions
-				.FromSqlInterpolated($@"
-					SELECT * FROM ""MpesaTransactions""
-					WHERE ""TransID"" = {transId}
-					FOR UPDATE")
-				.FirstOrDefaultAsync();
-
-			if (mpesaTx is null)
-				return (ServiceResponse<object>.Information($"Mpesa code {transId} does not exist", null), 0);
-
 			var till = Regex.Replace(mpesaTx.TillNumber ?? string.Empty, @"\s+", "").Trim();
 
-			if (!string.Equals(till, tillNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+			if (!string.Equals(till, tillNumber?.Trim(), StringComparison.OrdinalIgnoreCase))
 				return (ServiceResponse<object>.Information("Mpesa code does not belong to that till", null), 0);
 
 			if (mpesaTx.UsageBalance <= 0)
-				return (ServiceResponse<object>.Information($"Mpesa code {transId} has already been fully used", null), 0);
+				return (ServiceResponse<object>.Information($"Mpesa code {mpesaTx.TransID} has already been fully used", null), 0);
 
 			decimal fullBalance = mpesaTx.UsageBalance;
 

@@ -112,6 +112,7 @@ namespace FuelFlow.Controllers
 			var response = await _shiftsService.ShiftSales();
 			return HandleResponse(response);
 		}
+
 		[HttpGet]
 		[Route("AllVariances")]
 		[Authorize(Roles = "can view all Variances")]
