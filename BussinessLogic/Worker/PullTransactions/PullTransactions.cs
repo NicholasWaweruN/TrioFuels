@@ -52,9 +52,7 @@ public sealed class PullBackfillStartupService(
 					continue;
 				}
 
-				logger.LogInformation(
-					"Startup backfill complete for Till {Till}: {Inserted} added, {Updated} matched/modified, {Skipped} failures",
-					tillNumber, result.Inserted, result.Updated, result.Skipped);
+				logger.LogInformation("Startup backfill complete for Till {Till}: {Inserted} added, {Updated} matched/modified, {Skipped} failures",tillNumber, result.Inserted, result.Updated, result.Skipped);
 			}
 		}
 		catch (Exception ex)

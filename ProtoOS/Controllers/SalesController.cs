@@ -168,7 +168,7 @@ namespace FuelFlow.Controllers
 		[Route("TopUpCustomerWallet")]
 		public async Task<IActionResult> TopUpCustomerWallet(TopUpCustomerWalletDto wallet)
 		{
-			var response = await _wallet.TopUpCustomerWallet(wallet);
+			var response = await _wallet.TopUpCustomerWalletAsync(wallet);
 			return CreateResponse(response);
 		}
 

@@ -17,6 +17,7 @@
 	using Microsoft.EntityFrameworkCore;
 	using Microsoft.Extensions.Caching.Memory;
 	using System.Reflection;
+	using System.Text.RegularExpressions;
 	using static DataAccessLayer.EntityModels.Wallet.WalletDto;
 
 	/// <summary>
@@ -51,47 +52,130 @@
 		/// was used to make the deposit, but the balance itself lives on the customer (resolved
 		/// from the vehicle). This is the counterpart to <see cref="WithdrawFromCustomerWallet"/>.
 		/// </summary>
-		public async Task<ServiceResponse> TopUpCustomerWallet(TopUpCustomerWalletDto topUpCustomerWalletDto)
+		public async Task<ServiceResponse<object>> TopUpCustomerWalletAsync(TopUpCustomerWalletDto dto)
 		{
-			if (string.IsNullOrEmpty(topUpCustomerWalletDto.CustomerCode))
-				return ServiceResponse<object>.Information("Kindly provide the customer code");
+			if (string.IsNullOrWhiteSpace(dto.CustomerCode))
+				return ServiceResponse<object>.Information("Customer code is required", null);
 
-			if (topUpCustomerWalletDto.Amount <= 0)
-				return ServiceResponse<object>.Information("Deposit amount must be greater than zero");
+			if (string.IsNullOrWhiteSpace(dto.TransactionReference))
+				return ServiceResponse<object>.Information("Transaction reference is required", null);
 
-			// ⚠️ ASSUMPTION: swapped GetCustomerDetailsAsync(vehicleCode) for a
-			// customer-code lookup. I don't have your customer repository/service,
-			// so I'm guessing this method name — confirm it exists, or point me to
-			// whatever your codebase actually uses to fetch a customer by CustomerCode.
-			var customer = await GetCustomerDetailsByCustomerCodeAsync(topUpCustomerWalletDto.CustomerCode);
+			if (dto.Amount <= 0)
+				return ServiceResponse<object>.Information("Deposit amount must be greater than zero", null);
+
+			// ⚠️ ASSUMPTION: swapped the vehicle-code lookup for a customer-code one,
+			// same as before — confirm this is really how you fetch a customer elsewhere.
+			var customer = await GetCustomerDetailsByCustomerCodeAsync(dto.CustomerCode);
 			if (customer is null)
-				return ServiceResponse<object>.Information("Customer Not Found");
+				return ServiceResponse<object>.Information("Customer not found", null);
 
-			// ⚠️ ASSUMPTION: CreateCustomerTransaction's second param was vehicle.VehicleCode.
-			// Passing null here — confirm the transaction schema actually allows a
-			// null/empty vehicle code for a wallet top-up that isn't tied to a specific vehicle.
-			var transaction = CreateCustomerTransaction(customer.CustomerCode, string.Empty, topUpCustomerWalletDto.Amount, 0, topUpCustomerWalletDto.TransactionReference, topUpCustomerWalletDto.PaymentType, "Wallet deposit");
+			var strategy = _context.Database.CreateExecutionStrategy();
 
-			var saveResult = await SaveTransactionAsync(transaction);
-			if (saveResult.ResponseCode == Response.Error)
-				return saveResult;
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
 
-			var newBalance = await GetCustomerBalance(customer.CustomerCode);
-			var firstName = customer.CustomerName.Split(' ')[0];
+				try
+				{
+					decimal amountToCredit = dto.Amount;
 
-			await _africaIsTalking.SendSms(customer.CustomerPhone,
-				$"Dear {firstName}, your wallet has been topped up with {topUpCustomerWalletDto.Amount:N2} ksh on {DateTime.UtcNow:dd/MM/yy} at {DateTime.UtcNow:hh:mm tt}. Your new balance is {newBalance.ResponseObject:N2} ksh. Thank you for choosing Otogas.");
+					// ---- Mpesa validation happens BEFORE we stage the wallet row,
+					// exactly like RepayCreditAsync: a bad code never gets near the ledger. ----
+					if (dto.PaymentType == 2)
+					{
+						var mpesaTx = await _context.MpesaTransactions
+							.FromSqlInterpolated($@"
+                        SELECT * FROM ""MpesaTransactions""
+                        WHERE ""TransID"" = {dto.TransactionReference}
+                        FOR UPDATE")
+							.FirstOrDefaultAsync();
 
-			var message = $"{_authentication.Name()} has topped up customer {customer.CustomerName} ({customer.CustomerCode}) with {topUpCustomerWalletDto.Amount:N2} ksh on {DateTime.UtcNow}";
-			await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
+						if (mpesaTx is null)
+						{
+							await tx.RollbackAsync();
+							return ServiceResponse<object>.Information($"Mpesa code {dto.TransactionReference} does not exist", null);
+						}
 
-			return ServiceResponse<object>.Success($"Customer Wallet Topped Up with {topUpCustomerWalletDto.Amount:N2}");
+						var (error, fullBalance) = ValidateAndConsumeMpesa(mpesaTx, mpesaTx.TillNumber);
+
+						if (error is not null)
+						{
+							await tx.RollbackAsync();
+							return error;
+						}
+
+						// Same rule as credit repayment: ValidateAndConsumeMpesa always
+						// consumes the FULL balance, so we credit the wallet for that
+						// same full amount rather than dto.Amount, to keep the two
+						// ledgers from drifting apart.
+						amountToCredit = fullBalance;
+					}
+
+					// ⚠️ ASSUMPTION: CreateCustomerTransaction's vehicle-code param can be
+					// string.Empty for a wallet top-up not tied to a vehicle — confirm the
+					// schema allows that, same caveat as your original code.
+					var transaction = CreateCustomerTransaction(
+						customer.CustomerCode, string.Empty, amountToCredit, 0,
+						dto.TransactionReference, dto.PaymentType, "Wallet deposit");
+
+					var saveResult = await SaveTransactionAsync(transaction);
+					if (saveResult.ResponseCode == Response.Error)
+					{
+						await tx.RollbackAsync();
+						// SaveTransactionAsync returns the non-generic ServiceResponse;
+						// cast to the generic ServiceResponse<object> this method returns.
+						return (ServiceResponse<object>)saveResult;
+					}
+
+					await tx.CommitAsync();
+
+					var newBalance = await GetCustomerBalance(customer.CustomerCode);
+					var firstName = customer.CustomerName.Split(' ')[0];
+
+					await _africaIsTalking.SendSms(customer.CustomerPhone,
+						$"Dear {firstName}, your wallet has been topped up with {amountToCredit:N2} ksh on " +
+						$"{DateTime.UtcNow:dd/MM/yy} at {DateTime.UtcNow:hh:mm tt}. Your new balance is " +
+						$"{newBalance.ResponseObject:N2} ksh. Thank you for choosing Otogas.");
+
+					var message = $"{_authentication.Name()} has topped up customer {customer.CustomerName} " +
+								  $"({customer.CustomerCode}) with {amountToCredit:N2} ksh on {DateTime.UtcNow}";
+					await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
+
+					return ServiceResponse<object>.Success(
+						$"Customer wallet topped up with {amountToCredit:N2}", new { NewBalance = newBalance.ResponseObject });
+				}
+				catch
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error("An error occurred while topping up the wallet.", null);
+				}
+			});
 		}
-
 		private async Task<Customer> GetCustomerDetailsByCustomerCodeAsync(string customerCode)
 		{
 			return await _context.Customers
 				.FirstOrDefaultAsync(x => x.CustomerCode == customerCode) ?? new Customer();
+		}
+
+		private (ServiceResponse<object>? Error, decimal FullBalance) ValidateAndConsumeMpesa(MpesaTransaction mpesaTx, string tillNumber)
+		{
+			var till = Regex.Replace(mpesaTx.TillNumber ?? string.Empty, @"\s+", "").Trim();
+
+			if (!string.Equals(till, tillNumber?.Trim(), StringComparison.OrdinalIgnoreCase))
+				return (ServiceResponse<object>.Information("Mpesa code does not belong to that till", null), 0);
+
+			if (mpesaTx.UsageBalance <= 0)
+				return (ServiceResponse<object>.Information($"Mpesa code {mpesaTx.TransID} has already been fully used", null), 0);
+
+			decimal fullBalance = mpesaTx.UsageBalance;
+
+			mpesaTx.UsageBalance = 0;
+			mpesaTx.Status = 0; // fully used
+			mpesaTx.DateModified = EatTime.Now;
+
+			_context.Entry(mpesaTx).State = EntityState.Modified;
+
+			return (null, fullBalance);
 		}
 
 		/// <summary>
