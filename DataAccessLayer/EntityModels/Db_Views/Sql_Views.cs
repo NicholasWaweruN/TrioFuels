@@ -61,6 +61,7 @@ namespace DataAccessLayer.EntityModels.Db_Views
 		public string? NozzleName { get; set; }
 		public string AttendantName { get; set; } = string.Empty;
 		public string? CustomerName { get; set; }
+		public string? CustomerPhone { get; set; }   // ← added, present in the view
 		public string? PetroleumName { get; set; }
 		public string? PaymentType { get; set; }
 		public decimal Litres { get; set; }
@@ -68,7 +69,7 @@ namespace DataAccessLayer.EntityModels.Db_Views
 		public decimal Amount { get; set; }
 		public DateTime SalesDate { get; set; }
 		public string? TillNumber { get; set; }
-		public string? TransId { get; set; }   // ← was non-nullable
+		public string? TransId { get; set; }
 		public decimal RunningBalance { get; set; }
 		public bool IsReversed { get; set; }
 	}

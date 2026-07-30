@@ -561,8 +561,52 @@ namespace FuelFlow.Controllers
 		}
 		#endregion
 
-		///
-		///
 
+	
+		[ApiController]
+		[Route("fuelflow/[controller]")]
+		public class VehicleSalesController : ControllerBase
+		{
+			private readonly IVehicleSales _vehicleSales;
+
+			public VehicleSalesController(IVehicleSales vehicleSales)
+			{
+				_vehicleSales = vehicleSales;
+			}
+
+			/// <summary>
+			/// GET api/VehicleSales?Vehicle=KAA123A
+			/// GET api/VehicleSales?PhoneNumber=0712345678
+			/// GET api/VehicleSales?Vehicle=KAA123A&FromDate=2026-01-01&ToDate=2026-01-31
+			/// </summary>
+			[HttpGet]
+			public async Task<IActionResult> GetFuelSales([FromQuery] FuelSaleFilterDto filter)
+			{
+				var result = await _vehicleSales.GetFuelSalesAsync(filter);
+				return Ok(result);
+			}
+
+			/// <summary>
+			/// GET api/VehicleSales/export?Vehicle=KAA123A
+			/// GET api/VehicleSales/export?PhoneNumber=0712345678
+			/// Downloads an .xlsx file of the filtered results.
+			/// </summary>
+			[HttpGet("export")]
+			public async Task<IActionResult> ExportFuelSales([FromQuery] FuelSaleFilterDto filter)
+			{
+				var result = await _vehicleSales.ExportFuelSalesToExcelAsync(filter);
+
+				if (result.ResponseCode != Response.StatusCode)
+					return Ok(result); // surface validation/"no results" message as JSON instead of a file
+
+				var fileName = $"FuelSales_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+
+				return File(
+					result.ResponseObject!,
+					"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					fileName);
+			}
+		}
 	}
+
 }
