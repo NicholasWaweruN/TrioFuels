@@ -145,6 +145,13 @@ namespace FuelFlow.Controllers
 			return CreateResponse(response);
 		}
 
+		[HttpGet("check-valid-mpesa-code")]
+		public async Task<IActionResult> CheckUnusedMpesaCode([Required] string transactionCode)
+		{
+			var response = await _payments.CheckIfMpesaCodeIsValid(transactionCode);
+			return CreateResponse(response);
+		}
+
 		[HttpPost("ConfirmPayment/{transId}/{dispenserCode}")]
 		public async Task<IActionResult> ConfirmPayment(string transId, string dispenserCode)
 		{

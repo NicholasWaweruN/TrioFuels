@@ -34,7 +34,8 @@ namespace BussinessLogic.Sales.PriceApproval
 		{
 			try
 			{
-				// Validate current user
+				//
+				// current user
 				var usercode = _authentications.Usercode();
 				if (string.IsNullOrWhiteSpace(usercode))
 					return ServiceResponse<object>.Error("Unauthorized access.");

@@ -715,7 +715,24 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 			return ServiceResponse<List<UnusedMpesaTransactionDto>>.Success("Unused Mpesa transactions retrieved successfully", transactions);
 		}
 
+		public async Task<ServiceResponse<ValidMpesaCodes>> CheckIfMpesaCodeIsValid([Required] string TransactionCode)
+		{
+			var result =  await (from mt in  _context.MpesaTransactions
+								 where mt.TransID == TransactionCode
+								 select mt).FirstOrDefaultAsync();
+			if (result is null)
+				return ServiceResponse<ValidMpesaCodes>.Information($"{TransactionCode} does not exist", null);
 
+			var mpesa = new ValidMpesaCodes
+			{
+				Name = result.FirstName,
+				DatePaid = result.TransTime,
+				UsageBalance = result.UsageBalance,
+				TransID = result.TransID,
+			};
+
+			return ServiceResponse<ValidMpesaCodes>.Success($"{TransactionCode} is Valid", mpesa);
+		}
 
 		public async Task<ServiceResponse<UnUsedMpesaCodes>> CheckUnusedMpesaCode([Required] string tillNumber,[Required] string shiftNumber,[Required] decimal amount)
 		{
@@ -748,6 +765,15 @@ namespace BussinessLogic.Personal_Wallet.Payments.PaymentSetups
 		{
 			public string TransID { get; set; } = string.Empty;
 			public decimal UsageBalance { get; set; } = 0m;
+		}
+
+		public class ValidMpesaCodes
+		{
+			public string TransID { get; set; } = string.Empty;
+			public decimal UsageBalance { get; set; } = 0m;
+			public string Name { get; set; } = string.Empty;
+			public DateTime DatePaid {  get; set; }
+
 		}
 		public class UnusedMpesaTransactionDto
 		{
