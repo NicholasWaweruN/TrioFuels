@@ -304,6 +304,14 @@ namespace BussinessLogic.Sales.NewSales
 							$"Outstanding: {outstanding:N2}, This sale: {ctx.Calculated:N2}",
 							new { ctx.Customer.CreditLimit, Outstanding = outstanding });
 
+					var vehicle = await (from v in _context.Vehicles
+										 where v.VehicleRegistrationNumber.Equals(s.RegistrationNumber)
+										 select new { v.CustomerCode, v.VehicleCode })
+										 .FirstOrDefaultAsync();
+
+					if (vehicle is null || string.IsNullOrWhiteSpace(vehicle.CustomerCode))
+						return Info("This vehicle is not linked to a wallet account.");
+
 					_context.CreditTransactions.Add(new CreditTransactions
 					{
 						CustomerCode = ctx.Customer.CustomerCode,
@@ -317,12 +325,20 @@ namespace BussinessLogic.Sales.NewSales
 						UserCode = _authentication.Usercode()
 					});
 
+					var customerDetails = await (from c in _context.Customers
+												 where c.CustomerCode == vehicle.CustomerCode
+												 select c).FirstOrDefaultAsync() ?? new Customer();
+
 					var remainingCredit = ctx.Customer.CreditLimit - newExposure;
-					StageQueuedSms(sales.PhoneNumber, BuildSms(ctx,
-						$"a credit sale of KES {ctx.Calculated:N2} for {s.Quantity:N2} litres " +
-						$"has been recorded for vehicle {sales.RegistrationNumber} " +
-						$"at {ctx.Station.StationName} on {UtcStamp()}. " +
-						$"Remaining credit: KES {remainingCredit:N2}."));
+				
+
+					var message = $"Dear {FirstName(customerDetails.CustomerName)} KES {ctx.Calculated:N2} for {s.Quantity:N2} litres " +
+								  $"has been recorded for vehicle {sales.RegistrationNumber} " +
+								  $"at {ctx.Station.StationName} on {UtcStamp()}. " +
+								  $"Accumulated credit is: KES {remainingCredit:N2}.";
+
+				  await	_sms.SendAsync(sales.PhoneNumber, message);
+
 
 					return null;
 				}
@@ -377,6 +393,7 @@ namespace BussinessLogic.Sales.NewSales
 
 					if (vehicle is null || string.IsNullOrWhiteSpace(vehicle.CustomerCode))
 						return Info("This vehicle is not linked to a wallet account.");
+
 
 					await AcquireWalletLockAsync(vehicle.CustomerCode);
 
