@@ -38,7 +38,7 @@ public sealed class PullBackfillStartupService(
 			var importService = scope.ServiceProvider.GetRequiredService<IPullTransactionImportService>();
 
 			var to = EatTime.Now;
-			var from = to.AddHours(-24);
+			var from = to.AddHours(-48);
 
 			logger.LogInformation("Startup backfill starting | window [{From} - {To}]", from, to);
 

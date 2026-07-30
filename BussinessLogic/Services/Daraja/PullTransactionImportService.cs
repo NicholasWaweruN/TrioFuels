@@ -171,8 +171,13 @@ public sealed class PullTransactionImportService(
 						UsageBalance = amount, // full amount, nothing consumed yet
 						Status = DetermineStatus(usageBalance: amount, transAmount: amount),
 						DateTimeStamp = completionTime,
-						DateModified = EatTime.Now
-					});
+						DateModified = EatTime.Now,
+						CheckoutRequestID = string.Empty,
+						DateCreated = EatTime.Now,
+						UserCode = "Mpesa",
+						MerchantRequestID = string.Empty,
+						ShiftNumber = string.Empty
+					});         
 					result.Inserted++;
 				}
 			}
