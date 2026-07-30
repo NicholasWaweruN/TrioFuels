@@ -44,13 +44,14 @@ namespace FuelFlow.Controllers
 		private readonly ISalesByPaymentMethod _salesByPaymentMethod;
 		private readonly ICreditManagement _credit;
 		private readonly ICreditStatementService _creditStatements;
+		private readonly IVehicleSales _vehicleSales;
 
 
 		public SalesController(ISalesManagementService salesService, ISales sales, IWalletTransactions wallet,
 			IDashBoard dashBoard, IMissingSales missing, IReverseSales reverse, IEmailService emailService,
 			IMisingSale misingSale, Archive_Data archive, ReceiptService receipt, ICustomerStatementService statements,
 			ILoyaltyProgramSubscription loyaltyServices, ICouponsService coupons, ISalesByPaymentMethod salesByPaymentMethod,
-			ICreditManagement credit, ICreditStatementService creditStatements)
+			ICreditManagement credit, ICreditStatementService creditStatements, IVehicleSales vehicleSales)
 		{
 			_salesService = salesService;
 			_addingSales = sales;
@@ -68,6 +69,7 @@ namespace FuelFlow.Controllers
 			_salesByPaymentMethod = salesByPaymentMethod;
 			_credit = credit;
 			_creditStatements = creditStatements;
+			_vehicleSales = vehicleSales;
 		}
 
 		private OkObjectResult CreateResponse<T>(T response) => Ok(response);
@@ -562,24 +564,13 @@ namespace FuelFlow.Controllers
 		#endregion
 
 
-	
-		[ApiController]
-		[Route("fuelflow/[controller]")]
-		public class VehicleSalesController : ControllerBase
-		{
-			private readonly IVehicleSales _vehicleSales;
-
-			public VehicleSalesController(IVehicleSales vehicleSales)
-			{
-				_vehicleSales = vehicleSales;
-			}
 
 			/// <summary>
 			/// GET api/VehicleSales?Vehicle=KAA123A
 			/// GET api/VehicleSales?PhoneNumber=0712345678
 			/// GET api/VehicleSales?Vehicle=KAA123A&FromDate=2026-01-01&ToDate=2026-01-31
 			/// </summary>
-			[HttpGet]
+			[HttpGet("FuelSales")]
 			public async Task<IActionResult> GetFuelSales([FromQuery] FuelSaleFilterDto filter)
 			{
 				var result = await _vehicleSales.GetFuelSalesAsync(filter);
@@ -591,7 +582,7 @@ namespace FuelFlow.Controllers
 			/// GET api/VehicleSales/export?PhoneNumber=0712345678
 			/// Downloads an .xlsx file of the filtered results.
 			/// </summary>
-			[HttpGet("export")]
+			[HttpGet("exportFuelSales")]
 			public async Task<IActionResult> ExportFuelSales([FromQuery] FuelSaleFilterDto filter)
 			{
 				var result = await _vehicleSales.ExportFuelSalesToExcelAsync(filter);
@@ -609,4 +600,4 @@ namespace FuelFlow.Controllers
 		}
 	}
 
-}
+
