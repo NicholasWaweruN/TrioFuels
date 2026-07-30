@@ -42,9 +42,9 @@ public static class DarajaServiceExtensions
 		services.AddScoped<IPullTransactionService, PullTransactionService>();
 		services.AddScoped<IPullTransactionImportService, PullTransactionImportService>();
 		//services.AddHostedService<C2BRegistrationStartupService>();
-
-		// Registers Pull for every configured till once at startup. Idempotent —
-		// safe to leave in even after registration has already succeeded once.
+		services.AddHostedService<PullBackfillStartupService>(); // add this line
+																		 // Registers Pull for every configured till once at startup. Idempotent —
+																		 // safe to leave in even after registration has already succeeded once.
 		services.AddHostedService<PullRegistrationStartupService>();
 
 		services.AddScoped<StkPushDiagnosticService>();
