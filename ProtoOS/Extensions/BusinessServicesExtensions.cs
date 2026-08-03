@@ -16,7 +16,6 @@ using BusinessLogic.Sales.Receipts;
 using BusinessLogic.Sales.ReverseSales;
 using BusinessLogic.Sales.Target;
 using BusinessLogic.Sales.Wallet;
-using BusinessLogic.SetupService;
 using BusinessLogic.Station.DispenserAssignments;
 using BusinessLogic.Station.Nozzzles;
 using BusinessLogic.Station.Station;

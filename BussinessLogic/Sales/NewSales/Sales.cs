@@ -299,18 +299,16 @@ namespace BussinessLogic.Sales.NewSales
 					var newExposure = outstanding + ctx.Calculated;
 
 					if (newExposure > ctx.Customer.CreditLimit)
-						return ServiceResponse<object>.Information(
-							$"Credit limit exceeded. Limit: {ctx.Customer.CreditLimit:N2}, " +
-							$"Outstanding: {outstanding:N2}, This sale: {ctx.Calculated:N2}",
-							new { ctx.Customer.CreditLimit, Outstanding = outstanding });
+						return ServiceResponse<object>.Information($"Credit limit exceeded. Limit: {ctx.Customer.CreditLimit:N2}, " + $"Outstanding: {outstanding:N2}, This sale: {ctx.Calculated:N2}",
+							new {
+								ctx.Customer.CreditLimit,
+								Outstanding = outstanding 
+							});
 
 					var vehicle = await (from v in _context.Vehicles
 										 where v.VehicleRegistrationNumber.Equals(s.RegistrationNumber)
 										 select new { v.CustomerCode, v.VehicleCode })
 										 .FirstOrDefaultAsync();
-
-					if (vehicle is null || string.IsNullOrWhiteSpace(vehicle.CustomerCode))
-						return Info("This vehicle is not linked to a wallet account.");
 
 					_context.CreditTransactions.Add(new CreditTransactions
 					{
