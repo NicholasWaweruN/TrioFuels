@@ -239,6 +239,13 @@ namespace FuelFlow.Controllers
 			return Ok(result);
 		}
 
+		[HttpPost("active-shifts")]
+		public async Task<IActionResult> ActiveShifts([FromBody] StockTakeVarianceCheckRequest request)
+		{
+			var shifts = _stockService.ActiveShifts();
+			return Ok(shifts);
+		}
+
 		[HttpGet("closed-variance-deferred")]
 
 		public async Task<IActionResult> GetClosedVarianceDeferredShifts()

@@ -9,6 +9,7 @@ namespace BussinessLogic.Stock.Stock
 {
 	public interface IStockServicecs
 	{
+		Task<ServiceResponse<object>> ActiveShifts();
 		Task<ServiceResponse<object>> AdjustStockTake([Required] int takeType, AdjustStockTakeDto adjust);
 		Task<ServiceResponse<object>> AdjustStockTakes(AdjustStockTakeSummaryDto adjust);
 		Task<ServiceResponse<byte[]>> ExportAllVariances();

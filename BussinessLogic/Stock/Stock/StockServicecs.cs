@@ -802,6 +802,33 @@ namespace BussinessLogic.Stock.Stock
 			}
 		}
 		//
+
+		public async Task<ServiceResponse<object>> ActiveShifts()
+		{
+			var shifts = await (from p in _context.Shifts
+								join u in _context.Users on p.UserCode equals u.UserCode
+								join d in _context.Dispensers on p.DispenserCode equals d.DispenserCode
+								join s in _context.Stations on d.StationCode equals s.StationCode
+								where p.ShiftStatus == ShiftStatus.Open
+								select new
+								{
+									Name = string.Join(' ', new object[] { u.FirstName, u.MiddName, u.LastName }),
+									Station = s.StationName,
+									Dispenser = d.DispenserName,
+									StartTime = p.ShiftStartTime,
+									Status = "Active",
+								}).ToListAsync();
+
+			return ServiceResponse<object>.Success(
+				shifts.Count == 0 ? "No active shifts at the moment" : "Active shifts retrieved",
+				shifts);
+		}
+
+		public class ShiftsDto
+		{
+
+		}
+
 		public async Task<ServiceResponse<object>> AdjustStockTakes(AdjustStockTakeSummaryDto adjust)
 		{
 			var strategy = _context.Database.CreateExecutionStrategy();
