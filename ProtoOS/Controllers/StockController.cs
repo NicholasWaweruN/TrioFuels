@@ -240,7 +240,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpGet("active-shifts")]
-		public async Task<IActionResult> ActiveShifts([FromBody] StockTakeVarianceCheckRequest request)
+		public async Task<IActionResult> ActiveShifts()
 		{
 			var shifts = _stockService.ActiveShifts();
 			return Ok(shifts);
