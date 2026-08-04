@@ -801,7 +801,7 @@ namespace BussinessLogic.Stock.Stock
 				return ServiceResponse<object>.Error("Something went wrong", ex.Message);
 			}
 		}
-
+		//
 		public async Task<ServiceResponse<object>> AdjustStockTakes(AdjustStockTakeSummaryDto adjust)
 		{
 			var strategy = _context.Database.CreateExecutionStrategy();
