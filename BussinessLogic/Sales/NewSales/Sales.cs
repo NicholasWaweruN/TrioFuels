@@ -983,7 +983,7 @@ namespace BussinessLogic.Sales.NewSales
 		// Current wallet balance for a vehicle (sum of credits minus debits on
 		// CustomerTransactions). AsNoTracking — this is a read used purely to decide
 		// whether the debit below is allowed; the debit itself is a fresh insert.
-	
+	//
 
 		// Takes a Postgres transaction-scoped advisory lock keyed on the vehicle code.
 		// Released automatically on COMMIT/ROLLBACK of the surrounding transaction —
