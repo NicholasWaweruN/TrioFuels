@@ -242,7 +242,7 @@ namespace FuelFlow.Controllers
 		[HttpGet("active-shifts")]
 		public async Task<IActionResult> ActiveShifts()
 		{
-			var shifts = _stockService.ActiveShifts();
+			var shifts = await _stockService.ActiveShifts();
 			return Ok(shifts);
 		}
 
