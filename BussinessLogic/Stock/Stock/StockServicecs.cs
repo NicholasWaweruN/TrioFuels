@@ -839,12 +839,7 @@ namespace BussinessLogic.Stock.Stock
 					{
 						var item = adjust.Readings.First(x => x.NozzleCode == stockTake.NozzleCode);
 
-						if (item.ClosingReading < item.OpeningReading)
-						{
-							await transaction.RollbackAsync();
-							return ServiceResponse<object>.Information(
-								$"Closing reading cannot be less than opening reading for nozzle {stockTake.NozzleCode}", null);
-						}
+						
 
 						if (stockTake.OpeningReading == item.OpeningReading && stockTake.ClosingReading == item.ClosingReading)
 							continue; // no-op, skip logging/updating unchanged rows
