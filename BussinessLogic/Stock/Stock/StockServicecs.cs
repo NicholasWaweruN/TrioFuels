@@ -301,12 +301,26 @@ namespace BussinessLogic.Stock.Stock
 				var nozzleCodes = adjust.Readings.Select(r => r.NozzleCode).Distinct().ToList();
 
 				var stocktakes = await _context.StockTakes
+					.AsTracking()
 					.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode))
 					.ToDictionaryAsync(x => x.NozzleCode);
 
 				var stocktakeSummaries = await _context.StockTakeSummaries
+					.AsTracking()
 					.Where(x => x.ShiftNumber == adjust.ShiftNumber && nozzleCodes.Contains(x.NozzleCode))
 					.ToDictionaryAsync(x => x.NozzleCode);
+
+				var shift = await _context.Shifts
+					.AsTracking()
+					.FirstOrDefaultAsync(x => x.ShiftNumber == adjust.ShiftNumber);
+
+				if (shift == null)
+				{
+					await transaction.RollbackAsync();
+					return ServiceResponse<object>.Information("Shift not found", null);
+				}
+
+				var anyClosingIssue = false;
 
 				foreach (var item in adjust.Readings)
 				{
@@ -317,7 +331,35 @@ namespace BussinessLogic.Stock.Stock
 						return ServiceResponse<object>.Information("Stock take or summary not found", null);
 					}
 
-					AdjustStockTakeValues(stocktake, stocktakeSummary, takeType, item.Reading);
+					var hadClosingIssue = AdjustStockTakeValues(stocktake, stocktakeSummary, takeType, item.Reading);
+					anyClosingIssue |= hadClosingIssue;
+				}
+
+				if (takeType == 2)
+				{
+					if (anyClosingIssue)
+					{
+						// At least one nozzle's closing reading came back 0 — that points to a
+						// bad opening stock take, not a real closing figure. Reopen the whole
+						// shift for correction rather than treating it as reconciled.
+						shift.ShiftStatus = ShiftStatus.Open;
+						_context.Shifts.Update(shift);
+					}
+					else
+					{
+						// Every closing reading in this batch is > 0 — the attendant has either
+						// already closed the shift or missed closing it, so run the shift
+						// through proper reconciliation instead of leaving it half-adjusted.
+						await _context.SaveChangesAsync();
+
+						var reconcileResult = await ReconcileStockSummaries(adjust.ShiftNumber);
+						if (reconcileResult.ResponseCode != Response.Success)
+						{
+							await transaction.RollbackAsync();
+							return ServiceResponse<object>.Error(
+								"Stock adjustment failed during reconciliation", reconcileResult.ResponseMessage);
+						}
+					}
 				}
 
 				var messages = $@"Stock adjusted by {_authentication.Name()} on {DateTime.UtcNow} of shiftNumber {adjust.ShiftNumber}";
@@ -335,6 +377,41 @@ namespace BussinessLogic.Stock.Stock
 			}
 		}
 
+		// Returns true if this was a closing adjustment with reading == 0 (opening-stock issue).
+		private bool AdjustStockTakeValues(StockTake stocktake, StockTakeSummary stocktakeSummary, int takeType, decimal reading)
+		{
+			if (takeType == 2)
+			{
+				stocktake.ClosingReading = reading;
+				stocktakeSummary.ClosingReading = reading;
+
+				if (reading == 0)
+				{
+					// Closing stock of 0 almost always means the opening reading was
+					// wrong/never taken — there's nothing valid to reconcile against yet.
+					stocktakeSummary.ClosingVariance = 0;
+					stocktakeSummary.VarianceStatus = ShiftStatus.Open;
+
+					_context.Update(stocktake);
+					_context.StockTakeSummaries.Update(stocktakeSummary);
+					return true;
+				}
+
+				stocktakeSummary.ClosingVariance = reading - stocktakeSummary.ExpectedClosingReading;
+				stocktakeSummary.VarianceStatus = stocktakeSummary.ClosingVariance == 0 ? ShiftStatus.Closed : ShiftStatus.Variance;
+			}
+			else
+			{
+				stocktake.OpeningReading = reading;
+				stocktakeSummary.OpeningReading = reading;
+				stocktakeSummary.OpeningVariance = reading - stocktakeSummary.ExpectedOpeningReading;
+				stocktakeSummary.VarianceStatus = stocktakeSummary.OpeningVariance == 0 ? ShiftStatus.Closed : ShiftStatus.Variance;
+			}
+
+			_context.Update(stocktake);
+			_context.StockTakeSummaries.Update(stocktakeSummary);
+			return false;
+		}
 		//save base64 image to file TotalizerImages folder StockTakeDto
 		public class ReceiveDeliveryDto
 		{
@@ -528,7 +605,7 @@ namespace BussinessLogic.Stock.Stock
 			if (!isOpeningReading)
 			{
 				await _salesTasks.ReconcileStockSummariesAsync(shift.ShiftNumber);
-				await ClearVariance(shiftNumber);
+				//await ClearVariance(shiftNumber);
 
 				totalVariance = await (from q in _context.StockTakeSummaries
 									   where q.ShiftNumber == shiftNumber
@@ -589,26 +666,7 @@ namespace BussinessLogic.Stock.Stock
 			return result;
 		}
 
-		private void AdjustStockTakeValues(StockTake stocktake, StockTakeSummary stocktakeSummary, int takeType, decimal reading)
-		{
-			if (takeType == 2)
-			{
-				stocktake.ClosingReading = reading;
-				stocktakeSummary.ClosingReading = reading;
-				stocktakeSummary.ClosingVariance = reading - stocktakeSummary.ExpectedClosingReading;
-				stocktakeSummary.VarianceStatus = stocktakeSummary.ClosingVariance == 0 ? ShiftStatus.Closed : ShiftStatus.Variance;
-			}
-			else
-			{
-				stocktake.OpeningReading = reading;
-				stocktakeSummary.OpeningReading = reading;
-				stocktakeSummary.OpeningVariance = reading - stocktakeSummary.ExpectedOpeningReading;
-				stocktakeSummary.VarianceStatus = stocktakeSummary.OpeningVariance == 0 ? ShiftStatus.Closed : ShiftStatus.Variance;
-			}
-
-			_context.Update(stocktake);
-			_context.StockTakeSummaries.Update(stocktakeSummary);
-		}
+	
 
 		private static readonly Dictionary<int, string> MonthAlphabetMapping = new Dictionary<int, string>
 		{
