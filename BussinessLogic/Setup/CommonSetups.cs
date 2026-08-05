@@ -55,34 +55,40 @@ namespace BussinessLogic.Setup
 			}
 
 		}
-		public async Task<string> GetCodeGenerator(string TypeName)
+		public async Task<string> GetCodeGenerator(string typeName)
 		{
 			try
 			{
-				var codegenerator = await _context.Codegenerators.FirstOrDefaultAsync(x => x.TypeName == TypeName);
-				if (codegenerator is not null)
-				{
-					var seed = codegenerator.Seed;
-					var nextnumber = codegenerator.NextNumber + seed;
-					var prefix = codegenerator.Prefix;
-					var suffix = codegenerator.Suffix;
-					var length = codegenerator.Length;
-					var code = string.Concat(prefix, nextnumber.ToString().PadLeft(length, '0'), suffix);
-					codegenerator.NextNumber = nextnumber;
-					_context.Codegenerators.Update(codegenerator);
-					await _context.SaveChangesAsync();
-					return code;
-				}
-				else
-				{
+				// Atomic increment-and-fetch in a single round trip — Postgres
+				// guarantees this UPDATE is serialized per-row, so two concurrent
+				// callers can never read the same NextNumber.
+				var result = await _context.Database
+					.SqlQuery<CodeGenResult>($@"
+                UPDATE ""Codegenerators""
+                SET ""NextNumber"" = ""NextNumber"" + ""Seed""
+                WHERE ""TypeName"" = {typeName}
+                RETURNING ""NextNumber"" + 0 AS ""NextNumber"", ""Prefix"", ""Suffix"", ""Length""")
+					.ToListAsync();
+
+				var row = result.FirstOrDefault();
+				if (row is null)
 					return string.Empty;
-				}
+
+				return string.Concat(row.Prefix, row.NextNumber.ToString().PadLeft(row.Length, '0'), row.Suffix);
 			}
 			catch (Exception ex)
 			{
-				_ = _logger.BeginScope("An error occurred while getting the code generator: {0}", ex.Message);
+				_logger.LogError(ex, "An error occurred while getting the code generator for {TypeName}", typeName);
 				return string.Empty;
 			}
+		}
+
+		private sealed class CodeGenResult
+		{
+			public long NextNumber { get; set; }
+			public string Prefix { get; set; } = string.Empty;
+			public string Suffix { get; set; } = string.Empty;
+			public int Length { get; set; }
 		}
 		public string SentenceCase(string input)
 		{
@@ -239,21 +245,7 @@ namespace BussinessLogic.Setup
 
 		// Method to generate Sale ID using all mappings
 
-		public string GetHostUrl()
-		{
-			if (_httpContextAccessor.HttpContext is not null)
-			{
-				var request = _httpContextAccessor.HttpContext.Request;
-				var host = request.Host.Value;
-				var scheme = request.Scheme;
-				return $"{scheme}://{host}";
-			}
-			else
-			{
-				string host = Constants.baseurl;
-				return host;
-			}
-		}
+	
 
 		private static readonly Dictionary<int, string> ShiftMonthAlphabetMapping = new Dictionary<int, string>
 		{
@@ -296,6 +288,20 @@ namespace BussinessLogic.Setup
 
 			return uniqueCode;
 		}
-
+		public string GetHostUrl()
+		{
+			if (_httpContextAccessor.HttpContext is not null)
+			{
+				var request = _httpContextAccessor.HttpContext.Request;
+				var host = request.Host.Value;
+				var scheme = request.Scheme;
+				return $"{scheme}://{host}";
+			}
+			else
+			{
+				string host = Constants.baseurl;
+				return host;
+			}
+		}
 	}
 }

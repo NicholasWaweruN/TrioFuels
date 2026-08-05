@@ -305,10 +305,6 @@ namespace BussinessLogic.Sales.NewSales
 								Outstanding = outstanding 
 							});
 
-					var vehicle = await (from v in _context.Vehicles
-										 where v.VehicleRegistrationNumber.Equals(s.RegistrationNumber)
-										 select new { v.CustomerCode, v.VehicleCode })
-										 .FirstOrDefaultAsync();
 
 					_context.CreditTransactions.Add(new CreditTransactions
 					{
@@ -324,7 +320,7 @@ namespace BussinessLogic.Sales.NewSales
 					});
 
 					var customerDetails = await (from c in _context.Customers
-												 where c.CustomerCode == vehicle.CustomerCode
+												 where c.CustomerCode == s.LoyaltyCustomerCode
 												 select c).FirstOrDefaultAsync() ?? new Customer();
 
 					var remainingCredit = ctx.Customer.CreditLimit - newExposure;

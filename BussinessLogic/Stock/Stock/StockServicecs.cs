@@ -1177,6 +1177,7 @@ namespace BussinessLogic.Stock.Stock
 								QuantityDebit = candidate.QuantityDebit,
 								StationCode = candidate.StationCode,
 								VehicleCode = candidate.VehicleRegistrationNumber,
+								
 							});
 
 							_context.QuantityTransactions.Update(candidate);
