@@ -4,7 +4,6 @@ using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Graph.Models;
 using Safaricom_Daraja;
 using System;
 using System.Collections.Generic;

@@ -11,13 +11,10 @@ using static Azure.Core.HttpHeader;
 
 namespace BussinessLogic.CouponsService
 {
-	public class CouponsService : ICouponsService
+	public class CouponsService(OTOContext context) : ICouponsService
 	{
-		private readonly OTOContext _context;
-		public CouponsService(OTOContext context)
-		{
-			_context = context;
-		}
+		private readonly OTOContext _context = context;
+
 		public async Task<ServiceResponse<object>> GetAllCouponsAsync()
 		{
 

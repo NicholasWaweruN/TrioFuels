@@ -30,7 +30,7 @@ namespace BussinessLogic.Sales.MissingSales
 		private readonly ILoyaltyServices _loyalty;
 		private readonly IStockTakeVarianceService _varianceService;
 
-		public MisingSale(IStockTakeVarianceService varianceService, OTOContext context, ICommonSetups setups, IAuthCommonTasks authentication, ICommonSalesTasks salesTasks, IMessagingService isTalking, IMemoryCache cache,ILoyaltyServices loyalty)
+		public MisingSale(IStockTakeVarianceService varianceService, OTOContext context, ICommonSetups setups, IAuthCommonTasks authentication, ICommonSalesTasks salesTasks, IMessagingService isTalking, IMemoryCache cache, ILoyaltyServices loyalty)
 		{
 			_context = context;
 			_setups = setups;
@@ -50,6 +50,15 @@ namespace BussinessLogic.Sales.MissingSales
 		private string _stationName = string.Empty;
 		private decimal _discount = 0;
 		private decimal _originalPrice = 0;
+
+		// Payment types that are genuinely backed by an M-Pesa UsageBalance row.
+		// SavePaymentTransactionsAsync uses this to decide whether a
+		// TransactionReference should be validated/consumed against
+		// MpesaTransactions, or simply recorded at face value (Cash, PDQ,
+		// Credit, Calibration, Loyalty may all carry a TransactionReference
+		// that is just a receipt/slip number, not an M-Pesa code).
+		private static bool IsMpesaBackedPayment(int paymentTypeCode) =>
+			paymentTypeCode == PaymetMethod.Mpesa || paymentTypeCode == PaymetMethod.Employee_Mpesa_Payments;
 
 		// ===== PUBLIC ENTRYPOINT =====
 		public async Task<ServiceResponse<object>> AddSalesAsync(MisingSaleDto sales)
@@ -162,13 +171,6 @@ namespace BussinessLogic.Sales.MissingSales
 
 		// ====== SMALL PAYMENT HANDLERS (all with detailed audit trails) ======
 
-		// FIXED: wrapped in a transaction so the QuantityTransactions insert
-		// and PaymentTransactions insert (done inside SaveTransactionDataAsync)
-		// commit or roll back together — matches HandleMpesaAsync's pattern.
-		// sales.VehicleRegistrationNumber is treated purely as a registration
-		// string and persisted as-is, with no lookup against Users or any
-		// other table.
-
 		private class CustomerData
 		{
 			public string CustomerCode = string.Empty;
@@ -192,6 +194,30 @@ namespace BussinessLogic.Sales.MissingSales
 				.Where(c => c.CustomerCode == customerCode)
 				.SumAsync(c => c.Debit - c.Credit);
 
+		// FIX (race condition): locks the customer's row with SELECT ... FOR
+		// UPDATE before summing outstanding credit, so two concurrent credit
+		// sales for the same customer can no longer both read a stale
+		// "outstanding" figure and both pass the limit check. The second
+		// caller blocks here until the first transaction commits/rolls back,
+		// then sees the up-to-date outstanding balance. Must be called from
+		// inside an open transaction (same caveat as GetUsageBalanceAsync).
+		private async Task LockCustomerRowAsync(string customerCode)
+		{
+			var conn = _context.Database.GetDbConnection();
+			if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+
+			await using var cmd = conn.CreateCommand();
+			cmd.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+			cmd.CommandText = @"SELECT ""CustomerCode"" FROM ""Customers"" WHERE ""CustomerCode"" = @code FOR UPDATE";
+
+			var p = cmd.CreateParameter();
+			p.ParameterName = "code";
+			p.Value = customerCode;
+			cmd.Parameters.Add(p);
+
+			await cmd.ExecuteScalarAsync();
+		}
+
 		private async Task<ServiceResponse<object>> HandleCashAsync(MisingSaleDto sales)
 		{
 			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
@@ -205,9 +231,9 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
-					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-
+					// FIX: was calling ReconcileStockSummariesAsync twice in a row
+					// (leftover from commenting out ClearVariance) — removed the
+					// duplicate call.
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a CASH SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -237,9 +263,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
-					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-
+					// FIX: removed duplicate ReconcileStockSummariesAsync call.
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a PDQ SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -270,11 +294,6 @@ namespace BussinessLogic.Sales.MissingSales
 				return ServiceResponse<object>.Information("This customer is not approved for credit purchases.", null);
 
 			var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
-			var outstanding = await GetOutstandingCreditAsync(customer.CustomerCode);
-			var newExposure = outstanding + saleTotal;
-
-			if (newExposure > customer.CreditLimit)
-				return ServiceResponse<object>.Information($"Credit limit exceeded. Limit: {customer.CreditLimit:N2}, Outstanding: {outstanding:N2}, This sale: {saleTotal:N2}",new { customer.CreditLimit, Outstanding = outstanding });
 
 			var strategy = _context.Database.CreateExecutionStrategy();
 			return await strategy.ExecuteAsync(async () =>
@@ -282,6 +301,24 @@ namespace BussinessLogic.Sales.MissingSales
 				await using var tx = await _context.Database.BeginTransactionAsync();
 				try
 				{
+					// FIX (race condition): lock the customer row first, then
+					// read outstanding credit *inside* the transaction. Previously
+					// this check ran before the transaction/lock existed, so two
+					// concurrent credit sales for the same customer could both
+					// read the same outstanding balance and both pass the limit
+					// check, letting the customer exceed their credit limit.
+					await LockCustomerRowAsync(customer.CustomerCode);
+					var outstanding = await GetOutstandingCreditAsync(customer.CustomerCode);
+					var newExposure = outstanding + saleTotal;
+
+					if (newExposure > customer.CreditLimit)
+					{
+						await tx.RollbackAsync();
+						return ServiceResponse<object>.Information(
+							$"Credit limit exceeded. Limit: {customer.CreditLimit:N2}, Outstanding: {outstanding:N2}, This sale: {saleTotal:N2}",
+							new { customer.CreditLimit, Outstanding = outstanding });
+					}
+
 					await SaveTransactionDataAsync(sales, customer.CustomerCode);
 
 					_context.CreditTransactions.Add(new CreditTransactions
@@ -299,9 +336,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await _context.SaveChangesAsync();
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
-					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-
+					// FIX: removed duplicate ReconcileStockSummariesAsync call.
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a CREDIT SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Customer={customer.CustomerCode} | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -351,8 +386,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await _loyalty.DeductLoyaltyPoints(sales.CustomerCode, pointsToDeduct, _saleId);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					 //await ClearVariance(sales.ShiftNumber);
-					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					// FIX: removed duplicate ReconcileStockSummariesAsync call.
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a LOYALTY SALE | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Customer={sales.CustomerCode} | PointsDeducted={pointsToDeduct:N2} | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
@@ -368,6 +402,7 @@ namespace BussinessLogic.Sales.MissingSales
 				}
 			});
 		}
+
 		private async Task<ServiceResponse<object>> HandleOperationalLossAsync(MisingSaleDto sales)
 		{
 			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
@@ -381,8 +416,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
-			
+
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} recorded an OPERATIONAL LOSS | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details} | VehicleRegistration={sales.VehicleRegistrationNumber}";
 					await _authentication.AddUserTrail(msg, nameof(HandleOperationalLossAsync));
@@ -400,14 +434,21 @@ namespace BussinessLogic.Sales.MissingSales
 
 		private async Task<ServiceResponse<object>> HandleEmployeeMpesaAsync(MisingSaleDto sales)
 		{
-			if (!ValidateSalesBasics(sales, out var invalid)) return invalid;
-
 			var strategy = _context.Database.CreateExecutionStrategy();
 			return await strategy.ExecuteAsync(async () =>
 			{
 				await using var tx = await _context.Database.BeginTransactionAsync();
 				try
 				{
+					// FIX (consistency): validation failures now roll back
+					// explicitly before returning, rather than relying on
+					// `await using` disposal to roll back implicitly.
+					if (!ValidateSalesBasics(sales, out var invalid))
+					{
+						await tx.RollbackAsync();
+						return invalid;
+					}
+
 					var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
 
 					var totalMpesaAvailable = await ValidateAndCalculateMpesaPaymentsAsync(sales.PaymentDetails);
@@ -424,7 +465,6 @@ namespace BussinessLogic.Sales.MissingSales
 					}
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
 
 					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed an EMPLOYEE MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
@@ -452,8 +492,7 @@ namespace BussinessLogic.Sales.MissingSales
 					await SaveTransactionDataAsync(sales);
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
-					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+					// FIX: removed duplicate ReconcileStockSummariesAsync call.
 
 					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed a CALIBRATION entry | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
@@ -482,7 +521,14 @@ namespace BussinessLogic.Sales.MissingSales
 				await using var tx = await _context.Database.BeginTransactionAsync();
 				try
 				{
-					if (!ValidateSalesBasics(sales, out var invalid)) return invalid;
+					// FIX (consistency): explicit rollback before returning on
+					// validation failure, instead of relying on implicit
+					// disposal-triggered rollback.
+					if (!ValidateSalesBasics(sales, out var invalid))
+					{
+						await tx.RollbackAsync();
+						return invalid;
+					}
 
 					var saleTotal = Math.Floor(sales.Quantity * _unitPrice);
 
@@ -500,8 +546,7 @@ namespace BussinessLogic.Sales.MissingSales
 					}
 
 					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
-					//await ClearVariance(sales.ShiftNumber);
-				
+
 					var details = BuildAuditDetails(sales, sales.VehicleRegistrationNumber, sales.PaymentDetails.Select(p => p.TransactionReference));
 					var msg = $"{_authentication.Name()} completed an MPESA sale | SaleID={_saleId} | Station={_stationName}({_stationCode}) | {details}";
 					await _authentication.AddUserTrail(msg, nameof(HandleMpesaAsync));
@@ -571,9 +616,25 @@ namespace BussinessLogic.Sales.MissingSales
 			return true;
 		}
 
+		// FIX (silent payment loss): this method used to run the M-Pesa
+		// UsageBalance lookup/consumption path for *any* payment that had a
+		// non-empty TransactionReference, regardless of payment type. Cash,
+		// PDQ, Credit, Calibration, and Loyalty sales can legitimately carry
+		// a TransactionReference (e.g. a receipt/slip number) that does not
+		// exist in MpesaTransactions. That lookup would return null/0,
+		// `available <= 0` would be true, and the payment was silently
+		// skipped via `continue` — the sale still committed as successful
+		// but that payment amount never made it into PaymentTransactions.
+		//
+		// Now the UsageBalance validate/consume path only runs for payment
+		// types that are actually backed by an M-Pesa code (Mpesa,
+		// Employee_Mpesa_Payments). Every other payment type records the
+		// TransactionReference at face value, same as before it carried a
+		// reference at all.
 		private async Task SavePaymentTransactionsAsync(MisingSaleDto sales, decimal saleTotal)
 		{
 			decimal remaining = Math.Floor(saleTotal);
+			bool mpesaBacked = IsMpesaBackedPayment(sales.PaymentTypeCode);
 
 			foreach (var pd in sales.PaymentDetails)
 			{
@@ -581,10 +642,10 @@ namespace BussinessLogic.Sales.MissingSales
 
 				decimal toApply = Math.Min(pd.TransactionAmount, remaining);
 
-				if (!string.IsNullOrWhiteSpace(pd.TransactionReference))
+				if (mpesaBacked && !string.IsNullOrWhiteSpace(pd.TransactionReference))
 				{
-					// FIXED: now takes a row lock for the duration of this
-					// transaction instead of a plain unguarded read.
+					// Row-locking read for the duration of this transaction —
+					// see GetUsageBalanceAsync for details.
 					var available = await GetUsageBalanceAsync(pd.TransactionReference) ?? 0;
 					if (available <= 0) continue;
 
@@ -612,7 +673,7 @@ namespace BussinessLogic.Sales.MissingSales
 				{
 					PaymentRefrence = reference,
 					TransactionAmount = toApply,
-					DateCreated =EatTime.Now,
+					DateCreated = EatTime.Now,
 					UserCode = _authentication.Usercode(),
 					SaleId = _saleId,
 					TransactionAmountDebit = 0
@@ -642,7 +703,7 @@ namespace BussinessLogic.Sales.MissingSales
 				NozzleCode = sales.NozzleCode,
 				AmountCredit = saleTotal,
 				AmountDebit = 0,
-				DateCreated =EatTime.Now,
+				DateCreated = EatTime.Now,
 				IsReversed = false,
 				PaymentTypeCode = sales.PaymentTypeCode,
 				SaleId = _saleId,
@@ -676,15 +737,15 @@ namespace BussinessLogic.Sales.MissingSales
 			}
 		}
 
-		// FIXED: replaced the plain EF read with a locking read. Uses
-		// SELECT ... FOR UPDATE against the connection/transaction currently
-		// open on _context, so the row stays locked from the moment it's
-		// read (during ValidateAndCalculateMpesaPaymentsAsync) until it's
-		// consumed (ConsumeMpesaAsync) later in the same transaction. This is
-		// the fix for the double-spend gap — a second concurrent caller
-		// trying to read the same row will block here until the first
-		// transaction commits or rolls back, at which point it sees the
-		// updated (already-decremented) balance.
+		// Replaces a plain EF read with a locking read: SELECT ... FOR UPDATE
+		// against the connection/transaction currently open on _context, so
+		// the row stays locked from the moment it's read (during
+		// ValidateAndCalculateMpesaPaymentsAsync) until it's consumed
+		// (ConsumeMpesaAsync) later in the same transaction. This is the fix
+		// for the double-spend gap — a second concurrent caller trying to
+		// read the same row will block here until the first transaction
+		// commits or rolls back, at which point it sees the updated
+		// (already-decremented) balance.
 		//
 		// NOTE: only meaningfully locks when called from inside an open
 		// transaction (i.e. from HandleMpesaAsync's flow, which is the only
@@ -692,9 +753,6 @@ namespace BussinessLogic.Sales.MissingSales
 		// an explicit transaction, Postgres wraps it in an implicit one and
 		// releases the lock immediately after the statement — harmless, just
 		// not protective, so don't call this from a non-transactional path.
-
-
-
 		private async Task<int?> GetUsageBalanceAsync(string transId)
 		{
 			var conn = _context.Database.GetDbConnection();
@@ -779,131 +837,6 @@ namespace BussinessLogic.Sales.MissingSales
 								select t.TillNumber).FirstOrDefaultAsync();
 			return number ?? string.Empty;
 		}
-
-		//public async Task<ServiceResponse<object>> ClearVariance(string shiftNumber)
-		//{
-		//	try
-		//	{
-		//		var variances = await (
-		//			from vs in _context.StockTakeSummaries
-		//			where vs.ShiftNumber == shiftNumber
-		//			select vs
-		//		).ToListAsync();
-
-		//		var dispenserStation = await (from s in _context.Shifts
-		//									  where s.ShiftNumber == shiftNumber
-		//									  join d in _context.Dispensers on s.DispenserCode equals d.DispenserCode into dj
-		//									  from d in dj.DefaultIfEmpty()
-		//									  select new { s.DispenserCode, StationCode = d != null ? d.StationCode : null }).FirstOrDefaultAsync();
-
-		//		var dispenserId = dispenserStation?.DispenserCode ?? string.Empty;
-		//		var stationCode = dispenserStation?.StationCode ?? string.Empty;
-
-		//		var threshold = await _varianceService.GetThresholdForDispenserAsync(dispenserId);
-
-		//		var nozzlePrices = new Dictionary<string, decimal>();
-
-		//		// Shift-level NET CLOSING variance only (litres). OpeningVariance is intentionally
-		//		// excluded here per the new spec — only ClosingVariance feeds the clear decision.
-		//		decimal totalVarianceLitres = variances.Sum(x => x.ClosingVariance);
-
-		//		// Shift-level NET CLOSING variance value — each nozzle's ClosingVariance priced at
-		//		// that nozzle's own retail price, then summed (signed) across the shift.
-		//		decimal netVarianceValue = 0m;
-		//		foreach (var variance in variances)
-		//		{
-		//			if (!nozzlePrices.TryGetValue(variance.NozzleCode, out var pricePerLitre))
-		//			{
-		//				pricePerLitre = await _varianceService.GetCurrentRetailPriceAsync(dispenserId, variance.NozzleCode);
-		//				nozzlePrices[variance.NozzleCode] = pricePerLitre;
-		//			}
-		//			netVarianceValue += variance.ClosingVariance * pricePerLitre;
-		//		}
-		//		var totalVarianceValue = Math.Abs(netVarianceValue);
-
-		//		// Method 1: overage — net closing variance >= 0, cleared only if its value is within threshold.
-		//		var isWithinValueThreshold = IsOverageWithinThreshold(totalVarianceLitres, totalVarianceValue, threshold);
-
-		//		// Method 2: minor shortage — net closing variance strictly between -1L and 0L, clears on litres alone.
-		//		var isWithinLitreThreshold = IsMinorShortageAutoClear(totalVarianceLitres);
-
-		//		if (isWithinValueThreshold || isWithinLitreThreshold)
-		//		{
-		//			foreach (var variance in variances)
-		//			{
-		//				variance.VarianceStatus = ShiftStatus.Closed;
-		//				_context.StockTakeSummaries.Update(variance);
-		//			}
-
-		//			if (totalVarianceLitres != 0m)
-		//			{
-		//				var isShortage = totalVarianceLitres < 0m;
-		//				var magnitude = Math.Abs(totalVarianceLitres);
-		//				var saleId = _setups.GenerateSaleId();
-		//				var firstVariance = variances.FirstOrDefault();
-
-		//				var quantityTransaction = new QuantityTransactions
-		//				{
-		//					DateCreated = EatTime.Now,
-		//					UserCode = firstVariance?.UserCode ?? "",
-		//					NozzleCode = firstVariance?.NozzleCode ?? "",
-		//					QuantityCredit = isShortage ? magnitude : 0,
-		//					QuantityDebit = isShortage ? 0 : magnitude,
-		//					ShiftNumber = shiftNumber,
-		//					SaleId = saleId,
-		//					PaymentTypeCode = 3,
-		//					DispenserCode = dispenserId,
-		//					StationCode = stationCode,
-		//					AmountDebit = 0,
-		//					AmountCredit = 0,
-		//					Discount = 0,
-		//					Vat_Amount = 0,
-		//					Price = 0,
-		//					IsReversed = false,
-		//					CustomerCode = string.Empty,
-		//					OtpUsed = string.Empty,
-		//					VehicleRegistrationNumber = _authentication.Usercode(),
-
-		//				};
-		//				await _context.QuantityTransactions.AddAsync(quantityTransaction);
-
-		//				var paymentTransaction = new PaymentTransactions
-		//				{
-		//					DateCreated = EatTime.Now,
-		//					UserCode = firstVariance?.UserCode ?? string.Empty,
-		//					SaleId = saleId,
-		//					PaymentRefrence = _setups.GenerateShiftNumber(),
-		//					TransactionAmount = isShortage ? 0 : totalVarianceValue,
-		//					TransactionAmountDebit = isShortage ? totalVarianceValue : 0,
-		//				};
-		//				await _context.PaymentTransactions.AddAsync(paymentTransaction);
-
-
-		//			}
-
-		//			var shiftToClose = await (from s in _context.Shifts where s.ShiftNumber == shiftNumber select s).FirstOrDefaultAsync();
-		//			shiftToClose?.ShiftStatus = ShiftStatus.Closed;
-
-		//			await _context.SaveChangesAsync();
-		//			await _salesTasks.ReconcileStockSummariesAsync(shiftNumber);
-
-		//			var reasonText = isWithinValueThreshold
-		//				? $"it falls within the allowed threshold of KES {threshold:N2}"
-		//				: $"net closing variance ({totalVarianceLitres:N2}L) falls within the shortage auto-clear allowance (-1L, 0L)";
-
-		//			var message = $"Variance of KES {totalVarianceValue:N2} (quantity {totalVarianceLitres:N2}) of ShiftNumber {shiftNumber} has been cleared on {DateTime.UtcNow} by system service, {reasonText}.";
-		//			await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? "");
-
-		//			return ServiceResponse<object>.Success("Variance cleared successfully", null);
-		//		}
-
-		//		return ServiceResponse<object>.Information("Variance not cleared", null);
-		//	}
-		//	catch (Exception ex)
-		//	{
-		//		return ServiceResponse<object>.Error(ex.Message, null);
-		//	}
-		//}
 
 		// Method 1: overage case. Net closing variance must be >= 0, and its absolute value
 		// must be within the configured threshold.

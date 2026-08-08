@@ -3,7 +3,6 @@ using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Db_Views;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -23,13 +22,9 @@ namespace BussinessLogic.Reports
 		Task<ServiceResponse<CreditRepaymentsResult>> GetCreditRepayments(string? stationCode = null, string? customerCode = null, DateTime? startDate = null, DateTime? endDate = null);
 		Task<ServiceResponse<StockReconciliationResult>> GetStockReconciliation(string shiftNumber, string? stationCode = null);
 	}
-	public class AllReports : IAllReports
+	public class AllReports(OTOContext context) : IAllReports
 	{
-		private readonly OTOContext _context;
-		public AllReports(OTOContext context)
-		{
-			_context = context;
-		}
+		private readonly OTOContext _context = context;
 
 		public async Task<ServiceResponse<MpesaUnusedCodesResult>> GetMpesaUnusedCodesByShift(
 	string shiftNumber,
@@ -119,7 +114,7 @@ namespace BussinessLogic.Reports
 						PricePerLitre = p.Amount,
 						ExpectedLitres = stk.ClosingReading - stk.OpeningReading,
 						ExpectedAmount = (stk.ClosingReading - stk.OpeningReading) * p.Amount,
-						UserCode = stk.UserCode,
+						stk.UserCode,
 					};
 
 				if (!string.IsNullOrEmpty(stationCode))
@@ -191,7 +186,7 @@ namespace BussinessLogic.Reports
 				{
 					AttedantName = nozzleResults[0].AttedantName,
 					ShiftNumber = shiftNumber,
-					Nozzles = nozzleResults.OrderBy(n => n.StationName).ThenBy(n => n.NozzleName).ToList(),
+					Nozzles = [.. nozzleResults.OrderBy(n => n.StationName).ThenBy(n => n.NozzleName)],
 					TotalTotalizerLitres = nozzleResults.Sum(n => n.TotalizerDifference),
 					TotalExpectedAmount = nozzleResults.Sum(n => n.ExpectedAmount),
 					TotalActualLitres = nozzleResults.Sum(n => n.TotalActualLitres),
@@ -273,10 +268,9 @@ namespace BussinessLogic.Reports
 					TotalOutstanding = agingRows.Sum(r => r.OutstandingBalance),
 					CustomersWithBalance = agingRows.Count,
 					CustomersAtLimit = agingRows.Count(r => r.AtLimit),
-					BucketTotals = agingRows
+					BucketTotals = [.. agingRows
 						.GroupBy(r => r.AgeBucket)
-						.Select(g => new AgeBucketTotalDto { Bucket = g.Key, Total = g.Sum(x => x.OutstandingBalance), Count = g.Count() })
-						.ToList()
+						.Select(g => new AgeBucketTotalDto { Bucket = g.Key, Total = g.Sum(x => x.OutstandingBalance), Count = g.Count() })]
 				};
 
 				if (agingRows.Count == 0)
@@ -556,9 +550,9 @@ namespace BussinessLogic.Reports
 					select new
 					{
 						stk.NozzleCode,
-						NozzleName = n.NozzleName,
-						StationName = s.StationName,
-						StationCode = s.StationCode,
+						n.NozzleName,
+						s.StationName,
+						s.StationCode,
 						stk.QuantitySold,
 						stk.VarianceStatus
 					};
@@ -584,7 +578,7 @@ namespace BussinessLogic.Reports
 						.Where(f => f.NozzleName == t.NozzleName && f.StationName == t.StationName)
 						.ToList();
 
-					var avgPrice = matchedSales.Any() ? matchedSales.Average(f => f.Price) : 0;
+					var avgPrice = matchedSales.Count != 0 ? matchedSales.Average(f => f.Price) : 0;
 					var expectedMoney = t.QuantitySold * avgPrice;
 
 					var byPaymentType = matchedSales
@@ -623,7 +617,7 @@ namespace BussinessLogic.Reports
 				var result = new StockReconciliationResult
 				{
 					ShiftNumber = shiftNumber,
-					Nozzles = nozzleResults.OrderBy(n => n.StationName).ThenBy(n => n.NozzleName).ToList(),
+					Nozzles = [.. nozzleResults.OrderBy(n => n.StationName).ThenBy(n => n.NozzleName)],
 					TotalExpectedMoney = nozzleResults.Sum(n => n.ExpectedMoney),
 					TotalActualMoney = nozzleResults.Sum(n => n.TotalActualMoney),
 					TotalExpectedCash = nozzleResults.Sum(n => n.ExpectedCash),
@@ -655,7 +649,7 @@ namespace BussinessLogic.Reports
 			public decimal AvgPrice { get; set; }
 			public decimal ExpectedMoney { get; set; }        // QuantitySold * AvgPrice
 
-			public List<PaymentTypeSalesDto> ActualByPaymentType { get; set; } = new();
+			public List<PaymentTypeSalesDto> ActualByPaymentType { get; set; } = [];
 			public decimal TotalActualMoney { get; set; }
 
 			public decimal NonCashActual { get; set; }         // sum of all non-Cash payment types
@@ -669,7 +663,7 @@ namespace BussinessLogic.Reports
 		public class StockReconciliationResult
 		{
 			public string ShiftNumber { get; set; } = string.Empty;
-			public List<NozzleCashReconciliationDto> Nozzles { get; set; } = new();
+			public List<NozzleCashReconciliationDto> Nozzles { get; set; } = [];
 
 			public decimal TotalExpectedMoney { get; set; }
 			public decimal TotalActualMoney { get; set; }
@@ -689,7 +683,7 @@ namespace BussinessLogic.Reports
 			public decimal ClosingReading { get; set; }
 			public decimal TotalizerDifference { get; set; }   // Closing - Opening = expected sales (litres)
 
-			public List<PaymentTypeSalesDto> ActualSalesByPaymentType { get; set; } = new();
+			public List<PaymentTypeSalesDto> ActualSalesByPaymentType { get; set; } = [];
 			public decimal TotalActualLitres { get; set; }
 			public decimal TotalActualAmount { get; set; }
 			public decimal VarianceLitres { get; set; }         // ActualLitres - TotalizerDifference
@@ -704,7 +698,7 @@ namespace BussinessLogic.Reports
 		{
 			public string AttedantName { get; set; } = string.Empty;
 			public string ShiftNumber { get; set; } = string.Empty;
-			public List<NozzleReconciliationDto> Nozzles { get; set; } = new();
+			public List<NozzleReconciliationDto> Nozzles { get; set; } = [];
 
 			public decimal TotalTotalizerLitres { get; set; }
 			public decimal TotalActualLitres { get; set; }
@@ -726,7 +720,7 @@ namespace BussinessLogic.Reports
 		{
 			public DateTime StartDate { get; set; }
 			public DateTime EndDate { get; set; }
-			public List<PaymentTypeBreakdownDto> Breakdown { get; set; } = new();
+			public List<PaymentTypeBreakdownDto> Breakdown { get; set; } = [];
 			public decimal TotalLitres { get; set; }
 			public decimal TotalAmount { get; set; }
 			public int TotalTransactions { get; set; }
@@ -751,9 +745,9 @@ namespace BussinessLogic.Reports
 		public class ShiftSummaryResult
 		{
 			public string ShiftNumber { get; set; } = string.Empty;
-			public List<StationShiftTotalDto> ByStation { get; set; } = new();
-			public List<PaymentTypeBreakdownDto> ByPaymentType { get; set; } = new();
-			public List<AttendantShiftTotalDto> ByAttendant { get; set; } = new();
+			public List<StationShiftTotalDto> ByStation { get; set; } = [];
+			public List<PaymentTypeBreakdownDto> ByPaymentType { get; set; } = [];
+			public List<AttendantShiftTotalDto> ByAttendant { get; set; } = [];
 			public decimal TotalLitres { get; set; }
 			public decimal TotalAmount { get; set; }
 			public int TotalTransactions { get; set; }
@@ -762,7 +756,7 @@ namespace BussinessLogic.Reports
 		public class MpesaUnusedCodesResult
 		{
 			public string ShiftNumber { get; set; } = string.Empty;
-			public List<MpesaUnusedCodeDto> Codes { get; set; } = new();
+			public List<MpesaUnusedCodeDto> Codes { get; set; } = [];
 			public int NotUsedCount { get; set; }
 			public int PartiallyUsedCount { get; set; }
 			public decimal TotalUnusedAmount { get; set; }
@@ -812,11 +806,11 @@ namespace BussinessLogic.Reports
 
 		public class CreditAgingResult
 		{
-			public List<CreditAgingRowDto> Rows { get; set; } = new();
+			public List<CreditAgingRowDto> Rows { get; set; } = [];
 			public decimal TotalOutstanding { get; set; }
 			public int CustomersWithBalance { get; set; }
 			public int CustomersAtLimit { get; set; }
-			public List<AgeBucketTotalDto> BucketTotals { get; set; } = new();
+			public List<AgeBucketTotalDto> BucketTotals { get; set; } = [];
 		}
 
 
@@ -825,7 +819,7 @@ namespace BussinessLogic.Reports
 		{
 			public DateTime StartDate { get; set; }
 			public DateTime EndDate { get; set; }
-			public List<CreditGivenRowDto> Rows { get; set; } = new();
+			public List<CreditGivenRowDto> Rows { get; set; } = [];
 			public decimal TotalCreditGiven { get; set; }
 			public int TransactionCount { get; set; }
 		}
@@ -847,7 +841,7 @@ namespace BussinessLogic.Reports
 		{
 			public DateTime StartDate { get; set; }
 			public DateTime EndDate { get; set; }
-			public List<CreditRepaymentRowDto> Rows { get; set; } = new();
+			public List<CreditRepaymentRowDto> Rows { get; set; } = [];
 			public decimal TotalRepaid { get; set; }
 			public int TransactionCount { get; set; }
 		}

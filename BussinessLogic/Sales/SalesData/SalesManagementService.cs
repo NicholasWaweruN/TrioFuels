@@ -15,7 +15,6 @@ using DocumentFormat.OpenXml.Bibliography;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph.Models;
 using Npgsql;
 using NpgsqlTypes;
 using OfficeOpenXml;

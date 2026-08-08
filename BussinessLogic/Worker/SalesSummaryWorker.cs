@@ -15,8 +15,7 @@ namespace BussinessLogic.Worker
 
 		// Track last run for each report
 		private DateTime _lastRunDailySummary;
-		private DateTime _lastRunAbove100;
-		private DateTime _lastRunTotalizerRecordings;
+
 		public SalesSummaryWorker(ILogger<SalesSummaryWorker> logger, IServiceProvider serviceProvider)
 		{
 			_logger = logger;
@@ -61,69 +60,6 @@ namespace BussinessLogic.Worker
 		{
 			var salesReportService = scope.ServiceProvider.GetRequiredService<SalesReport_Summary>();
 			await Task.Run(() => salesReportService.GenerateMonthlyStationReportsToStream(currentTime.Year, currentTime.Month));
-		}
-
-		private static async Task Above100(IServiceScope scope, DateTime currentTime)
-		{
-			try
-			{
-				var salesReportService = scope.ServiceProvider.GetRequiredService<SalesReportService>();
-				var emailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
-				var emails = await emailRecipients.GetRecipients("006");
-				await salesReportService.Above100(emails ?? new Mails());
-			}
-			catch (Exception ex)
-			{
-				ErrorLogger.WriteLogs(ex.Message);
-			}
-		}
-
-		private static async Task InstallationCost(IServiceScope scope, DateTime currentTime)
-		{
-			try
-			{
-				var salesReportService = scope.ServiceProvider.GetRequiredService<SalesReportService>();
-				var emailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
-				var emails = await emailRecipients.GetRecipients("009");
-				await salesReportService.SendInstallationCostReportAsync(emails ?? new Mails());
-			}
-			catch (Exception ex)
-			{
-				ErrorLogger.WriteLogs(ex.Message);
-			}
-		}
-
-
-
-	
-
-		private static async Task TelematicReport(IServiceScope scope, DateTime currentTime)
-		{
-			var salesReportService = scope.ServiceProvider.GetRequiredService<SalesReportService>();
-			var emailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
-			var emails = await emailRecipients.GetRecipients("012");
-			await salesReportService.TelematicVehiclesSalesReport(emails ?? new Mails());
-		}
-
-		private static async Task StockTakeSummariesReportAsync(IServiceScope scope, DateTime currentTime)
-		{
-			var salesReportService = scope.ServiceProvider.GetRequiredService<StockTakeSummaryReport>();
-			var emailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
-			var emails = await emailRecipients.GetRecipients("015");
-			await salesReportService.StockTakeSummariesReportAsync(emails ?? new Mails(), currentTime.Year, currentTime.Month);
-		}
-	}
-
-	public static class ErrorLogger
-	{
-		public static void WriteLogs(string error)
-		{
-			string dir = @"C:\ErrorLogs\api\";
-			if (!Directory.Exists(dir)) Directory.CreateDirectory(dir); // FIXED
-
-			string filePath = Path.Combine(dir,EatTime.Now.ToString("yyyyMMdd") + ".txt");
-			using StreamWriter write = new(filePath, true);
-			write.WriteLine($"{DateTime.UtcNow}: {error}");
 		}
 	}
 }

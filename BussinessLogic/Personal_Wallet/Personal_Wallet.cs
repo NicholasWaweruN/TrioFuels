@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 using BussinessLogic.Setup;
-using DataAccessLayer.Authentication.Entity;
 using BussinessLogic.Messaging;
 using DataAccessLayer.Helpers;
+using DataAccessLayer.EntityModels.Authentication;
 
 namespace BussinessLogic.Personal_Wallet
 {

@@ -1,19 +1,13 @@
 ﻿using BussinessLogic.AppReleaseService;
 using Microsoft.AspNetCore.Mvc;
-using static Microsoft.Graph.Constants;
 
 namespace FuelFlow.Controllers
 {
 	[ApiController]
 	[Route("api/app")]
-	public class AppReleaseController : ControllerBase
+	public class AppReleaseController(IAppReleaseService appReleaseService) : ControllerBase
 	{
-		private readonly IAppReleaseService _appReleaseService;
-
-		public AppReleaseController(IAppReleaseService appReleaseService)
-		{
-			_appReleaseService = appReleaseService;
-		}
+		private readonly IAppReleaseService _appReleaseService = appReleaseService;
 
 		[HttpGet("version/latest")]
 		public async Task<IActionResult> GetLatest([FromQuery] string platform = "android")

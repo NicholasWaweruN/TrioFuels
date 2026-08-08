@@ -1,8 +1,8 @@
 ﻿
 using BussinessLogic.Setup;
-using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
+using DataAccessLayer.EntityModels.Authentication;
 using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

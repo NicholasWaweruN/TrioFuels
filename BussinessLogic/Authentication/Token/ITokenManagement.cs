@@ -1,6 +1,6 @@
-﻿using DataAccessLayer.Authentication.Entity;
-using DataAccessLayer.Common;
+﻿using DataAccessLayer.Common;
 using DataAccessLayer.DTOs.Authentication;
+using DataAccessLayer.EntityModels.Authentication;
 
 namespace BusinessLogic.Authentication.Token
 {

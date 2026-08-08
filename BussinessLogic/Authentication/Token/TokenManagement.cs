@@ -1,9 +1,9 @@
 ﻿using BusinessLogic.Authentication.Token;
 using BusinessLogic.EmailService;
-using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Authentication;
+using DataAccessLayer.EntityModels.Authentication;
 using DataAccessLayer.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;

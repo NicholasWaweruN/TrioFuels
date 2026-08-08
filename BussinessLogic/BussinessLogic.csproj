@@ -10,39 +10,37 @@
 		<None Remove="Stock\TankStockTake\**" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="QuestPDF" Version="2026.7.1" />
-		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.10" />
+		<PackageReference Include="QuestPDF" Version="2026.7.2" />
+		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
 		<PackageReference Include="AfricasTalking.NET" Version="1.2.4" />
-		<PackageReference Include="Azure.Identity" Version="1.15.0" />
-		<PackageReference Include="ClosedXML" Version="0.105.0" />
-		<PackageReference Include="EPPlus" Version="8.1.0" />
-		<PackageReference Include="JWT" Version="11.0.0" />
+		<PackageReference Include="Azure.Identity" Version="1.21.0" />
+		<PackageReference Include="ClosedXML" Version="0.105.1" />
+		<PackageReference Include="EPPlus" Version="8.6.3" />
+		<PackageReference Include="JWT" Version="11.1.0" />
 		<PackageReference Include="MailKit" Version="4.17.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
-		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.8" />
-		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.8">
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+		<PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.10">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.Graph" Version="5.91.0" />
-		<PackageReference Include="Microsoft.Identity.Client" Version="4.76.0" />
-		<PackageReference Include="Microsoft.ML" Version="4.0.2" />
-		<PackageReference Include="Microsoft.ML.TimeSeries" Version="4.0.2" />
+		<PackageReference Include="Microsoft.Identity.Client" Version="4.87.0" />
+		<PackageReference Include="Microsoft.ML" Version="5.0.0" />
+		<PackageReference Include="Microsoft.ML.TimeSeries" Version="5.0.0" />
 		<PackageReference Include="MimeKit" Version="4.17.0" />
-		<PackageReference Include="Resend" Version="0.5.1" />
-		<PackageReference Include="RestSharp" Version="112.1.0" />
-		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+		<PackageReference Include="Resend" Version="0.8.0" />
+		<PackageReference Include="RestSharp" Version="114.0.0" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
 		<PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-		<PackageReference Include="ServiceStack.Interfaces" Version="8.8.0" />
-		<PackageReference Include="Syncfusion.Pdf.Net.Core" Version="30.2.6" />
-		<PackageReference Include="Syncfusion.XlsIO.Net.Core" Version="30.2.6" />
-		<PackageReference Include="Syncfusion.XlsIORenderer.Net.Core" Version="30.2.6" />
-		<PackageReference Include="System.Drawing.Common" Version="9.0.6" />
-		<PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
+		<PackageReference Include="ServiceStack.Interfaces" Version="10.0.8" />
+		<PackageReference Include="Syncfusion.Pdf.Net.Core" Version="34.2.2" />
+		<PackageReference Include="Syncfusion.XlsIO.Net.Core" Version="34.2.2" />
+		<PackageReference Include="Syncfusion.XlsIORenderer.Net.Core" Version="34.2.2" />
+		<PackageReference Include="System.Drawing.Common" Version="10.0.10" />
 		<PackageReference Include="Tesseract" Version="5.2.0" />
-		<PackageReference Include="ZXing.Net" Version="0.16.10" />
+		<PackageReference Include="ZXing.Net" Version="0.16.11" />
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\DataAccessLayer\DataAccessLayer.csproj" />

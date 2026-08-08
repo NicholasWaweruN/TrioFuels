@@ -9,7 +9,7 @@ namespace DataAccessLayer.Common
     }
 	/// <summary>
 	/// /
-	/// </summary>
+	/// </summary> 
 	/// <typeparam name="T"></typeparam>
 
     public class ServiceResponse<T> : ServiceResponse

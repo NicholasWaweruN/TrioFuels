@@ -1,7 +1,7 @@
 using BusinessLogic.CustomerService;
 using BusinessLogic.Sales.Archirve;
-using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.DTOs.Payments;
+using DataAccessLayer.EntityModels.Authentication;
 using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Grleamify;
 using DataAccessLayer.EntityModels.Messaging;

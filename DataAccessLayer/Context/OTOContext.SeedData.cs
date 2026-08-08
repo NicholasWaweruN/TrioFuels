@@ -1,4 +1,4 @@
-using DataAccessLayer.Authentication.Entity;
+using DataAccessLayer.EntityModels.Authentication;
 using DataAccessLayer.EntityModels.Customer;
 using DataAccessLayer.EntityModels.Emails;
 using DataAccessLayer.EntityModels.Grleamify;

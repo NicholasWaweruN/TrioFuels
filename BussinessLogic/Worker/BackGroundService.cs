@@ -30,7 +30,7 @@ public class EmailBackgroundService : BackgroundService
 
 	private DateTime? _lastForecastSalesRun;
 	private DateTime? _lastMonthlySalesReportRun;
-	private DateTime? _lastWalletBalanceReportRun;
+
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 	{
@@ -64,7 +64,6 @@ public class EmailBackgroundService : BackgroundService
 
 				await ApplyScheduledPrices(scope, currentTime);
 				await SendRescheduledMessages(scope);
-				await VarianceReports(scope, currentTime);
 			}
 			catch (Exception ex)
 			{
@@ -203,7 +202,7 @@ public class EmailBackgroundService : BackgroundService
 				
 				if(string.IsNullOrEmpty(validPhone))
 				{
-					_logger.LogWarning(message: $"Invalid phone number for message ID {sms.Id}: {sms.PhoneNumber}");
+					_logger.LogWarning(message: $"""Invalid phone number for message ID {sms.Id}: {sms.PhoneNumber}""");
 					continue;
 				}
 				else
@@ -222,37 +221,4 @@ public class EmailBackgroundService : BackgroundService
 			_logger.LogError(ex, "Error sending rescheduled messages.");
 		}
 	}
-	private static async Task VarianceReports(IServiceScope scope, DateTime CurrentTime)
-	{
-		var dbContext = scope.ServiceProvider.GetRequiredService<OTOContext>();
-		var varianceReport = scope.ServiceProvider.GetRequiredService<VarianceReport>();
-		var getEmailRecipients = scope.ServiceProvider.GetRequiredService<IWorkerRecipients>();
-		var shiftsales = scope.ServiceProvider.GetRequiredService<ShiftsSales>();
-
-		var varianceShifts = await dbContext.Shifts
-			.Where(s => s.ShiftStatus == 2 && !s.IsEmailSent)
-			.ToListAsync();
-
-		var twelveHoursAgo =EatTime.Now.AddHours(-14);
-
-		var varianceShift = await dbContext.Shifts
-			.Where(s => s.ShiftStartTime >= twelveHoursAgo && s.ShiftStatus != 1)
-			.ToListAsync();
-
-
-		foreach (var variance in varianceShifts)
-		{
-			var result = await varianceReport.GetVarianceReport(variance.ShiftNumber);
-			if (result.ResponseCode == 1)
-			{
-				variance.IsEmailSent = true;
-				dbContext.Update(variance);
-				await dbContext.SaveChangesAsync();
-			}
-
-			
-		}
-
-	}
-	
 }

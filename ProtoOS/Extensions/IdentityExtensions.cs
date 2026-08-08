@@ -1,5 +1,5 @@
-﻿using DataAccessLayer.Authentication.Entity;
-using DataAccessLayer.Context;
+﻿using DataAccessLayer.Context;
+using DataAccessLayer.EntityModels.Authentication;
 using Microsoft.AspNetCore.Identity;
 
 namespace FuelFlow.Extensions;

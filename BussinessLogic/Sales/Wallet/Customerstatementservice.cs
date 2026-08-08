@@ -19,7 +19,6 @@ using ClosedXML.Excel;
 using DataAccessLayer.Context;
 using DataAccessLayer.EntityModels.Personal_Wallet;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Graph.Models;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -116,7 +115,7 @@ namespace BussinessLogic.Sales.Wallet
 			ws.Cell(4, 1).Value = $"Period: {statement.FromDate:dd MMM yyyy} – {statement.ToDate:dd MMM yyyy}";
 
 			var headerRow = 6;
-			string[] headers = { "Date", "Reference", "Vehicle Reg.", "Narration", "Credit", "Debit", "Balance" };
+			string[] headers = ["Date", "Reference", "Vehicle Reg.", "Narration", "Credit", "Debit", "Balance"];
 			for (int i = 0; i < headers.Length; i++)
 			{
 				var cell = ws.Cell(headerRow, i + 1);

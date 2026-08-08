@@ -1,9 +1,9 @@
 using BusinessLogic.CustomerService;
 using BusinessLogic.Sales.Archirve;
 using BusinessLogic.Sales.Target;
-using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.DTOs.Payments;
 using DataAccessLayer.EntityModels.Approvals;
+using DataAccessLayer.EntityModels.Authentication;
 using DataAccessLayer.EntityModels.Authorisations;
 using DataAccessLayer.EntityModels.CreditTransactions;
 using DataAccessLayer.EntityModels.Customer;

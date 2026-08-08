@@ -7,7 +7,6 @@ using DataAccessLayer.Context;
 using DataAccessLayer.DTOs.Shifts;
 using DataAccessLayer.Helpers;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Graph.Models;
 
 namespace BussinessLogic.Stock.Shifts
 {

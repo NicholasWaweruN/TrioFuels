@@ -1,8 +1,8 @@
 ﻿using BusinessLogic.Authentication.UserApplications;
 using BussinessLogic.Authentication.CommonTasks;
-using DataAccessLayer.Authentication.Entity;
 using DataAccessLayer.Common;
 using DataAccessLayer.Context;
+using DataAccessLayer.EntityModels.Authentication;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

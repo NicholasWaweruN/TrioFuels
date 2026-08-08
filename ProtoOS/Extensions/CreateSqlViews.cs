@@ -1,6 +1,5 @@
 ﻿using DataAccessLayer.Context;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Graph.Models;
 
 namespace FuelFlow.Extensions;
 public static class ViewInitializer

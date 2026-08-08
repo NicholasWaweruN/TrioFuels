@@ -17,23 +17,8 @@ using System.Text.RegularExpressions;
 namespace BussinessLogic.Customers.Vehicles
 {
 	// This class manages vehicle-related operations, including adding, updating, activating/deactivating, and searching for vehicles.
-	public class OtogasVehicles
+	public class OtogasVehicles(OTOContext context, ICommonSetups setups, IAuthCommonTasks authentication, ILogger<OtogasVehicles> logger, IEmailService emailService)
 	{
-		private readonly OTOContext _context;
-		private readonly ICommonSetups _setups;
-		private readonly IAuthCommonTasks _authentication;
-		private readonly ILogger<OtogasVehicles> _logger;
-		private readonly IEmailService _emailService; 
-		
-
-		public OtogasVehicles(OTOContext context, ICommonSetups setups, IAuthCommonTasks authentication, ILogger<OtogasVehicles> logger,IEmailService emailService)
-		{
-			_context = context;
-			_setups = setups;
-			_authentication = authentication;
-			_logger = logger;
-			_emailService = emailService;
-		}
 
 		// Adds a new vehicle to the system after validating and normalizing the registration number.
 		public async Task<ServiceResponse<object>> AddVehicle(VehicleDto vehicleDTO)
@@ -43,7 +28,7 @@ namespace BussinessLogic.Customers.Vehicles
 				if (vehicleDTO == null)
 					return ServiceResponse<object>.Information("Invalid request payload", null);
 
-				_logger.LogInformation("Received parameters: {@VehicleDTO}", vehicleDTO);
+				logger.LogInformation("Received parameters: {@VehicleDTO}", vehicleDTO);
 
 				// ---------------- NORMALIZE + VALIDATE REG NUMBER ----------------
 
@@ -68,10 +53,10 @@ namespace BussinessLogic.Customers.Vehicles
 
 				// ---------------- GENERATE VEHICLE CODE ----------------
 
-				var vehicleCode = await _setups.GetCodeGenerator("VehicleCode");
+				var vehicleCode = await setups.GetCodeGenerator("VehicleCode");
 				if (vehicleCode == null)
 				{
-					_logger.LogWarning("Vehicle code generation failed for {reg}", normalizedNumber);
+					logger.LogWarning("Vehicle code generation failed for {reg}", normalizedNumber);
 					return ServiceResponse<object>.Information("Failed to generate vehicle code. Vehicle not added.", null);
 				}
 
@@ -81,14 +66,14 @@ namespace BussinessLogic.Customers.Vehicles
 
 				// ---------------- EXECUTION STRATEGY + TRANSACTION ----------------
 
-				var strategy = _context.Database.CreateExecutionStrategy();
+				var strategy = context.Database.CreateExecutionStrategy();
 
 				await strategy.ExecuteAsync(async () =>
 				{
-					await using var transaction = await _context.Database.BeginTransactionAsync();
+					await using var transaction = await context.Database.BeginTransactionAsync();
 
-					_context.Vehicles.Add(vehicle);
-					await _context.SaveChangesAsync();
+					context.Vehicles.Add(vehicle);
+					await context.SaveChangesAsync();
 
 					// build audit AFTER save so data is guaranteed persisted
 					var productName = await GetProductName(vehicleDTO.ProductCode);
@@ -101,11 +86,11 @@ namespace BussinessLogic.Customers.Vehicles
 						$"PhoneNumber: {vehicleDTO.PhoneNumber}, " +
 						$"ProductName: {productName}, " +
 						$"Tank Capacity: {vehicleDTO.TankCapacity}, " +
-						$"Added by: {_authentication.Username()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}";
+						$"Added by: {authentication.Username()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}";
 
-					await _authentication.AddUserTrail(message, nameof(AddVehicle));
+					await authentication.AddUserTrail(message, nameof(AddVehicle));
 
-					_logger.LogInformation(message);
+					logger.LogInformation(message);
 
 					await transaction.CommitAsync();
 				});
@@ -116,7 +101,7 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred while adding the vehicle");
+				logger.LogError(ex, "An error occurred while adding the vehicle");
 
 				return ServiceResponse<object>.Error(
 					"An unexpected error occurred. Vehicle not added.",
@@ -126,7 +111,7 @@ namespace BussinessLogic.Customers.Vehicles
 		//add 
 		async Task<string> GetProductName(string productCode)
 		{ 
-			var products = await _context.Products.Where(x => x.ProductCode.Equals(productCode)).FirstOrDefaultAsync();
+			var products = await context.Products.Where(x => x.ProductCode.Equals(productCode)).FirstOrDefaultAsync();
 			if (products != null)
 				return products.ProductName ?? string.Empty;
 			return string.Empty;
@@ -142,17 +127,17 @@ namespace BussinessLogic.Customers.Vehicles
 					return ServiceResponse<object>.Information("Vehicle not found", null);
 
 				vehicle.IsActive = false;
-				_context.Vehicles.Update(vehicle);
-				await _context.SaveChangesAsync();
+				context.Vehicles.Update(vehicle);
+				await context.SaveChangesAsync();
 
-				var message = $"Vehicle with number plate {vehicle.VehicleRegistrationNumber} was deactivate by {_authentication.Name()} on {DateTime.UtcNow}";
-				await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+				var message = $"Vehicle with number plate {vehicle.VehicleRegistrationNumber} was deactivate by {authentication.Name()} on {DateTime.UtcNow}";
+				await authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 
 				return ServiceResponse<object>.Success("Vehicle deactivated successfully", vehicle);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error during deactivating vehicle");
+				logger.LogError(ex, "Error during deactivating vehicle");
 				return ServiceResponse<object>.Error("Vehicle not deactivated", null);
 			}
 		}
@@ -167,17 +152,17 @@ namespace BussinessLogic.Customers.Vehicles
 					return ServiceResponse<object>.Information("Vehicle not found", null);
 
 				vehicle.IsActive = true;
-				_context.Vehicles.Update(vehicle);
-				await _context.SaveChangesAsync();
+				context.Vehicles.Update(vehicle);
+				await context.SaveChangesAsync();
 
-				var message = $"Vehicle with number plate {vehicle.VehicleRegistrationNumber} was activate by {_authentication.Name()} on {DateTime.UtcNow}";
-				await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+				var message = $"Vehicle with number plate {vehicle.VehicleRegistrationNumber} was activate by {authentication.Name()} on {DateTime.UtcNow}";
+				await authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 
 				return ServiceResponse<object>.Success($"Vehicle {vehicle.VehicleRegistrationNumber} activated", null);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error during activating vehicle");
+				logger.LogError(ex, "Error during activating vehicle");
 				return ServiceResponse<object>.Error("Vehicle not activated", null);
 			}
 		}
@@ -229,12 +214,12 @@ namespace BussinessLogic.Customers.Vehicles
 				// Save changes if any updates were made
 				if (updateMessages.Length > 0)
 				{
-					_context.Vehicles.Update(vehicle);
-					await _context.SaveChangesAsync();
+					context.Vehicles.Update(vehicle);
+					await context.SaveChangesAsync();
 
 					// Audit trail
-					var message = $"{_authentication.Name()} made the following changes to vehicle {vehicle.VehicleCode} on {DateTime.UtcNow:yyyy-MM-dd hh:mm tt}: {updateMessages}";
-					await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+					var message = $"{authentication.Name()} made the following changes to vehicle {vehicle.VehicleCode} on {DateTime.UtcNow:yyyy-MM-dd hh:mm tt}: {updateMessages}";
+					await authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 
 					return ServiceResponse<object>.Success($"Vehicle {vehicle.VehicleRegistrationNumber} updated successfully", vehicle);
 				}
@@ -252,7 +237,7 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var statusCode = await _setups.GetCodeGenerator("StatusCode");
+				var statusCode = await setups.GetCodeGenerator("StatusCode");
 				if (statusCode == null)
 					return ServiceResponse<object>.Information("Status code generation failed", null);
 
@@ -261,18 +246,18 @@ namespace BussinessLogic.Customers.Vehicles
 					StatusCode = statusCode,
 					Description = description,
 					DateCreated =EatTime.Now,
-					UserCode = _authentication.Usercode(),
+					UserCode = authentication.Usercode(),
 					IsActive = true
 				};
 
-				await _context.VehicleStatusTypes.AddAsync(status);
-				await _context.SaveChangesAsync();
+				await context.VehicleStatusTypes.AddAsync(status);
+				await context.SaveChangesAsync();
 
 				return ServiceResponse<object>.Success("Vehicle status added successfully", status);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error during adding vehicle status");
+				logger.LogError(ex, "Error during adding vehicle status");
 				return ServiceResponse<object>.Error("Vehicle status not added", null);
 			}
 		}
@@ -282,12 +267,12 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var statuses = await _context.VehicleStatusTypes.AsNoTracking().ToListAsync();
+				var statuses = await context.VehicleStatusTypes.AsNoTracking().ToListAsync();
 				return ServiceResponse<object>.Success("Vehicle statuses retrieved successfully", statuses);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error during retrieving vehicle statuses");
+				logger.LogError(ex, "Error during retrieving vehicle statuses");
 				return ServiceResponse<object>.Error("Vehicle statuses not retrieved", null);
 			}
 		}
@@ -304,8 +289,8 @@ namespace BussinessLogic.Customers.Vehicles
 
 				vehicle.Status = statusCode;
 				vehicle.IsActive = false;
-				_context.Vehicles.Update(vehicle);
-				await _context.SaveChangesAsync();
+				context.Vehicles.Update(vehicle);
+				await context.SaveChangesAsync();
 
 				await LogVehicleAction(vehicle.VehicleRegistrationNumber, "status updated");
 
@@ -313,7 +298,7 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error during updating vehicle status");
+				logger.LogError(ex, "Error during updating vehicle status");
 				return ServiceResponse<object>.Error("Vehicle status not updated", null);
 			}
 		}
@@ -330,10 +315,10 @@ namespace BussinessLogic.Customers.Vehicles
 			try
 			{
 				// Join Vehicles -> Customers -> Products
-				var query = from v in _context.Vehicles.AsNoTracking()
-							join c in _context.Customers.AsNoTracking()
+				var query = from v in context.Vehicles.AsNoTracking()
+							join c in context.Customers.AsNoTracking()
 								on v.CustomerCode equals c.CustomerCode
-							join p in _context.Products.AsNoTracking()
+							join p in context.Products.AsNoTracking()
 								on v.ProductCode equals p.ProductCode into productJoin
 							from p in productJoin.DefaultIfEmpty() // Left join for optional Product
 							select new
@@ -418,7 +403,7 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving vehicles");
+				logger.LogError(ex, "Error retrieving vehicles");
 				return ServiceResponse<object>.Error("Vehicles not retrieved", null);
 			}
 		}
@@ -445,12 +430,12 @@ namespace BussinessLogic.Customers.Vehicles
 					Name = name.Trim(),
 					PhoneNumber = phoneNumber.Trim(),
 					NumberPlate = numberPlate.Trim(),
-					UserCode = _authentication.Usercode(),
+					UserCode = authentication.Usercode(),
 					DateCreated = EatTime.Now
 				};
 
-				await _context.ProvisionalCustomers.AddAsync(customer);
-				await _context.SaveChangesAsync();
+				await context.ProvisionalCustomers.AddAsync(customer);
+				await context.SaveChangesAsync();
 
 				return ServiceResponse<object>.Success(
 					"Provisional customer added successfully",
@@ -458,7 +443,7 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error adding provisional customer");
+				logger.LogError(ex, "Error adding provisional customer");
 
 				return ServiceResponse<object>.Error(
 					ex.InnerException?.Message ?? ex.Message,
@@ -471,9 +456,9 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var vehicles = await _context.Vehicles
+				var vehicles = await context.Vehicles
 					.AsNoTracking()
-					.Join(_context.Customers.AsNoTracking(), v => v.CustomerCode, c => c.CustomerCode, (v, c) => new
+					.Join(context.Customers.AsNoTracking(), v => v.CustomerCode, c => c.CustomerCode, (v, c) => new
 					{
 						v.VehicleRegistrationNumber,
 						v.VehicleModel,
@@ -501,7 +486,7 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving all vehicles");
+				logger.LogError(ex, "Error retrieving all vehicles");
 				return ServiceResponse<object>.Error("Vehicles not retrieved", null);
 			}
 		}
@@ -511,7 +496,7 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var vehicle = await _context.Vehicles
+				var vehicle = await context.Vehicles
 					.AsNoTracking()
 					.FirstOrDefaultAsync(x => x.VehicleCode.Replace(" ", "") == vehicleCode.Replace(" ", ""));
 
@@ -522,7 +507,7 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving vehicle by code");
+				logger.LogError(ex, "Error retrieving vehicle by code");
 				return ServiceResponse<object>.Error("Vehicle not retrieved", null);
 			}
 		}
@@ -549,12 +534,12 @@ namespace BussinessLogic.Customers.Vehicles
 				if (!Regex.IsMatch(vehicleRegNo, pattern) && !Regex.IsMatch(vehicleRegNo, tuktukPattern))
 					return ServiceResponse<object>.Error($"{vehicleRegNo.ToUpper()} is invalid, please try again!", null);
 
-				var userCode = _authentication.Usercode();
+				var userCode = authentication.Usercode();
 
 				// Get stationCode
-				var stationCode = await _context.DispenserAssignments
+				var stationCode = await context.DispenserAssignments
 					.Where(d => d.AttedantUserCode == userCode)
-					.Join(_context.Dispensers, d => d.DispenserCode, ds => ds.DispenserCode, (d, ds) => ds.StationCode)
+					.Join(context.Dispensers, d => d.DispenserCode, ds => ds.DispenserCode, (d, ds) => ds.StationCode)
 					.FirstOrDefaultAsync();
 
 				return await SearchVehicleByStation(vehicleRegNo, stationCode ?? string.Empty,null);
@@ -577,7 +562,7 @@ namespace BussinessLogic.Customers.Vehicles
 			catch (Exception ex)
 			{
 				var method = ex.TargetSite;
-				_logger.LogError(ex, "Error searching vehicle with station code");
+				logger.LogError(ex, "Error searching vehicle with station code");
 				return ServiceResponse<object>.Error("Vehicle not retrieved", null);
 			}
 		}
@@ -590,7 +575,7 @@ namespace BussinessLogic.Customers.Vehicles
 			vehicleRegNo = vehicleRegNo.Replace(" ", "").ToUpper();
 
 			// 1️⃣ Get vehicle
-			var vehicle = await _context.Vehicles
+			var vehicle = await context.Vehicles
 				.AsNoTracking()
 				.Where(v => v.VehicleRegistrationNumber == vehicleRegNo)
 				.Select(v => new
@@ -608,7 +593,7 @@ namespace BussinessLogic.Customers.Vehicles
 			if (vehicle == null)
 				return ServiceResponse<object>.WalkInCustomer("Vehicle not found", null);
 
-			var customer = await _context.Customers
+			var customer = await context.Customers
 			.AsNoTracking()
 			.Where(x => x.CustomerCode == vehicle.CustomerCode)
 			.Select(x => new
@@ -623,7 +608,7 @@ namespace BussinessLogic.Customers.Vehicles
 			if (customer == null)
 				return ServiceResponse<object>.Information("Customer not found", null);
 
-			var outstandingCredit = await _context.CreditTransactions
+			var outstandingCredit = await context.CreditTransactions
 				.Where(c => c.CustomerCode == customer.CustomerCode)
 				.SumAsync(c => c.Debit - c.Credit);
 
@@ -640,21 +625,21 @@ namespace BussinessLogic.Customers.Vehicles
 			var today =EatTime.Now.Date;
 
 			// 2️⃣ Loyalty subscription
-			var hasLoyaltySubscription = await _context.LoyaltySubscriptions
+			var hasLoyaltySubscription = await context.LoyaltySubscriptions
 				.AnyAsync(x => x.VehicleCode == vehicle.VehicleCode);
 
 			// 3️⃣ Wallet balance
-			var walletBalance = await _context.CustomerTransactions
+			var walletBalance = await context.CustomerTransactions
 				.Where(ct => ct.VehicleCode == vehicle.VehicleCode)
 				.SumAsync(x => (decimal?)x.Credit - x.Debit) ?? 0;
 
 			// 4️⃣ Voucher balance
-			var voucherBalance = await _context.RoyaltyPoints
+			var voucherBalance = await context.RoyaltyPoints
 				.Where(p => p.CustomerCode == vehicle.CustomerCode)
 				.SumAsync(x => (decimal?)x.PointsCredit - x.PointsDebit) ?? 0;
 
 			// 5️⃣ Active vouchers
-			var activeVoucher = await _context.Vouchers
+			var activeVoucher = await context.Vouchers
 				.AsNoTracking()
 				.Where(v =>
 					v.VehicleCode == vehicle.VehicleCode &&
@@ -669,7 +654,7 @@ namespace BussinessLogic.Customers.Vehicles
 				.ToListAsync();
 
 			// 6️⃣ Price + discount in one query
-			var priceInfo = await _context.Prices
+			var priceInfo = await context.Prices
 				.Where(p =>
 					p.ProductCode == vehicle.ProductCode &&
 					p.StationCode == stationCode)
@@ -684,7 +669,7 @@ namespace BussinessLogic.Customers.Vehicles
 			var stationPrice = priceInfo?.Amount ?? 0;
 
 			// 7️⃣ Approved price
-			var approvedPrice = await _context.PriceApproval
+			var approvedPrice = await context.PriceApproval
 				.Where(pa =>
 					pa.NumberPlate == vehicleRegNo &&
 					pa.ShiftNumber == shiftNumber &&
@@ -695,9 +680,9 @@ namespace BussinessLogic.Customers.Vehicles
 
 			// 8️⃣ Today's fuel
 			var todayFuel = await (
-				from t in _context.QuantityTransactions
-				join s in _context.Stations on t.StationCode equals s.StationCode
-				join p in _context.PaymentTypes on t.PaymentTypeCode equals p.PaymentTypeId
+				from t in context.QuantityTransactions
+				join s in context.Stations on t.StationCode equals s.StationCode
+				join p in context.PaymentTypes on t.PaymentTypeCode equals p.PaymentTypeId
 				where t.DateCreated >= today &&
 					  t.DateCreated < today.AddDays(1) &&
 					  t.VehicleRegistrationNumber == vehicleRegNo
@@ -767,7 +752,7 @@ namespace BussinessLogic.Customers.Vehicles
 
 				// Single round trip: customer + loyalty balance + outstanding credit + wallet balance,
 				// via correlated subquery aggregates instead of sequential queries.
-				var row = await _context.Database
+				var row = await context.Database
 					.SqlQuery<CustomerSearchRow>($@"
                 SELECT
                     c.""CustomerCode""    AS ""CustomerCode"",
@@ -807,18 +792,18 @@ namespace BussinessLogic.Customers.Vehicles
 					row.CustomerCode,
 					row.CreditLimit,
 					row.IsCreditCustomer,
-					OutstandingCredit = row.OutstandingCredit,
+					row.OutstandingCredit,
 					AvailableCredit = row.CreditLimit - row.OutstandingCredit,
 					HasLoyaltySubscription = row.LoyaltyBalance > 0,
-					LoyaltyBalance = row.LoyaltyBalance,
-					WalletBalance = row.WalletBalance,
+					 row.LoyaltyBalance,
+					row.WalletBalance,
 				};
 
 				return ServiceResponse<object>.Success("Customer retrieved successfully", result);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error searching customer by phone number");
+				logger.LogError(ex, "Error searching customer by phone number");
 				return ServiceResponse<object>.Error("Customer not retrieved", null);
 			}
 		}
@@ -846,7 +831,7 @@ namespace BussinessLogic.Customers.Vehicles
 				{
 					VehicleCode = vehicle.VehicleCode,
 					TransFerDate =EatTime.Now,
-					UserCode = _authentication.Usercode(),
+					UserCode = authentication.Usercode(),
 					CustomerCode = previousCustomerCode,
 					NewCustomerCode = transferVehicle.CustomerCode,
 					DateCreated =EatTime.Now,
@@ -864,18 +849,18 @@ namespace BussinessLogic.Customers.Vehicles
 				};
 
 				vehicle.CustomerCode = transferVehicle.CustomerCode;
-				_context.Update(vehicle);
+				context.Update(vehicle);
 
-				await _context.TransFeredVehicles.AddAsync(transferredVehicle);
-				await _context.SaveChangesAsync();
+				await context.TransFeredVehicles.AddAsync(transferredVehicle);
+				await context.SaveChangesAsync();
 
-				var message = $"Vehicle with registration number was transfered from customer {vehicle.CustomerCode} to {previousCustomerCode} on {DateTime.UtcNow} by {_authentication.Name()}";
-				await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+				var message = $"Vehicle with registration number was transfered from customer {vehicle.CustomerCode} to {previousCustomerCode} on {DateTime.UtcNow} by {authentication.Name()}";
+				await authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
 				return ServiceResponse<object>.Success("Vehicle transferred successfully", vehicle);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error during transferring vehicle");
+				logger.LogError(ex, "Error during transferring vehicle");
 				return ServiceResponse<object>.Error("Vehicle not transferred", null);
 			}
 		}
@@ -883,7 +868,7 @@ namespace BussinessLogic.Customers.Vehicles
 		// Marks a vehicle as uninstalled (e.g., the vehicle is no longer part of the system).
 		public async Task<ServiceResponse<VehicleUninstallDto>> MarkVehicleAsUnInstalled(string vehicleCode)
 		{
-			await using var transaction = await _context.Database.BeginTransactionAsync();
+			await using var transaction = await context.Database.BeginTransactionAsync();
 			try
 			{
 				var vehicle = await GetVehicleByCodeAsync(vehicleCode);
@@ -913,14 +898,14 @@ namespace BussinessLogic.Customers.Vehicles
 				vehicle.TelematicSerialNumber = string.Empty;
 				vehicle.IsActive = false;
 
-				_context.Entry(vehicle).State = EntityState.Modified;
-				await _context.SaveChangesAsync();
+				context.Entry(vehicle).State = EntityState.Modified;
+				await context.SaveChangesAsync();
 
 				// Audit log
 				var message = $"Vehicle {vehicle.VehicleRegistrationNumber} was uninstalled by " +
-							  $"{_authentication.Name()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC. " +
+							  $"{authentication.Name()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC. " +
 							  $"Previous Serial: {oldSerial}";
-				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? nameof(MarkVehicleAsUnInstalled));
+				await authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? nameof(MarkVehicleAsUnInstalled));
 
 				await transaction.CommitAsync();
 
@@ -935,25 +920,25 @@ namespace BussinessLogic.Customers.Vehicles
 					IsActive = vehicle.IsActive
 				};
 
-				var To  = await (from c in _context.Emails
+				var To  = await (from c in context.Emails
 										 where c.ReportCode == "016"
 										 select c.ToCC ).FirstOrDefaultAsync();
 
-				var CC  = await (from c in _context.Emails
+				var CC  = await (from c in context.Emails
 											where c.ReportCode == "016"
 											select c.ToCC).FirstOrDefaultAsync();
-				CC = string.Join(",", CC, _authentication.Email());
+				CC = string.Join(",", CC, authentication.Email());
 
 
-			await	_emailService.SendEmail(To is null ? "reports@protoenergy.com" : To, CC, "Vehicle Uninstalled Notification",
-					BuildVehicleUninstalledEmail(_authentication.Name(), vehicle.VehicleRegistrationNumber, oldSerial, _authentication.Name()));
+			await	emailService.SendEmail(To is null ? "reports@protoenergy.com" : To, CC, "Vehicle Uninstalled Notification",
+					BuildVehicleUninstalledEmail(authentication.Name(), vehicle.VehicleRegistrationNumber, oldSerial, authentication.Name()));
 
 				return ServiceResponse<VehicleUninstallDto>.Success("Vehicle marked as uninstalled", responseDto);
 			}
 			catch (Exception ex)
 			{
 				await transaction.RollbackAsync();
-				_logger.LogError(ex, $"[{nameof(MarkVehicleAsUnInstalled)}] Error during vehicle uninstall");
+				logger.LogError(ex, $"[{nameof(MarkVehicleAsUnInstalled)}] Error during vehicle uninstall");
 				return ServiceResponse<VehicleUninstallDto>.Error("Vehicle not updated", null);
 			}
 		}
@@ -1003,7 +988,7 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var tanksSize = await (from s in _context.TankSizes
+				var tanksSize = await (from s in context.TankSizes
 									   select s).ToListAsync();
 				return ServiceResponse<object>.Success("Tank sizes retrieved successfully", tanksSize);
 			}
@@ -1022,11 +1007,11 @@ namespace BussinessLogic.Customers.Vehicles
 				if (string.IsNullOrWhiteSpace(nonOtogasVehicle.VehicleRegistrationNumber))
 					return ServiceResponse<object>.Information("Must provide vehicle number plate", null);
 
-				if (await _context.Walk_In_Customers.AnyAsync(v => v.VehicleRegistrationNumber == nonOtogasVehicle.VehicleRegistrationNumber))
+				if (await context.Walk_In_Customers.AnyAsync(v => v.VehicleRegistrationNumber == nonOtogasVehicle.VehicleRegistrationNumber))
 					return ServiceResponse<object>.Information("Vehicle already registered", null);
 
 				var dispenserTask = GetUserDispenser();
-				var vehicleCodeTask = _setups.GetCodeGenerator("VehicleCode");
+				var vehicleCodeTask = setups.GetCodeGenerator("VehicleCode");
 
 				await Task.WhenAll(dispenserTask, vehicleCodeTask);
 
@@ -1045,28 +1030,28 @@ namespace BussinessLogic.Customers.Vehicles
 					ProductCode = "03",
 					IsActive = true,
 					DateCreated =EatTime.Now,
-					UserCode = _authentication.Usercode(),
+					UserCode = authentication.Usercode(),
 					Name = nonOtogasVehicle.Name,
 					PhoneNumber = nonOtogasVehicle.PhoneNumber,
 					VehicleMake = nonOtogasVehicle.VehicleModel,
 				};
 
-				await using var transaction = await _context.Database.BeginTransactionAsync();
+				await using var transaction = await context.Database.BeginTransactionAsync();
 
-				_context.Walk_In_Customers.Add(vehicle);
-				await _context.SaveChangesAsync();
-				await _context.Database.ExecuteSqlRawAsync("EXEC RegisterWalkinCustomers");
+				context.Walk_In_Customers.Add(vehicle);
+				await context.SaveChangesAsync();
+				await context.Database.ExecuteSqlRawAsync("EXEC RegisterWalkinCustomers");
 
 				await transaction.CommitAsync();
 
-				var message = $"Vehicle {nonOtogasVehicle.VehicleRegistrationNumber} was registered by {_authentication.Name()} as a walk-in customer on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} from {station.StationName} station.";
-				await _authentication.AddUserTrail(message, nameof(RegisterNonOtogasVehicle));
+				var message = $"Vehicle {nonOtogasVehicle.VehicleRegistrationNumber} was registered by {authentication.Name()} as a walk-in customer on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} from {station.StationName} station.";
+				await authentication.AddUserTrail(message, nameof(RegisterNonOtogasVehicle));
 
 				return ServiceResponse<object>.Success("Vehicle added successfully", vehicle);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error during adding non-Otogas vehicle");
+				logger.LogError(ex, "Error during adding non-Otogas vehicle");
 				return ServiceResponse<object>.Error("Vehicle not added", null);
 			}
 		}
@@ -1076,7 +1061,7 @@ namespace BussinessLogic.Customers.Vehicles
 		// Private helper methods:
 		// Checks if a vehicle already exists in the system.
 		private async Task<bool> VehicleExists(string vehicleRegNumber) =>
-			await _context.Vehicles.AnyAsync(x => x.VehicleRegistrationNumber == vehicleRegNumber);
+			await context.Vehicles.AnyAsync(x => x.VehicleRegistrationNumber == vehicleRegNumber);
 
 		// Validates the vehicle registration number length.
 		private static bool IsValidVehicleNumber(string vehicleRegNumber)
@@ -1091,9 +1076,9 @@ namespace BussinessLogic.Customers.Vehicles
 		// Logs actions performed on a vehicle, such as adding or updating.
 		private async Task LogVehicleAction(string vehicleRegNo, string action)
 		{
-			var message = $"Vehicle {vehicleRegNo} was {action} by {_authentication.Name()} on {DateTime.UtcNow}";
-			await _authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
-			_logger.LogInformation($"Vehicle {vehicleRegNo} {action} by {_authentication.Name()} at {DateTime.UtcNow}", vehicleRegNo, action, _authentication.Name(),EatTime.Now);
+			var message = $"Vehicle {vehicleRegNo} was {action} by {authentication.Name()} on {DateTime.UtcNow}";
+			await authentication.AddUserTrail(message,MethodBase.GetCurrentMethod()?.Name ?? "");
+			logger.LogInformation($"Vehicle {vehicleRegNo} {action} by {authentication.Name()} at {DateTime.UtcNow}", vehicleRegNo, action, authentication.Name(),EatTime.Now);
 		}
 		//Loyalty
 
@@ -1106,7 +1091,7 @@ namespace BussinessLogic.Customers.Vehicles
 			{
 				VehicleModel = vehicle.VehicleModel.ToUpperInvariant(),
 				DateCreated =EatTime.Now,
-				UserCode = _authentication.Usercode(),
+				UserCode = authentication.Usercode(),
 				CustomerCode = vehicle.CustomerCode,
 				IsActive = true,
 				VehicleCode = vehicleCode,
@@ -1133,7 +1118,7 @@ namespace BussinessLogic.Customers.Vehicles
 			vehicle.ProductCode = vehicleDTO.ProductCode;
 			vehicle.TankCapacity = vehicleDTO.TankCapacity;
 			vehicle.IsActive = true;
-			vehicle.UserCode = _authentication.Usercode();
+			vehicle.UserCode = authentication.Usercode();
 			vehicle.PhoneNumber = vehicleDTO.PhoneNumber;
 		}
 
@@ -1142,14 +1127,14 @@ namespace BussinessLogic.Customers.Vehicles
 
 		// Retrieves a vehicle by its code.
 		private async Task<Vehicle?> GetVehicleByCodeAsync(string vehicleCode) =>
-			await _context.Vehicles.FirstOrDefaultAsync(x => x.VehicleCode == vehicleCode);
+			await context.Vehicles.FirstOrDefaultAsync(x => x.VehicleCode == vehicleCode);
 
 		// get vehicle for a specific customer
 		public async Task<ServiceResponse<object>> GetCustomerVehicles(string customerCode)
 		{
 			try
 			{
-				var customer = await _context.Customers
+				var customer = await context.Customers
 					.FirstOrDefaultAsync(x => x.CustomerCode == customerCode);
 
 
@@ -1157,20 +1142,20 @@ namespace BussinessLogic.Customers.Vehicles
 					return ServiceResponse<object>.Information("Customer not found", null);
 
 
-				var LoyaltyPointBalance = await (from rb in _context.RoyaltyPoints
+				var LoyaltyPointBalance = await (from rb in context.RoyaltyPoints
 												 where rb.CustomerCode == customer.CustomerCode
 												 select rb).SumAsync(x => x.PointsCredit - x.PointsDebit);
 
 
-				var CreditBalance = await (from rb in _context.CreditTransactions
+				var CreditBalance = await (from rb in context.CreditTransactions
 												 where rb.CustomerCode == customer.CustomerCode
 												 select rb).SumAsync(x => x.Credit - x.Debit);
 
 
 				var vehicles = await (
-					from v in _context.Vehicles
-					join ct in _context.Customers on v.CustomerCode equals ct.CustomerCode
-					join cb in _context.CustomerTransactions
+					from v in context.Vehicles
+					join ct in context.Customers on v.CustomerCode equals ct.CustomerCode
+					join cb in context.CustomerTransactions
 						on v.VehicleCode equals cb.VehicleCode into transactionGroup
 					from cb in transactionGroup.DefaultIfEmpty() // left join
 					where v.CustomerCode == customerCode
@@ -1228,7 +1213,7 @@ namespace BussinessLogic.Customers.Vehicles
 					LoyaltyPointBalance
 				};
 
-				var creditBalance = await (from ct in _context.CreditTransactions
+				var creditBalance = await (from ct in context.CreditTransactions
 										   where ct.CustomerCode == customerCode
 										   select new { ct.Credit, ct.Debit }).SumAsync(ct => ct.Credit - ct.Debit);
 										  
@@ -1250,7 +1235,7 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving customer vehicles");
+				logger.LogError(ex, "Error retrieving customer vehicles");
 				return ServiceResponse<object>.Error("Customer vehicles not retrieved", new object());
 			}
 		}
@@ -1260,8 +1245,8 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var customer = await _context.Customers.FirstOrDefaultAsync(x => x.CustomerCode == customerCode);
-				var customerToMerge = await _context.Customers.FirstOrDefaultAsync(x => x.CustomerCode == customerCodeToMerge);
+				var customer = await context.Customers.FirstOrDefaultAsync(x => x.CustomerCode == customerCode);
+				var customerToMerge = await context.Customers.FirstOrDefaultAsync(x => x.CustomerCode == customerCodeToMerge);
 
 				if (customer == null || customerToMerge == null)
 					return ServiceResponse<object>.Information("Customer not found", null);
@@ -1274,31 +1259,31 @@ namespace BussinessLogic.Customers.Vehicles
 				customer.KRAPin = customer.KRAPin == customerToMerge.KRAPin ? customer.KRAPin : customerToMerge.KRAPin;
 
 				//Update customer code in vehicles
-				var vehicles = await _context.Vehicles.Where(x => x.CustomerCode == customerCodeToMerge).ToListAsync();
+				var vehicles = await context.Vehicles.Where(x => x.CustomerCode == customerCodeToMerge).ToListAsync();
 				foreach (var vehicle in vehicles)
 				{
 					vehicle.CustomerCode = customerCode;
-					_context.Vehicles.Update(vehicle);
+					context.Vehicles.Update(vehicle);
 				}
 
 				//Delete customer to merge
-				_context.Customers.Remove(customerToMerge);
+				context.Customers.Remove(customerToMerge);
 
-				await _context.SaveChangesAsync();
+				await context.SaveChangesAsync();
 
 				return ServiceResponse<object>.Success("Customers merged successfully", customer);
 			}
 			catch (Exception ex)
 			{ 
-				_logger.LogError(ex, "Error merging customers");
+				logger.LogError(ex, "Error merging customers");
 				return ServiceResponse<object>.Error("Customers not merged", null);
 			}
 		}
 
 		public async Task<string> GetUserDispenser() 
 		{
-			var dispensercode = await (from ad in _context.DispenserAssignments
-									   where ad.AttedantUserCode.Equals(_authentication.Usercode())
+			var dispensercode = await (from ad in context.DispenserAssignments
+									   where ad.AttedantUserCode.Equals(authentication.Usercode())
 									   && ad.IsActive.Equals(true)
 									   select ad.DispenserCode).FirstOrDefaultAsync();
 			if (dispensercode != null)
@@ -1310,28 +1295,28 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var customer = await _context.Customers.FirstOrDefaultAsync(x => x.CustomerCode == customerCode);
+				var customer = await context.Customers.FirstOrDefaultAsync(x => x.CustomerCode == customerCode);
 
 				if (customer == null)
 					return ServiceResponse<object>.Information("Customer not found", null);
 
-				var customers = await _context.Customers.Where(x => x.CustomerName == customer.CustomerName || x.CustomerPhone == customer.CustomerPhone || x.CustomerEmail == customer.CustomerEmail).ToListAsync();
+				var customers = await context.Customers.Where(x => x.CustomerName == customer.CustomerName || x.CustomerPhone == customer.CustomerPhone || x.CustomerEmail == customer.CustomerEmail).ToListAsync();
 				//order the customers by what they have in common with the customer
-				customers = customers.OrderByDescending(x => (x.CustomerName == customer.CustomerName ? 1 : 0) + (x.CustomerPhone == customer.CustomerPhone ? 1 : 0) + (x.CustomerEmail == customer.CustomerEmail ? 1 : 0)).ToList();
+				customers = [.. customers.OrderByDescending(x => (x.CustomerName == customer.CustomerName ? 1 : 0) + (x.CustomerPhone == customer.CustomerPhone ? 1 : 0) + (x.CustomerEmail == customer.CustomerEmail ? 1 : 0))];
 
 				return ServiceResponse<object>.Success("Customers to merge retrieved successfully", customers);
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving customers to merge");
+				logger.LogError(ex, "Error retrieving customers to merge");
 				return ServiceResponse<object>.Error("Customers to merge not retrieved", null);
 			}
 		}
 		private async Task<StationData> GetStationName(string dispenserCode)
 		{
-			var station = await (from s in _context.Stations
-								 join d in _context.Dispensers on s.StationCode equals d.StationCode
-								 join t in _context.Tills on d.TillNumber equals t.TillNumber
+			var station = await (from s in context.Stations
+								 join d in context.Dispensers on s.StationCode equals d.StationCode
+								 join t in context.Tills on d.TillNumber equals t.TillNumber
 								 where d.DispenserCode == dispenserCode
 								 select new
 								 {
@@ -1354,9 +1339,9 @@ namespace BussinessLogic.Customers.Vehicles
 		{
 			try
 			{
-				var walkInCustomers = await (from w in _context.Walk_In_Customers
-											 join u in _context.Users on w.UserCode equals u.UserCode
-											 where !_context.Vehicles.Any(v => v.VehicleRegistrationNumber == w.VehicleRegistrationNumber)
+				var walkInCustomers = await (from w in context.Walk_In_Customers
+											 join u in context.Users on w.UserCode equals u.UserCode
+											 where !context.Vehicles.Any(v => v.VehicleRegistrationNumber == w.VehicleRegistrationNumber)
 											 select new
 											 {
 												 w.VehicleRegistrationNumber,
@@ -1370,17 +1355,17 @@ namespace BussinessLogic.Customers.Vehicles
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error retrieving walk in customers");
+				logger.LogError(ex, "Error retrieving walk in customers");
 				return ServiceResponse<object>.Error("Walk in customers not retrieved", null);
 			}
 		}
 
 		public async Task<ServiceResponse<TellematicDto>> AddTelematic(TellematicDto tellematic)
 		{
-			await using var transaction = await _context.Database.BeginTransactionAsync();
+			await using var transaction = await context.Database.BeginTransactionAsync();
 			try
 			{
-				var vehicle = await _context.Vehicles
+				var vehicle = await context.Vehicles
 					.FirstOrDefaultAsync(v => v.VehicleCode == tellematic.VehicleCode);
 
 				if (vehicle == null)
@@ -1402,35 +1387,35 @@ namespace BussinessLogic.Customers.Vehicles
 				vehicle.TelematicSerialNumber = tellematic.TelematicSerialNumber;
 				vehicle.TelematicInstallationDate =EatTime.Now;
 
-				_context.Entry(vehicle).State = EntityState.Modified;
-				await _context.SaveChangesAsync();
+				context.Entry(vehicle).State = EntityState.Modified;
+				await context.SaveChangesAsync();
 
 				// Audit log
 				var message = $"Telematics details added for vehicle {vehicle.VehicleRegistrationNumber} " +
-							  $"by {_authentication.Name()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC. " +
+							  $"by {authentication.Name()} on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC. " +
 							  $"Serial: {tellematic.TelematicSerialNumber}";
-				await _authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? nameof(AddTelematic));
+				await authentication.AddUserTrail(message, MethodBase.GetCurrentMethod()?.Name ?? nameof(AddTelematic));
 
 				// Commit DB transaction
 				await transaction.CommitAsync();
 
 				// --- 📧 Send Email Notification ---
-				var notification = await _context.Emails.FirstOrDefaultAsync(n => n.ReportCode == "016"); // Example ReportCode for telematics install
+				var notification = await context.Emails.FirstOrDefaultAsync(n => n.ReportCode == "016"); // Example ReportCode for telematics install
 				if (notification != null)
 				{
 					var toList = notification.To;
 					var ccList = notification.ToCC;
-					ccList = string.Join(",", ccList, _authentication.Email());
+					ccList = string.Join(",", ccList, authentication.Email());
 
 					// Build email body
 					var emailBody = BuildTelematicInstalledEmail(
-						approverName: _authentication.Name(),
+						approverName: authentication.Name(),
 						vehicleReg: vehicle.VehicleRegistrationNumber,
 						serial: vehicle.TelematicSerialNumber,
 						installationDate: vehicle.TelematicInstallationDate
 					);
 
-					 await _emailService.SendEmail(
+					 await emailService.SendEmail(
 						toList,
 						ccList,
 						$"Telematics Installed - {vehicle.VehicleRegistrationNumber}",
@@ -1451,7 +1436,7 @@ namespace BussinessLogic.Customers.Vehicles
 			catch (Exception ex)
 			{
 				await transaction.RollbackAsync();
-				_logger.LogError(ex, $"[{nameof(AddTelematic)}] Error adding telematics");
+				logger.LogError(ex, $"[{nameof(AddTelematic)}] Error adding telematics");
 				return ServiceResponse<TellematicDto>.Error("An error occurred while adding telematics details.", null);
 			}
 		}
@@ -1499,7 +1484,7 @@ namespace BussinessLogic.Customers.Vehicles
 			if (points < 0)
 				return ServiceResponse<object>.Information("Points cannot be negative",null);
 
-			var customer = await _context.Customers
+			var customer = await context.Customers
 				.FirstOrDefaultAsync(x => x.CustomerCode == customerCode);
 
 			if (customer == null)
@@ -1507,8 +1492,8 @@ namespace BussinessLogic.Customers.Vehicles
 
 			customer.BaseLoyaltyPoints = points;
 			
-			_context.Update(customer);
-			await _context.SaveChangesAsync();
+			context.Update(customer);
+			await context.SaveChangesAsync();
 
 			return ServiceResponse<object>.Success($"Royalty points updated for {customer.CustomerName}",null);
 		}
@@ -1520,7 +1505,7 @@ namespace BussinessLogic.Customers.Vehicles
 			if (string.IsNullOrWhiteSpace(phoneNumber))
 				return ServiceResponse<object>.Information("Customer code is required", null);
 
-			var customer = await _context.Customers
+			var customer = await context.Customers
 				.Where(x => x.CustomerPhone == phoneNumber)
 				.Select(x => new
 				{

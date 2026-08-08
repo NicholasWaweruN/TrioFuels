@@ -2,20 +2,14 @@
 using DataAccessLayer.DTOs.Shifts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Graph.Models;
 
-namespace ProtoOS.Controllers;
+namespace FuelFlow.Controllers;
 
 [ApiController]
 [Route("fuelflow/shifts")]
-public class ShiftSupervisorReconciliationController : ControllerBase
+public class ShiftSupervisorReconciliationController(IShiftSupervisorReconciliationService service) : ControllerBase
 {
-	private readonly IShiftSupervisorReconciliationService _service;
-
-	public ShiftSupervisorReconciliationController(IShiftSupervisorReconciliationService service)
-	{
-		_service = service;
-	}
+	private readonly IShiftSupervisorReconciliationService _service = service;
 
 	[Authorize]
 	[HttpPost("{shiftNumber}/supervisor-recon")]
