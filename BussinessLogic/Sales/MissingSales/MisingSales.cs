@@ -561,7 +561,10 @@ namespace BussinessLogic.Sales.MissingSales
 				}
 			});
 		}
-
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
 
 		// ======== SUPPORTING HELPERS ========
 		private async Task<string> GenerateUniqueSaleIdAsync()

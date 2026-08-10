@@ -30,7 +30,6 @@ namespace DataAccessLayer.DTOs.Sales
 
 	public class MisingSaleDto
 	{
-
 		public string? CustomerCode { get; set; } = string.Empty;
 		public string? WalletId { get; set; } = string.Empty;
 		public string VehicleRegistrationNumber { get; set; } = string.Empty;
@@ -49,7 +48,6 @@ namespace DataAccessLayer.DTOs.Sales
 		[Required]
 		public string Comment { get; set; } = string.Empty;
 		public decimal Price { get; set; } = decimal.Zero;
-
 		public List<PaymentDetails> PaymentDetails { get; set; } = [];
 	}
 
