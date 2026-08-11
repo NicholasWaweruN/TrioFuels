@@ -102,10 +102,7 @@ namespace BussinessLogic.Customers.Vehicles
 			catch (Exception ex)
 			{
 				logger.LogError(ex, "An error occurred while adding the vehicle");
-
-				return ServiceResponse<object>.Error(
-					"An unexpected error occurred. Vehicle not added.",
-					null);
+				return ServiceResponse<object>.Error("An unexpected error occurred. Vehicle not added.",null);
 			}
 		}
 		//add 

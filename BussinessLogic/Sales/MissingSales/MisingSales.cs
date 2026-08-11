@@ -123,6 +123,9 @@ namespace BussinessLogic.Sales.MissingSales
 			_context.Entry(mpesaTx).State = EntityState.Modified;
 		}
 
+
+
+
 		// ====== CENTRALIZED PRICE LOGIC ======
 
 		// REFACTORED: price is now resolved solely from sales.ProductCode
@@ -165,6 +168,7 @@ namespace BussinessLogic.Sales.MissingSales
 				PaymetMethod.PDQ => await HandlePDQAsync(sales),
 				PaymetMethod.Credit => await HandleCreditAsync(sales),
 				PaymetMethod.Loyalty => await HandleLoyaltyAsync(sales),
+				PaymetMethod.BatchSales => await HandleBatchSalesAsync(sales),
 				_ => ServiceResponse<object>.Information("Invalid payment type", null)
 			};
 		}
@@ -218,6 +222,38 @@ namespace BussinessLogic.Sales.MissingSales
 			await cmd.ExecuteScalarAsync();
 		}
 
+		private async Task<ServiceResponse<object>> HandleBatchSalesAsync(MisingSaleDto sales)
+		{
+			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);
+
+			var strategy = _context.Database.CreateExecutionStrategy();
+			return await strategy.ExecuteAsync(async () =>
+			{
+				await using var tx = await _context.Database.BeginTransactionAsync();
+				try
+				{
+					// No payment-type validation on purpose — this is a shift-close
+					// catch-up entry per nozzle, not a per-transaction sale. Cash,
+					// PDQ, Mpesa splits are irrelevant here; the whole amount is
+					// recorded as one lump under BatchSales.
+					await SaveTransactionDataAsync(sales, sales.CustomerCode ?? string.Empty);
+
+					await _salesTasks.ReconcileStockSummariesAsync(sales.ShiftNumber);
+
+					var details = BuildAuditDetails(sales, paymentRefs: sales.PaymentDetails.Select(p => p.TransactionReference));
+					var msg = $"{_authentication.Name()} recorded a BATCH SALES entry | SaleID={_saleId} | Station={_stationName}({_stationCode}) | Nozzle={sales.NozzleCode} | {details}";
+					await _authentication.AddUserTrail(msg, nameof(HandleBatchSalesAsync));
+
+					await tx.CommitAsync();
+					return ServiceResponse<object>.Success("Sales made successfully", null);
+				}
+				catch (Exception ex)
+				{
+					await tx.RollbackAsync();
+					return ServiceResponse<object>.Error($"Batch sales entry rolled back: {ex.Message}", null);
+				}
+			});
+		}
 		private async Task<ServiceResponse<object>> HandleCashAsync(MisingSaleDto sales)
 		{
 			if (sales.Quantity == 0) return ServiceResponse<object>.Information("Quantity cannot be zero", null);

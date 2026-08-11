@@ -122,12 +122,13 @@ namespace DataAccessLayer.Common
         public const int Voucher = 7;
         public const int Calibration = 8;
         public const int Compesation_Fuel = 9;
-		public const int BatchVoucher = 10;
+		public const int BatchSales = 10;
 		public const int Personal_Wallet = 11;
 		public const int Cash = 12;
 		public const int Credit = 13;
 		public const int Loyalty = 14;
 		public const int PDQ = 15;
+
 	}
 
 	public static class CarWashPaymetMethod
