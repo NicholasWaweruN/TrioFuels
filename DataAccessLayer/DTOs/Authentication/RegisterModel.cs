@@ -12,7 +12,7 @@ namespace DataAccessLayer.DTOs.Authentication
         [Required]
         public string LastName { get; set; } = string.Empty;
         public string MiddName { get; set; } = string.Empty;
-        [EmailAddress, CompanyEmail]
+        [EmailAddress]
         public string Email { get; set; } = string.Empty;
         [Required,Unicode(false),MinLength(10)]
         public string PhoneNumber { get; set; } = string.Empty;
@@ -23,21 +23,6 @@ namespace DataAccessLayer.DTOs.Authentication
         
     }
 
-
-
-    internal class CompanyEmailAttribute : Attribute
-    {
-        public static string Email(string email)
-        {
-            if (!email.EndsWith("@protoenergy.com"))
-            {
-                throw new Exception("Kindly Use CompanyEmail");
-            };
-            return email;
-        }
-
-    }
-
     public class UpdateUsers
     {
         [Required, StringLength(50, ErrorMessage = nameof(FirstName))]
@@ -45,7 +30,7 @@ namespace DataAccessLayer.DTOs.Authentication
         [Required]
         public string LastName { get; set; } = string.Empty;
         public string MiddName { get; set; } = string.Empty;
-        [Required, EmailAddress, CompanyEmail]
+        [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
         [Required, Unicode(false), MinLength(10)]
         public string PhoneNumber { get; set; } = string.Empty;

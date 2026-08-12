@@ -8,6 +8,10 @@ namespace Safaricom_Daraja.Helpers
 	{
 		private readonly OTOContext _context;
 
+		/// <summary>
+		/// /
+		/// </summary>
+		/// <param name="context"></param>
 		public ShiftResolver(OTOContext context)
 		{
 			_context = context;
