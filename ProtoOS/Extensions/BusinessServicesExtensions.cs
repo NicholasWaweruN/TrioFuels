@@ -67,6 +67,7 @@ using DataAccessLayer.DTOs.Messaging;
 using FuelFlow.Services.CarWash;
 using Safaricom_Daraja;
 using Safaricom_Daraja.Helpers;
+using Safaricom_Daraja.Mpesa;
 using Syncfusion.Pdf;
 using TrioCarWash.Services.Services;
 
@@ -197,6 +198,7 @@ public static class BusinessServicesExtensions
 		services.AddScoped<ICreditManagement, CreditManagement>();
 		services.AddScoped<IVehicleSales, VehicleSales>();
 
+		services.AddScoped<IMpesaStatements,MpesaStatements>();
 
 		services.AddScoped<ICarWashDashboardService, CarWashDashboardService>();
 		services.AddScoped<ICarwashCustomerService, CarwashCustomerService>();

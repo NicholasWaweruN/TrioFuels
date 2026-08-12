@@ -2,6 +2,7 @@
 using DataAccessLayer.DTOs.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Safaricom_Daraja.Mpesa;
 using System.ComponentModel.DataAnnotations;
 
 namespace FuelFlow.Controllers 
@@ -13,10 +14,12 @@ namespace FuelFlow.Controllers
 	public class PaymentsController : ControllerBase
 	{
 		private readonly IPaymentsSetups _payments;
+		private readonly IMpesaStatements _mpesaStatements;
 
-		public PaymentsController(IPaymentsSetups payments)
+		public PaymentsController(IPaymentsSetups payments, IMpesaStatements mpesaStatements)
 		{
 			_payments = payments;
+			_mpesaStatements = mpesaStatements;
 		}
 
 		private IActionResult CreateResponse<T>(T response) => Ok(response);
@@ -159,6 +162,39 @@ namespace FuelFlow.Controllers
 			return Ok(result);
 		}
 
-		#endregion
+
+
+			
+
+			[HttpGet]
+			public async Task<ActionResult<List<MpesaStatements.MpesaStatementLineDto>>> GetStatement(
+				[FromQuery] string? tillNumber,
+				[FromQuery] DateOnly? from,
+				[FromQuery] DateOnly? to,
+				CancellationToken ct)
+			{
+				var result = await _mpesaStatements.GetMpesaStatementAsync(tillNumber, from, to, ct);
+				return Ok(result);
+			}
+
+			[HttpGet("export")]
+			public async Task<IActionResult> ExportStatement(
+				[FromQuery] string? tillNumber,
+				[FromQuery] DateOnly? from,
+				[FromQuery] DateOnly? to,
+				CancellationToken ct)
+			{
+				var fileBytes = await _mpesaStatements.ExportMpesaStatementAsync(tillNumber, from, to, ct);
+
+				var fileName = $"MpesaStatement_{from?.ToString("yyyyMMdd") ?? "all"}_{to?.ToString("yyyyMMdd") ?? "all"}.xlsx";
+
+				return File(
+					fileBytes,
+					"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+					fileName);
+			}
+		}
 	}
-}
+
+		#endregion
+
