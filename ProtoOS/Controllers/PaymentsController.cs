@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Safaricom_Daraja.Mpesa;
 using System.ComponentModel.DataAnnotations;
+using static Safaricom_Daraja.Mpesa.MpesaStatements;
 
-namespace FuelFlow.Controllers 
+namespace FuelFlow.Controllers
 {
 	[Route("payments/[controller]")]
 	[ApiController]
@@ -87,7 +88,7 @@ namespace FuelFlow.Controllers
 		int pageNumber = 1,
 		int pageSize = 50)
 		{
-			var response = await _payments.MpesaTransactions(tillNumber, dateFrom, dateTo, transId,shiftNumber, pageNumber, pageSize);
+			var response = await _payments.MpesaTransactions(tillNumber, dateFrom, dateTo, transId, shiftNumber, pageNumber, pageSize);
 			return CreateResponse(response);
 		}
 		/// <summary>
@@ -142,7 +143,7 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpGet("check-unused-mpesa-code")]
-		public async Task<IActionResult> CheckUnusedMpesaCode([Required] string tillNumber,[Required] string shiftNumber,[Required] decimal amount)
+		public async Task<IActionResult> CheckUnusedMpesaCode([Required] string tillNumber, [Required] string shiftNumber, [Required] decimal amount)
 		{
 			var response = await _payments.CheckUnusedMpesaCode(tillNumber, shiftNumber, amount);
 			return CreateResponse(response);
@@ -162,34 +163,56 @@ namespace FuelFlow.Controllers
 			return Ok(result);
 		}
 		[HttpGet("view-mpesa-statement")]
-		public async Task<ActionResult<List<MpesaStatements.MpesaStatementLineDto>>> GetStatement(
-				[FromQuery] string? tillNumber,
-				[FromQuery] DateOnly? from,
-				[FromQuery] DateOnly? to,
-				CancellationToken ct)
+		public async Task<ActionResult<PagedResult<MpesaStatements.MpesaStatementLineDto>>> GetStatement(
+		[FromQuery] string? tillNumber,
+		[FromQuery] DateOnly? from,
+		[FromQuery] DateOnly? to,
+		[FromQuery] int pageNumber = 1,
+		[FromQuery] int pageSize = 50,
+		CancellationToken ct = default)
 		{
-			var result = await _mpesaStatements.GetMpesaStatementAsync(tillNumber, from, to, ct);
-			return Ok(result);
+			try
+			{
+				var result = await _mpesaStatements.GetMpesaStatementAsync(
+					tillNumber, from, to, pageNumber, pageSize, ct);
+				return Ok(result);
+			}
+			catch (ArgumentException ex)
+			{
+				return BadRequest(new { error = ex.Message });
+			}
 		}
 
-			[HttpGet("export-mpesa-statement")]
-			public async Task<IActionResult> ExportStatement(
-				[FromQuery] string? tillNumber,
-				[FromQuery] DateOnly? from,
-				[FromQuery] DateOnly? to,
-				CancellationToken ct)
+		[HttpGet("export-mpesa-statement")]
+		public async Task<IActionResult> ExportStatement(
+			[FromQuery] string? tillNumber,
+			[FromQuery] DateOnly? from,
+			[FromQuery] DateOnly? to,
+			CancellationToken ct)
+		{
+			try
 			{
 				var fileBytes = await _mpesaStatements.ExportMpesaStatementAsync(tillNumber, from, to, ct);
 
-				var fileName = $"MpesaStatement_{from?.ToString("yyyyMMdd") ?? "all"}_{to?.ToString("yyyyMMdd") ?? "all"}.xlsx";
+				var tillPart = string.IsNullOrWhiteSpace(tillNumber)
+					? "all"
+					: new string(tillNumber.Where(char.IsLetterOrDigit).ToArray());
+
+				var fileName =
+					$"MpesaStatement_{tillPart}_{from?.ToString("yyyyMMdd") ?? "all"}_{to?.ToString("yyyyMMdd") ?? "all"}.xlsx";
 
 				return File(
 					fileBytes,
 					"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 					fileName);
 			}
+			catch (ArgumentException ex)
+			{
+				return BadRequest(new { error = ex.Message });
+			}
 		}
 	}
+}
 
 		#endregion
 
