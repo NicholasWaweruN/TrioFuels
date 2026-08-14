@@ -161,23 +161,18 @@ namespace FuelFlow.Controllers
 			var result = await _payments.ConfirmMpesaPayment(transId, dispenserCode);
 			return Ok(result);
 		}
-
-
-
-			
-
-			[HttpGet]
-			public async Task<ActionResult<List<MpesaStatements.MpesaStatementLineDto>>> GetStatement(
+		[HttpGet("view-mpesa-statement")]
+		public async Task<ActionResult<List<MpesaStatements.MpesaStatementLineDto>>> GetStatement(
 				[FromQuery] string? tillNumber,
 				[FromQuery] DateOnly? from,
 				[FromQuery] DateOnly? to,
 				CancellationToken ct)
-			{
-				var result = await _mpesaStatements.GetMpesaStatementAsync(tillNumber, from, to, ct);
-				return Ok(result);
-			}
+		{
+			var result = await _mpesaStatements.GetMpesaStatementAsync(tillNumber, from, to, ct);
+			return Ok(result);
+		}
 
-			[HttpGet("export")]
+			[HttpGet("export-mpesa-statement")]
 			public async Task<IActionResult> ExportStatement(
 				[FromQuery] string? tillNumber,
 				[FromQuery] DateOnly? from,
