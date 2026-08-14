@@ -27,13 +27,7 @@ namespace Safaricom_Daraja.Mpesa
 			public bool HasPreviousPage => PageNumber > 1;
 		}
 
-		public async Task<PagedResult<MpesaStatementLineDto>> GetMpesaStatementAsync(
-			string? tillNumber = null,
-			DateOnly? from = null,
-			DateOnly? to = null,
-			int pageNumber = 1,
-			int pageSize = 50,
-			CancellationToken ct = default)
+		public async Task<PagedResult<MpesaStatementLineDto>> GetMpesaStatementAsync(string? tillNumber = null,DateOnly? from = null,DateOnly? to = null,int pageNumber = 1,int pageSize = 50,CancellationToken ct = default)
 		{
 			// Clamp paging inputs — never trust caller-supplied page size on a public/reporting endpoint
 			pageNumber = pageNumber < 1 ? 1 : pageNumber;
@@ -225,6 +219,7 @@ namespace Safaricom_Daraja.Mpesa
 				sheet.Cell(row, 5).Value = line.TillNumber;
 				sheet.Cell(row, 6).Value = line.Name;
 
+				//
 				// Zebra striping in a soft M-Pesa green tint for readability on long statements
 				if ((row - headerRow) % 2 == 0)
 				{
