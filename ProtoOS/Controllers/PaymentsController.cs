@@ -184,27 +184,17 @@ namespace FuelFlow.Controllers
 		}
 
 		[HttpGet("export-mpesa-statement")]
-		public async Task<IActionResult> ExportStatement(
-			[FromQuery] string? tillNumber,
-			[FromQuery] DateOnly? from,
-			[FromQuery] DateOnly? to,
-			CancellationToken ct)
+		public async Task<IActionResult> ExportStatement([FromQuery] string? tillNumber,[FromQuery] DateOnly? from,[FromQuery] DateOnly? to,CancellationToken ct)
 		{
 			try
 			{
 				var fileBytes = await _mpesaStatements.ExportMpesaStatementAsync(tillNumber, from, to, ct);
 
-				var tillPart = string.IsNullOrWhiteSpace(tillNumber)
-					? "all"
-					: new string(tillNumber.Where(char.IsLetterOrDigit).ToArray());
+				var tillPart = string.IsNullOrWhiteSpace(tillNumber) ? "all" : new string(tillNumber.Where(char.IsLetterOrDigit).ToArray());
 
-				var fileName =
-					$"MpesaStatement_{tillPart}_{from?.ToString("yyyyMMdd") ?? "all"}_{to?.ToString("yyyyMMdd") ?? "all"}.xlsx";
+				var fileName = $"MpesaStatement_{tillPart}_{from?.ToString("yyyyMMdd") ?? "all"}_{to?.ToString("yyyyMMdd") ?? "all"}.xlsx";
 
-				return File(
-					fileBytes,
-					"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-					fileName);
+				return File(fileBytes,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",fileName);
 			}
 			catch (ArgumentException ex)
 			{
